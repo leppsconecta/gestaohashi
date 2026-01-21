@@ -10,8 +10,8 @@ const MOCK_NAMES = ["Roberto Oliveira", "Amanda Souza", "Fernando Lima", "Julian
 const TIPOS_RESERVA = ["Aniver", "Confra", "Evento", "Outro"];
 
 const generateReservaCodigo = () => {
-  const nums = Math.floor(Math.random() * 900 + 100).toString(); 
-  const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26)); 
+  const nums = Math.floor(Math.random() * 900 + 100).toString();
+  const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
   return nums + letter;
 };
 
@@ -150,7 +150,7 @@ const ReservasPage: React.FC = () => {
         maxWidth: 'max-w-2xl',
         content: (
           <div className="space-y-6">
-             <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Código</label>
                 <p className="text-xl font-bold text-indigo-700 dark:text-indigo-400 tracking-wider">{item.codigo}</p>
@@ -203,24 +203,24 @@ const ReservasPage: React.FC = () => {
     { header: 'Tipo', accessor: (item: Reserva) => (<span className="text-[10px] px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 font-medium">{item.tipo}</span>), className: 'w-32' },
     { header: 'Cliente', accessor: (item: Reserva) => (<div className="flex flex-col"><span className="font-bold text-slate-900 dark:text-white text-sm">{item.nome}</span><span className="text-[10px] text-indigo-600 dark:text-indigo-400">{item.pax} {item.pax > 1 ? 'pessoas' : 'pessoa'}</span></div>), className: 'w-56' },
     { header: 'Contato', accessor: 'contato', className: 'w-36 text-slate-700' },
-    { 
-      header: 'Status', 
+    {
+      header: 'Status',
       accessor: (item: Reserva) => (
-        <select 
+        <select
           value={item.status}
           onChange={(e) => handleStatusChange(item.id, e.target.value as ReservaStatus)}
           onClick={(e) => e.stopPropagation()}
           className={`text-[10px] px-2.5 py-2 rounded-xl border-0 focus:ring-2 focus:ring-indigo-500 cursor-pointer outline-none transition-all shadow-sm font-bold
-            ${item.status === 'Pendente' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300' : 
-              item.status === 'Confirmado' ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-300' : 
-              item.status === 'Cancelado' ? 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-300' : 
-              'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300'}
+            ${item.status === 'Pendente' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300' :
+              item.status === 'Confirmado' ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-300' :
+                item.status === 'Cancelado' ? 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-300' :
+                  'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300'}
           `}
         >
-          <option value="Pendente">Pendente</option>
-          <option value="Confirmado">Confirmado</option>
-          <option value="Cancelado">Cancelado</option>
-          <option value="Finalizado">Finalizado</option>
+          <option value="Pendente" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Pendente</option>
+          <option value="Confirmado" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Confirmado</option>
+          <option value="Cancelado" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Cancelado</option>
+          <option value="Finalizado" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Finalizado</option>
         </select>
       ),
       className: 'w-36'
@@ -236,7 +236,7 @@ const ReservasPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Reservas</h1>
           <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerenciamento completo das reservas do estabelecimento.</p>
         </div>
-        <button 
+        <button
           onClick={() => setModalConfig({ isOpen: true, type: 'confirm-insert', title: 'Nova reserva', maxWidth: 'max-w-4xl', content: <ReservaForm />, onConfirm: () => console.log('Reserva cadastrada') })}
           className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-200 dark:shadow-none tracking-widest text-xs"
         >

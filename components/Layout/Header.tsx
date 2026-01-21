@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Moon, Menu, Save, LogOut, Lock } from 'lucide-react';
+import { Sun, Moon, Menu, LogOut, Lock } from 'lucide-react';
 import { AppRoute } from '../../types';
 
 interface HeaderProps {
@@ -12,11 +12,9 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('lepps_theme') === 'dark';
+    const theme = localStorage.getItem('lepps_theme');
+    return theme !== 'light';
   });
-  const [isSettingsDirty, setIsSettingsDirty] = useState(false);
-
-  const isSettingsPage = location.pathname === AppRoute.SETTINGS;
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -29,22 +27,8 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
     }
   }, [isDarkMode]);
 
-  useEffect(() => {
-    const handleStatus = (e: any) => {
-      if (e.detail) {
-        setIsSettingsDirty(e.detail.isDirty);
-      }
-    };
-    window.addEventListener('settings-status', handleStatus);
-    return () => window.removeEventListener('settings-status', handleStatus);
-  }, []);
-
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
-  };
-
-  const handleTriggerSave = () => {
-    window.dispatchEvent(new CustomEvent('trigger-settings-save'));
   };
 
   const handleLogout = () => {
@@ -56,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
   const handleLockAdmin = () => {
     // Revoga a permissão administrativa no armazenamento local
     localStorage.removeItem('hashi_admin_unlocked');
-    
+
     // Redireciona o usuário para o Painel (Dashboard)
     // Isso garante que ele saia de qualquer página de administração imediatamente
     // e o AdminGuard solicitará a senha no próximo acesso.
@@ -66,13 +50,13 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
   return (
     <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <button 
+        <button
           onClick={onMobileMenuOpen}
           className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
         >
           <Menu size={24} />
         </button>
-        
+
         <div className="hidden sm:block">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-200 tracking-tight">
             Seja bem vindo ao <span className="text-red-600 dark:text-red-400">Hashi Express Jundiaí</span>
@@ -81,15 +65,7 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
-        {isSettingsPage && isSettingsDirty && (
-          <button
-            onClick={handleTriggerSave}
-            className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-red-100 dark:shadow-none animate-in fade-in slide-in-from-right-2"
-          >
-            <Save size={14} strokeWidth={3} />
-            Salvar Agora
-          </button>
-        )}
+
 
         <button
           onClick={handleLockAdmin}
@@ -101,14 +77,14 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
         </button>
 
         <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-4">
-          <button 
+          <button
             onClick={toggleDarkMode}
             className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          
-          <button 
+
+          <button
             onClick={handleLogout}
             className="p-2 text-slate-400 hover:text-red-500 transition-colors"
           >

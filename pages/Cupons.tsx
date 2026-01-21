@@ -127,8 +127,8 @@ const CuponsPage: React.FC = () => {
     }
   };
 
-  const filteredCupons = cupons.filter(c => 
-    c.titulo.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredCupons = cupons.filter(c =>
+    c.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.descricao.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -150,7 +150,7 @@ const CuponsPage: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
+        <button
           onClick={handleNovoCupom}
           className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-red-100 dark:shadow-none transition-all active:scale-95"
         >
@@ -162,33 +162,32 @@ const CuponsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCupons.map((cupom, idx) => {
           return (
-            <div 
-              key={cupom.id} 
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md h-fit"
+            <div
+              key={cupom.id}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md h-full"
             >
               <div className={`h-1.5 w-full ${cupom.ativa ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
-              
+
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 flex items-center gap-2">
                     <div className="flex items-center gap-2">
-                       <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md border ${
-                         cupom.ativa 
-                           ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30' 
-                           : 'text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'
-                       }`}>
-                         {idx + 1}
-                       </span>
-                       <div className="flex items-center gap-1.5">
-                         <Ticket size={14} className={cupom.ativa ? 'text-emerald-500' : 'text-slate-400'} />
-                         <h4 className="font-bold text-slate-800 dark:text-white leading-tight">
-                           {cupom.titulo}
-                         </h4>
-                       </div>
+                      <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md border ${cupom.ativa
+                          ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30'
+                          : 'text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'
+                        }`}>
+                        {idx + 1}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Ticket size={14} className={cupom.ativa ? 'text-emerald-500' : 'text-slate-400'} />
+                        <h4 className="font-bold text-slate-800 dark:text-white leading-tight">
+                          {cupom.titulo}
+                        </h4>
+                      </div>
                     </div>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => toggleCupomActive(cupom.id)}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${cupom.ativa ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
                   >
@@ -197,7 +196,7 @@ const CuponsPage: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-50 dark:border-slate-800 mt-2 space-y-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic h-20 overflow-y-auto pr-1 custom-scrollbar">
                     {cupom.descricao}
                   </p>
 
@@ -205,12 +204,12 @@ const CuponsPage: React.FC = () => {
                     <div className="p-2 text-slate-400">
                       <ExternalLink size={16} />
                     </div>
-                    <input 
-                      readOnly 
-                      value={cupom.link} 
-                      className="flex-1 bg-transparent text-[11px] text-slate-500 dark:text-slate-400 outline-none truncate font-medium" 
+                    <input
+                      readOnly
+                      value={cupom.link}
+                      className="flex-1 bg-transparent text-[11px] text-slate-500 dark:text-slate-400 outline-none truncate font-medium"
                     />
-                    <button 
+                    <button
                       onClick={() => handleCopy(cupom.link)}
                       className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
                       title="Copiar Link"
@@ -223,7 +222,7 @@ const CuponsPage: React.FC = () => {
                     <span className={`text-[10px] font-black uppercase tracking-widest ${cupom.ativa ? 'text-emerald-500' : 'text-slate-300'}`}>
                       {cupom.ativa ? 'ATIVO' : 'INATIVO'}
                     </span>
-                    
+
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleAction('view', cupom)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all" title="Visualizar"><Eye size={16} /></button>
                       <button onClick={() => handleAction('edit', cupom)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all" title="Editar"><Edit3 size={16} /></button>
@@ -237,7 +236,7 @@ const CuponsPage: React.FC = () => {
         })}
       </div>
 
-      <Modal 
+      <Modal
         isOpen={modalConfig.isOpen}
         type={modalConfig.type}
         title={modalConfig.title}

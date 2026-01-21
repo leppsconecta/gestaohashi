@@ -2,10 +2,8 @@
 import React from 'react';
 
 export enum AppRoute {
-  LANDING = '/home',
   DASHBOARD = '/dashboard',
   LOGIN = '/login',
-  RESPOSTAS = '/respostas',
   RESERVAS = '/reservas',
   CURRICULOS = '/curriculos',
   CURRICULO_DETAIL = '/curriculos/:id',
@@ -20,7 +18,6 @@ export enum AppRoute {
   CARDAPIO = '/cardapio',
   LOGINS_SENHAS = '/logins-senhas',
   ARQUIVOS = '/arquivos',
-  SETTINGS = '/settings',
   PUBLIC_FORM_FUNCIONARIO = '/public/cadastro-funcionario',
   MENU_ONLINE = '/public/menu',
   LINK_MANAGEMENT = '/gestao-link'
@@ -96,6 +93,7 @@ export interface Curriculo {
   cidade: string;
   bairro: string;
   observacao?: string;
+  arquivo_url?: string;
 }
 
 export type FuncionarioStatus = 'Ativo' | 'Inativo' | 'Férias' | 'Afastado';
