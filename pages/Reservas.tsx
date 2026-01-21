@@ -1,33 +1,13 @@
 
-import React, { useState } from 'react';
-import { Plus, Eye, Edit3, Trash2, StickyNote, Calendar as CalendarIcon, Clock, User, Users, Phone, Activity, FileText, Bookmark } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Eye, Edit3, Trash2, StickyNote, Calendar as CalendarIcon, Clock, User, Users, Phone, Activity, FileText, Bookmark, RefreshCw } from 'lucide-react';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
 import { Reserva, ReservaStatus, ModalType } from '../types';
+import { supabase } from '../lib/supabase';
 
 // Mock Data Helpers
-const MOCK_NAMES = ["Roberto Oliveira", "Amanda Souza", "Fernando Lima", "Juliana Silva", "Carlos Mendes", "Patrícia Santos", "Bruno Ferreira", "Luciana Costa"];
 const TIPOS_RESERVA = ["Aniver", "Confra", "Evento", "Outro"];
-
-const generateReservaCodigo = () => {
-  const nums = Math.floor(Math.random() * 900 + 100).toString();
-  const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-  return nums + letter;
-};
-
-const MOCK_RESERVAS: Reserva[] = Array.from({ length: 40 }).map((_, i) => ({
-  id: `res-${i}`,
-  codigo: generateReservaCodigo(),
-  data: new Date(2024, 4, Math.floor(Math.random() * 28) + 1).toLocaleDateString('pt-BR'),
-  hora: `${Math.floor(Math.random() * 4) + 18}:${Math.floor(Math.random() * 6)}0`,
-  tipo: TIPOS_RESERVA[Math.floor(Math.random() * TIPOS_RESERVA.length)],
-  nome: MOCK_NAMES[i % MOCK_NAMES.length],
-  pax: Math.floor(Math.random() * 10) + 1,
-  contato: `(11) 9 ${Math.floor(Math.random() * 9000 + 1000)}-${Math.floor(Math.random() * 9000 + 1000)}`,
-  origem: "Sistema",
-  status: ['Pendente', 'Confirmado', 'Cancelado', 'Finalizado'][Math.floor(Math.random() * 4)] as ReservaStatus,
-  observacao: i % 4 === 0 ? "Comemoração de aniversário. Precisa de espaço para bolo." : ""
-}));
 
 const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
   const inputClass = "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-inner";
@@ -110,7 +90,10 @@ const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
 };
 
 const ReservasPage: React.FC = () => {
-  const [data, setData] = useState<Reserva[]>(MOCK_RESERVAS);
+  const [data, setData] = useState<Reserva[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('Pendente');
+
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void; maxWidth?: string }>({
     isOpen: false,
     type: 'view-content',
@@ -119,8 +102,81 @@ const ReservasPage: React.FC = () => {
     maxWidth: 'max-w-lg'
   });
 
-  const handleStatusChange = (id: string, newStatus: ReservaStatus) => {
-    setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
+  const fetchReservas = async () => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase
+        .schema('gestaohashi')
+        .from('reservas')
+        .select(`
+          id, code, date, time, customer_name, customer_contact, 
+          guests, type, status, notes
+        `)
+        .order('date', { ascending: false })
+        .order('time', { ascending: false });
+
+      if (error) throw error;
+
+      if (result) {
+        const formattedData: Reserva[] = result.map(item => ({
+          id: item.id,
+          codigo: item.code || '',
+          data: item.date ? new Date(item.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+          // Hora pode vir nula ou incompleta, garantir robustez
+          hora: item.time ? item.time.substring(0, 5) : '00:00',
+          tipo: item.type || 'Outro',
+          nome: item.customer_name || 'Cliente Sem Nome',
+          pax: item.guests || 2,
+          contato: item.customer_contact || '',
+          origem: 'Sistema',
+          status: (item.status || 'Pendente') as ReservaStatus,
+          observacao: item.notes || ''
+        }));
+        setData(formattedData);
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar reservas:', error);
+      alert(`Erro: ${error.message || JSON.stringify(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReservas();
+  }, []);
+
+  const handleStatusChange = async (id: string, newStatus: ReservaStatus) => {
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('reservas')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status.');
+    }
+  };
+
+  const deleteReserva = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setData(prev => prev.filter(r => r.id !== id));
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      alert('Erro ao excluir reserva.');
+    }
   };
 
   const handleAction = (type: 'view' | 'edit' | 'delete', item: Reserva) => {
@@ -131,7 +187,7 @@ const ReservasPage: React.FC = () => {
         title: 'Excluir reserva',
         maxWidth: 'max-w-lg',
         content: `Tem certeza que deseja excluir a reserva de ${item.nome} marcada para ${item.data} às ${item.hora}?`,
-        onConfirm: () => setData(prev => prev.filter(r => r.id !== item.id))
+        onConfirm: () => deleteReserva(item.id)
       });
     } else if (type === 'edit') {
       setModalConfig({
@@ -140,7 +196,7 @@ const ReservasPage: React.FC = () => {
         title: 'Editar reserva',
         maxWidth: 'max-w-4xl',
         content: <ReservaForm initialData={item} />,
-        onConfirm: () => console.log('Reserva atualizada')
+        onConfirm: () => console.log('Reserva atualizada (Implementar lógica de update se necessário)')
       });
     } else {
       setModalConfig({
@@ -196,8 +252,15 @@ const ReservasPage: React.FC = () => {
     }
   };
 
+  const getUnresolvedCount = (status: string) => {
+    return data.filter(item => item.status === status).length;
+  };
+
+  const tabs = ['Pendente', 'Confirmado', 'Finalizado', 'Cancelado'];
+  const filteredData = data.filter(item => item.status === activeTab);
+
   const columns = [
-    { header: '#', accessor: (_: any, index: number) => <span className="text-slate-500">{index}</span>, className: 'w-12 text-center' },
+    { header: '#', accessor: (_: any, index: number) => <span className="text-slate-500">{index + 1}</span>, className: 'w-12 text-center' },
     { header: 'Código', accessor: (item: Reserva) => <span className="font-bold text-indigo-700 dark:text-indigo-400 tracking-widest">{item.codigo}</span>, className: 'w-24' },
     { header: 'Data/Hora', accessor: (item: Reserva) => (<div className="flex flex-col"><span className="text-slate-900 dark:text-slate-100">{item.data}</span><span className="text-[10px] text-slate-500">{item.hora}</span></div>), className: 'w-28' },
     { header: 'Tipo', accessor: (item: Reserva) => (<span className="text-[10px] px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 font-medium">{item.tipo}</span>), className: 'w-32' },
@@ -231,9 +294,14 @@ const ReservasPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Reservas</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Reservas</h1>
+            <button onClick={fetchReservas} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
           <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerenciamento completo das reservas do estabelecimento.</p>
         </div>
         <button
@@ -245,7 +313,63 @@ const ReservasPage: React.FC = () => {
         </button>
       </div>
 
-      <Table columns={columns} data={data} searchPlaceholder="Buscar por código, cliente ou tipo..." />
+      {/* Abas */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700 pb-1">
+        {tabs.map(tab => {
+          const count = getUnresolvedCount(tab);
+
+          let activeClass = '';
+          let inactiveClass = '';
+          let badgeClass = '';
+
+          switch (tab) {
+            case 'Pendente':
+              activeClass = 'bg-red-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-red-600';
+              inactiveClass = 'bg-red-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-red-700 shadow-sm';
+              break;
+            case 'Confirmado':
+              activeClass = 'bg-emerald-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-emerald-600';
+              inactiveClass = 'bg-emerald-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-emerald-700 shadow-sm';
+              break;
+            case 'Finalizado':
+              activeClass = 'bg-blue-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-blue-600';
+              inactiveClass = 'bg-blue-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-blue-700 shadow-sm';
+              break;
+            case 'Cancelado':
+              activeClass = 'bg-orange-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-orange-600';
+              inactiveClass = 'bg-orange-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-orange-700 shadow-sm';
+              break;
+            default:
+              activeClass = 'bg-indigo-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-indigo-600';
+              inactiveClass = 'bg-indigo-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-indigo-700 shadow-sm';
+          }
+
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                relative px-6 py-3 rounded-t-lg font-bold text-sm transition-all flex items-center gap-2 border-b-2
+                ${activeTab === tab ? activeClass : inactiveClass}
+              `}
+            >
+              {tab}
+              {count > 0 && (
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold animate-pulse ${badgeClass}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <Table columns={columns} data={filteredData} searchPlaceholder="Buscar por código, cliente ou tipo..." />
 
       <Modal isOpen={modalConfig.isOpen} type={modalConfig.type} title={modalConfig.title} content={modalConfig.content} maxWidth={modalConfig.maxWidth} onConfirm={modalConfig.onConfirm} onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} />
     </div>

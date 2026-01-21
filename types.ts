@@ -127,6 +127,8 @@ export interface Funcionario {
     cidade: string;
     estado: string;
   };
+  documentoFrente?: string;
+  documentoVerso?: string;
 }
 
 export interface TurnoConfig {
@@ -145,7 +147,7 @@ export interface EscalaAtribuicao {
 }
 
 export type FeedbackStatus = 'Pendente' | 'Resolvendo' | 'Resolvido';
-export type FeedbackTipo = 'Reclamação' | 'Elogio';
+export type FeedbackTipo = 'Reclamação' | 'Elogio' | 'Sugestão' | 'Denúncia';
 export type FeedbackOrigem = 'Site' | 'Whatsapp' | 'Google';
 
 export interface Feedback {
@@ -161,7 +163,7 @@ export interface Feedback {
 }
 
 export type ConsumacaoStatus = 'Pendente' | 'Utilizado' | 'Expirado';
-export type ConsumacaoTipo = 'Sorteio' | 'Cortesia';
+export type ConsumacaoTipo = 'Sorteio' | 'Cortesia' | 'Voucher';
 
 export interface Consumacao {
   id: string;
@@ -225,4 +227,6 @@ export interface ModalProps {
   onConfirm?: () => void;
   onClose: () => void;
   maxWidth?: string;
+  confirmText?: string;
+  autoClose?: boolean;
 }

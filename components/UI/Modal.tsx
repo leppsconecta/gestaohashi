@@ -3,7 +3,7 @@ import React from 'react';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { ModalProps, ModalType } from '../../types';
 
-const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg', confirmText, autoClose = true }) => {
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -26,7 +26,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-      <div 
+      <div
         className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full ${maxWidth} flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -36,14 +36,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, 
             {getIcon()}
             <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{title}</h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
-        
+
         {/* Body - Rolável */}
         <div className="px-6 py-6 text-slate-600 dark:text-slate-300 overflow-y-auto flex-1 custom-scrollbar">
           {typeof content === 'string' ? <p className="leading-relaxed">{content}</p> : content}
@@ -61,11 +61,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, 
             <button
               onClick={() => {
                 onConfirm();
-                onClose();
+                if (autoClose) onClose();
               }}
               className={`px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors shadow-sm ${getConfirmButtonStyles()}`}
             >
-              {type === 'confirm-delete' ? 'Confirmar Exclusão' : 'Confirmar'}
+              {confirmText || (type === 'confirm-delete' ? 'Confirmar Exclusão' : 'Confirmar')}
             </button>
           )}
         </div>
