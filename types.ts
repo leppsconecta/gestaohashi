@@ -52,6 +52,18 @@ export interface CategoriaPrato {
   nome: string;
 }
 
+export interface ComboProduct {
+  id: string;
+  nome: string;
+  descricao?: string;
+  quantidade: string;
+  unidade: 'Unid' | 'g' | 'ml';
+  foto?: string;
+  isFromCardapio?: boolean;
+  originalItemId?: string;
+  useOriginalDescription?: boolean;
+}
+
 export interface CardapioItem {
   id: string;
   nome: string;
@@ -59,6 +71,10 @@ export interface CardapioItem {
   preco?: string;
   foto?: string;
   ativo: boolean;
+  isCombo?: boolean;
+  comboItens?: ComboProduct[];
+  showSavings?: boolean;
+  savingsAmount?: string;
   visivel?: boolean;
 }
 
@@ -204,6 +220,14 @@ export interface LoginSenha {
   observacao?: string;
 }
 
+export interface Arquivo {
+  id: string;
+  created_at: string;
+  nome: string;
+  url: string;
+  descricao?: string;
+}
+
 export interface Promocao {
   id: string;
   titulo: string;
@@ -212,6 +236,15 @@ export interface Promocao {
   ativa: boolean;
   dataInicio?: string;
   dataFim?: string;
+}
+
+export interface HeroImage {
+  id: string;
+  foto_url: string;
+  titulo: string;
+  subtitulo: string;
+  show_description: boolean;
+  ordem: number;
 }
 
 export interface CronogramaMensal {
