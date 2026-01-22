@@ -20,7 +20,8 @@ import {
   Loader2,
   Filter,
   Search,
-  Layers
+  Layers,
+  MoreVertical
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import { ModalType } from '../types';
@@ -143,6 +144,8 @@ const CardapioPage: React.FC = () => {
   // Category name editing
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
 
   // Drag and drop state
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
@@ -184,6 +187,27 @@ const CardapioPage: React.FC = () => {
   // Filter state
   const [showFilter, setShowFilter] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
+
+  // Hero images state (up to 3 images for menu cover)
+  interface HeroImage {
+    id: string;
+    foto: string;
+    titulo: string; // max 20 characters
+    subtitulo: string; // max 50 characters
+    showDescription: boolean;
+  }
+  const [heroImagesExpanded, setHeroImagesExpanded] = useState(false);
+  const [heroImages, setHeroImages] = useState<HeroImage[]>([
+    { id: 'hero-1', foto: '', titulo: '', subtitulo: '', showDescription: false },
+    { id: 'hero-2', foto: '', titulo: '', subtitulo: '', showDescription: false },
+    { id: 'hero-3', foto: '', titulo: '', subtitulo: '', showDescription: false }
+  ]);
+  const [uploadingHeroIndex, setUploadingHeroIndex] = useState<number | null>(null);
+  const heroFileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  // Section expanded states
+  const [productsExpanded, setProductsExpanded] = useState(true); // Products expanded by default
+  const [splashExpanded, setSplashExpanded] = useState(false);
 
   // Get all products from all categories for autocomplete
   const allProducts = categorias.flatMap(cat =>
@@ -432,7 +456,59 @@ const CardapioPage: React.FC = () => {
     }
   };
 
-  // Add product from autocomplete
+  // Hero image upload handler
+  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem válida.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 5MB.');
+      return;
+    }
+
+    setUploadingHeroIndex(index);
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setHeroImages(prev => prev.map((img, idx) =>
+          idx === index ? { ...img, foto: reader.result as string } : img
+        ));
+        setUploadingHeroIndex(null);
+      };
+      reader.onerror = () => {
+        alert('Erro ao processar o arquivo.');
+        setUploadingHeroIndex(null);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      alert('Erro ao fazer upload.');
+      setUploadingHeroIndex(null);
+    }
+
+    if (heroFileInputRefs[index]?.current) {
+      heroFileInputRefs[index].current!.value = '';
+    }
+  };
+
+  // Update hero image field
+  const updateHeroImageField = (index: number, field: 'titulo' | 'subtitulo' | 'showDescription', value: string | boolean) => {
+    setHeroImages(prev => prev.map((img, idx) =>
+      idx === index ? { ...img, [field]: value } : img
+    ));
+  };
+
+  // Remove hero image
+  const removeHeroImage = (index: number) => {
+    setHeroImages(prev => prev.map((img, idx) =>
+      idx === index ? { ...img, foto: '', titulo: '', subtitulo: '', showDescription: false } : img
+    ));
+  };
   const addProductFromSuggestion = () => {
     if (!selectedProduct) return;
     if (!newComboProduct.quantidade.trim()) {
@@ -649,410 +725,641 @@ const CardapioPage: React.FC = () => {
             <ExternalLink size={16} />
             Visualizar
           </button>
-          <button
-            onClick={handleAddCategoria}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition-all"
-          >
-            <Plus size={18} />
-            Nova Categoria
-          </button>
         </div>
       </div>
 
-      {/* Category Tabs - Horizontal Scrollable */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-2">
-        {canScrollLeft && (
-          <button
-            onClick={() => scrollTabs('left')}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-          >
-            <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
-          </button>
-        )}
-
-        <div
-          ref={tabsContainerRef}
-          onScroll={checkScroll}
-          className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      {/* Hero Images - Collapsible Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <button
+          onClick={() => setHeroImagesExpanded(!heroImagesExpanded)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
         >
-          {categorias.map(cat => (
-            <div key={cat.id} className="flex-shrink-0">
-              {editingCategoryId === cat.id ? (
-                <div className="flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-slate-700 rounded-xl border-2 border-indigo-500">
-                  <input
-                    type="text"
-                    value={editingCategoryName}
-                    onChange={(e) => setEditingCategoryName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleUpdateCategoryName(cat.id);
-                      if (e.key === 'Escape') { setEditingCategoryId(null); setEditingCategoryName(''); }
-                    }}
-                    autoFocus
-                    className="w-24 px-2 py-1 bg-transparent text-sm font-medium outline-none text-slate-900 dark:text-white"
-                  />
-                  <button
-                    onClick={() => handleUpdateCategoryName(cat.id)}
-                    className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
-                  >
-                    <Check size={16} />
-                  </button>
-                  <button
-                    onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}
-                    className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setActiveCatId(cat.id)}
-                  onDoubleClick={() => startEditingCategory(cat)}
-                  className={`
-                    px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap
-                    ${activeCatId === cat.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }
-                  `}
-                  title="Clique duplo para editar"
-                >
-                  {cat.nome}
-                  <span className={`ml-2 text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
-                    ({cat.itens.length})
-                  </span>
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {canScrollRight && (
-          <button
-            onClick={() => scrollTabs('right')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-          >
-            <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
-          </button>
-        )}
-      </div>
-
-      {/* Category Header with Actions */}
-      {activeCategory && (
-        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
-            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-              {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
-            </span>
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <ImageIcon size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Imagens - Capa MENU</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Adicione até 3 imagens para o carrossel do menu</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* View Toggle */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                title="Visualização em grade"
-              >
-                <Grid3X3 size={18} />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                title="Visualização em lista"
-              >
-                <List size={18} />
-              </button>
-            </div>
+          <ChevronRight size={20} className={`text-slate-400 transition-transform ${heroImagesExpanded ? 'rotate-90' : ''}`} />
+        </button>
 
-            {/* Filter */}
-            <div className="relative flex items-center">
-              {showFilter ? (
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+        {heroImagesExpanded && (
+          <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              {heroImages.map((hero, idx) => (
+                <div key={hero.id} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">IMAGEM {idx + 1}</span>
+                    {hero.foto && (
+                      <button
+                        onClick={() => removeHeroImage(idx)}
+                        className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all"
+                        title="Remover imagem"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Hidden file input */}
                   <input
-                    type="text"
-                    value={filterQuery}
-                    onChange={(e) => setFilterQuery(e.target.value)}
-                    placeholder="Buscar..."
-                    autoFocus
-                    className="px-3 py-2 bg-transparent text-sm w-40 outline-none text-slate-900 dark:text-white"
+                    ref={heroFileInputRefs[idx]}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleHeroImageUpload(e, idx)}
+                    className="hidden"
                   />
-                  <button
-                    onClick={() => { setShowFilter(false); setFilterQuery(''); }}
-                    className="p-2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowFilter(true)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-                  title="Filtrar produtos"
-                >
-                  <Search size={18} />
-                </button>
-              )}
-            </div>
 
-            {/* Add Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowAddDropdown(!showAddDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
-              >
-                <Plus size={16} />
-                Adicionar
-              </button>
-
-              {showAddDropdown && (
-                <>
-                  {/* Backdrop */}
+                  {/* Image upload area */}
                   <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowAddDropdown(false)}
-                  />
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
+                    onClick={() => !uploadingHeroIndex && heroFileInputRefs[idx]?.current?.click()}
+                    className="aspect-video rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-amber-400 transition-all overflow-hidden relative"
+                  >
+                    {uploadingHeroIndex === idx ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 size={24} className="text-amber-500 animate-spin" />
+                        <span className="text-xs text-slate-400">Carregando...</span>
+                      </div>
+                    ) : hero.foto ? (
+                      <>
+                        <img src={hero.foto} alt={`Hero ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">Clique para trocar</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <Upload size={24} />
+                        <span className="text-xs">Clique para enviar</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Toggle for description */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Adicionar descrição?</span>
                     <button
-                      onClick={() => {
-                        openItemModal();
-                        setShowAddDropdown(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all"
+                      onClick={() => updateHeroImageField(idx, 'showDescription', !hero.showDescription)}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${hero.showDescription ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}
                     >
-                      <ImageIcon size={18} className="text-emerald-500" />
-                      Adicionar Produto
-                    </button>
-                    <button
-                      onClick={() => {
-                        openComboModal();
-                        setShowAddDropdown(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all"
-                    >
-                      <Grid3X3 size={18} className="text-amber-500" />
-                      Adicionar Combo
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${hero.showDescription ? 'translate-x-5' : ''}`} />
                     </button>
                   </div>
-                </>
+
+                  {/* Title and Subtitle inputs - only shown if toggle is on */}
+                  {hero.showDescription && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-600">
+                      {/* Title input - max 20 characters */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Título</label>
+                          <span className={`text-[10px] ${hero.titulo.length > 20 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {hero.titulo.length}/20
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={hero.titulo}
+                          onChange={(e) => updateHeroImageField(idx, 'titulo', e.target.value.slice(0, 20))}
+                          placeholder="Título"
+                          maxLength={20}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                        />
+                      </div>
+
+                      {/* Subtitle input - max 50 characters */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Subtítulo</label>
+                          <span className={`text-[10px] ${hero.subtitulo.length > 50 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {hero.subtitulo.length}/50
+                          </span>
+                        </div>
+                        <textarea
+                          value={hero.subtitulo}
+                          onChange={(e) => updateHeroImageField(idx, 'subtitulo', e.target.value.slice(0, 50))}
+                          placeholder="Subtítulo"
+                          maxLength={50}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Products Section - Collapsible */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-visible">
+        <button
+          onClick={() => setProductsExpanded(!productsExpanded)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+              <Grid3X3 size={18} className="text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Produtos</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie categorias e itens do cardápio</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+              {categorias.reduce((acc, cat) => acc + cat.itens.length, 0)} itens
+            </span>
+            <ChevronRight size={20} className={`text-slate-400 transition-transform ${productsExpanded ? 'rotate-90' : ''}`} />
+          </div>
+        </button>
+
+        {productsExpanded && (
+          <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800 space-y-4 pt-4">
+            {/* Category Tabs - Horizontal Scrollable */}
+            <div className="relative bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-2 overflow-visible">
+              {canScrollLeft && (
+                <button
+                  onClick={() => scrollTabs('left')}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                >
+                  <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
+                </button>
+              )}
+
+              <div
+                ref={tabsContainerRef}
+                onScroll={checkScroll}
+                className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {categorias.map(cat => (
+                  <div key={cat.id} className="flex-shrink-0">
+                    {editingCategoryId === cat.id ? (
+                      <div className="flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-slate-700 rounded-xl border-2 border-indigo-500">
+                        <input
+                          type="text"
+                          value={editingCategoryName}
+                          onChange={(e) => setEditingCategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleUpdateCategoryName(cat.id);
+                            if (e.key === 'Escape') { setEditingCategoryId(null); setEditingCategoryName(''); }
+                          }}
+                          autoFocus
+                          className="w-24 px-2 py-1 bg-transparent text-sm font-medium outline-none text-slate-900 dark:text-white"
+                        />
+                        <button
+                          onClick={() => handleUpdateCategoryName(cat.id)}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}
+                          className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <button
+                          onClick={() => setActiveCatId(cat.id)}
+                          className={`
+                      px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2
+                      ${activeCatId === cat.id
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }
+                    `}
+                        >
+                          {cat.nome}
+                          <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            ({cat.itens.length})
+                          </span>
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setMenuPosition({ top: rect.bottom + 8, left: rect.right - 140 });
+                              setCategoryMenuOpen(categoryMenuOpen === cat.id ? null : cat.id);
+                            }}
+                            className={`ml-1 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer ${activeCatId === cat.id ? 'text-indigo-200 hover:text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            <MoreVertical size={14} />
+                          </span>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {categoryMenuOpen === cat.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[100]"
+                              onClick={() => setCategoryMenuOpen(null)}
+                            />
+                            <div
+                              className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[140px]"
+                              style={{
+                                top: menuPosition.top,
+                                left: menuPosition.left
+                              }}
+                            >
+                              <button
+                                onClick={() => {
+                                  startEditingCategory(cat);
+                                  setCategoryMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
+                              >
+                                <Edit3 size={14} className="text-indigo-500" />
+                                Renomear
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleDeleteCategoria(cat.id);
+                                  setCategoryMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
+                              >
+                                <Trash2 size={14} className="text-red-500" />
+                                Deletar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add Category Button */}
+                <button
+                  onClick={handleAddCategoria}
+                  className="flex-shrink-0 flex items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition-all whitespace-nowrap shadow-sm"
+                >
+                  <Plus size={18} />
+                  Nova Categoria
+                </button>
+              </div>
+
+              {canScrollRight && (
+                <button
+                  onClick={() => scrollTabs('right')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                >
+                  <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
+                </button>
               )}
             </div>
 
-            <button
-              onClick={() => handleDeleteCategoria(activeCategory.id)}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-              title="Excluir categoria"
-            >
-              <Trash2 size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+            {/* Category Header with Actions */}
+            {activeCategory && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
+                  <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                    {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* View Toggle */}
+                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                      title="Visualização em grade"
+                    >
+                      <Grid3X3 size={18} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                      title="Visualização em lista"
+                    >
+                      <List size={18} />
+                    </button>
+                  </div>
 
-      {/* GRID VIEW */}
-      {viewMode === 'grid' && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {activeCategory?.itens
-            .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
-            .map((item, idx) => (
-              <div
-                key={item.id}
-                draggable
-                onDragStart={() => handleDragStart(item.id)}
-                onDragOver={(e) => handleDragOver(e, item.id)}
-                onDrop={() => handleDrop(item.id)}
-                onDragEnd={handleDragEnd}
-                className={`
+                  {/* Filter */}
+                  <div className="relative flex items-center">
+                    {showFilter ? (
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                        <input
+                          type="text"
+                          value={filterQuery}
+                          onChange={(e) => setFilterQuery(e.target.value)}
+                          placeholder="Buscar..."
+                          autoFocus
+                          className="px-3 py-2 bg-transparent text-sm w-40 outline-none text-slate-900 dark:text-white"
+                        />
+                        <button
+                          onClick={() => { setShowFilter(false); setFilterQuery(''); }}
+                          className="p-2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowFilter(true)}
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                        title="Filtrar produtos"
+                      >
+                        <Search size={18} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowAddDropdown(!showAddDropdown)}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
+                    >
+                      <Plus size={16} />
+                      Adicionar
+                    </button>
+
+                    {showAddDropdown && (
+                      <>
+                        {/* Backdrop */}
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowAddDropdown(false)}
+                        />
+                        {/* Dropdown Menu */}
+                        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
+                          <button
+                            onClick={() => {
+                              openItemModal();
+                              setShowAddDropdown(false);
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all whitespace-nowrap"
+                          >
+                            <ImageIcon size={18} className="text-emerald-500 flex-shrink-0" />
+                            Adicionar Produto
+                          </button>
+                          <button
+                            onClick={() => {
+                              openComboModal();
+                              setShowAddDropdown(false);
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all whitespace-nowrap"
+                          >
+                            <Grid3X3 size={18} className="text-amber-500 flex-shrink-0" />
+                            Adicionar Combo
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleDeleteCategoria(activeCategory.id)}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                    title="Excluir categoria"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* GRID VIEW */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                {activeCategory?.itens
+                  .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
+                  .map((item, idx) => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => handleDragStart(item.id)}
+                      onDragOver={(e) => handleDragOver(e, item.id)}
+                      onDrop={() => handleDrop(item.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`
                 bg-white dark:bg-slate-900 rounded-xl border overflow-hidden hover:shadow-lg transition-all group cursor-grab active:cursor-grabbing
                 ${dragOverItemId === item.id ? 'border-indigo-500 border-2 scale-105' : 'border-slate-100 dark:border-slate-800'}
                 ${draggedItemId === item.id ? 'opacity-50' : 'opacity-100'}
               `}
-              >
-                {/* Product Image */}
-                <div className="aspect-square bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
-                  {item.foto ? (
-                    <img src={item.foto} alt={item.nome} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon size={32} className="text-slate-300 dark:text-slate-600" />
-                    </div>
-                  )}
-                  {/* Combo Badge */}
-                  {item.isCombo && (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-md flex items-center gap-1">
-                      <Layers size={10} />
-                      COMBO
-                    </div>
-                  )}
-                  {/* Hover Actions */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                      className="p-2 bg-white text-slate-700 rounded-lg hover:bg-slate-100 transition-all"
-                      title="Editar"
                     >
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
-                      title="Excluir"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+                      {/* Product Image */}
+                      <div className="aspect-square bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+                        {item.foto ? (
+                          <img src={item.foto} alt={item.nome} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ImageIcon size={32} className="text-slate-300 dark:text-slate-600" />
+                          </div>
+                        )}
+                        {/* Combo Badge */}
+                        {item.isCombo && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-md flex items-center gap-1">
+                            <Layers size={10} />
+                            COMBO
+                          </div>
+                        )}
+                        {/* Hover Actions */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
+                            className="p-2 bg-white text-slate-700 rounded-lg hover:bg-slate-100 transition-all"
+                            title="Editar"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
 
-                {/* Product Info */}
-                <div className="p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <h3 className="font-semibold text-slate-900 dark:text-white text-xs truncate flex-1">{item.nome}</h3>
-                    {item.isCombo && (
-                      <span className="text-[9px] text-indigo-500 font-medium">{item.comboItens?.length} itens</span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 min-h-[24px]">
-                    {item.descricao || 'Sem descrição'}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                      R$ {item.preco || '0,00'}
-                    </span>
-                    {item.isCombo && item.showSavings && item.savingsAmount && (
-                      <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
-                        -R${item.savingsAmount}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                      {/* Product Info */}
+                      <div className="p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <h3 className="font-semibold text-slate-900 dark:text-white text-xs truncate flex-1">{item.nome}</h3>
+                          {item.isCombo && (
+                            <span className="text-[9px] text-indigo-500 font-medium">{item.comboItens?.length} itens</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 min-h-[24px]">
+                          {item.descricao || 'Sem descrição'}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            R$ {item.preco || '0,00'}
+                          </span>
+                          {item.isCombo && item.showSavings && item.savingsAmount && (
+                            <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
+                              -R${item.savingsAmount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
               </div>
-            ))}
+            )}
 
-          {/* Add Product Card */}
-          <button
-            onClick={() => openItemModal()}
-            className="aspect-square bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all"
-          >
-            <Plus size={28} strokeWidth={1.5} />
-            <span className="font-medium text-xs">Adicionar</span>
-          </button>
-        </div>
-      )}
-
-      {/* LIST VIEW */}
-      {viewMode === 'list' && (
-        <div className="space-y-2">
-          {activeCategory?.itens
-            .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
-            .map((item, idx) => (
-              <div
-                key={item.id}
-                draggable
-                onDragStart={() => handleDragStart(item.id)}
-                onDragOver={(e) => handleDragOver(e, item.id)}
-                onDrop={() => handleDrop(item.id)}
-                onDragEnd={handleDragEnd}
-                className={`
+            {/* LIST VIEW */}
+            {viewMode === 'list' && (
+              <div className="space-y-2">
+                {activeCategory?.itens
+                  .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
+                  .map((item, idx) => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => handleDragStart(item.id)}
+                      onDragOver={(e) => handleDragOver(e, item.id)}
+                      onDrop={() => handleDrop(item.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`
                 bg-white dark:bg-slate-900 rounded-xl border p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all
                 ${dragOverItemId === item.id ? 'border-indigo-500 border-2 scale-[1.02]' : 'border-slate-100 dark:border-slate-800'}
                 ${draggedItemId === item.id ? 'opacity-50' : 'opacity-100'}
               `}
-              >
-                {/* Drag Handle */}
-                <div className="flex-shrink-0 text-slate-300 dark:text-slate-600">
-                  <GripVertical size={20} />
-                </div>
-
-                {/* Image Thumbnail with Combo Badge */}
-                <div className="relative flex-shrink-0">
-                  <div
-                    onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                    className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all group"
-                    title="Clique para editar"
-                  >
-                    {item.foto ? (
-                      <img src={item.foto} alt={item.nome} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
-                      </div>
-                    )}
-                  </div>
-                  {/* Combo Badge */}
-                  {item.isCombo && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                      <Layers size={10} className="text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Editable Fields - 20% nome, 65% descrição, 15% preço */}
-                <div className="flex-1 flex items-center gap-3">
-                  {/* Nome - 20% */}
-                  <input
-                    type="text"
-                    value={item.nome}
-                    onChange={(e) => updateItemField(item.id, 'nome', e.target.value)}
-                    placeholder="Nome do produto"
-                    className="w-[20%] min-w-[100px] px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  />
-                  {/* Descrição - 65% */}
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) => updateItemField(item.id, 'descricao', e.target.value)}
-                    placeholder="Descrição do produto"
-                    className="w-[65%] flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  />
-                  {/* Preço - 15% */}
-                  <div className="w-[15%] min-w-[90px] flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm font-medium">R$</span>
-                      <input
-                        type="text"
-                        value={item.preco}
-                        onChange={(e) => updateItemField(item.id, 'preco', formatPrice(e.target.value))}
-                        placeholder="0,00"
-                        className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all flex-shrink-0"
                     >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
+                      {/* Drag Handle */}
+                      <div className="flex-shrink-0 text-slate-300 dark:text-slate-600">
+                        <GripVertical size={20} />
+                      </div>
+
+                      {/* Image Thumbnail with Combo Badge */}
+                      <div className="relative flex-shrink-0">
+                        <div
+                          onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
+                          className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all group"
+                          title="Clique para editar"
+                        >
+                          {item.foto ? (
+                            <img src={item.foto} alt={item.nome} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Combo Badge */}
+                        {item.isCombo && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                            <Layers size={10} className="text-white" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Editable Fields - 20% nome, 65% descrição, 15% preço */}
+                      <div className="flex-1 flex items-center gap-3">
+                        {/* Nome - 20% */}
+                        <input
+                          type="text"
+                          value={item.nome}
+                          onChange={(e) => updateItemField(item.id, 'nome', e.target.value)}
+                          placeholder="Nome do produto"
+                          className="w-[20%] min-w-[100px] px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                        {/* Descrição - 65% */}
+                        <input
+                          type="text"
+                          value={item.descricao}
+                          onChange={(e) => updateItemField(item.id, 'descricao', e.target.value)}
+                          placeholder="Descrição do produto"
+                          className="w-[65%] flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                        {/* Preço - 15% */}
+                        <div className="w-[15%] min-w-[90px] flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm font-medium">R$</span>
+                            <input
+                              type="text"
+                              value={item.preco}
+                              onChange={(e) => updateItemField(item.id, 'preco', formatPrice(e.target.value))}
+                              placeholder="0,00"
+                              className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all flex-shrink-0"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
               </div>
-            ))}
+            )}
 
-          {/* Add Item Button */}
-          <button
-            onClick={() => openItemModal()}
-            className="w-full py-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 transition-all"
-          >
-            <Plus size={20} />
-            <span className="font-medium text-sm">Adicionar Produto</span>
-          </button>
-        </div>
-      )}
+            {/* Empty State */}
+            {activeCategory?.itens.length === 0 && (
+              <div className="text-center py-12">
+                <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
+                <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
+                <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
+                <button
+                  onClick={() => openItemModal()}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
+                >
+                  Adicionar Produto
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Empty State */}
-      {activeCategory?.itens.length === 0 && (
-        <div className="text-center py-12">
-          <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
-          <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
-          <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
-          <button
-            onClick={() => openItemModal()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
-          >
-            Adicionar Produto
-          </button>
-        </div>
-      )}
+      {/* Splash Section - Collapsible */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <button
+          onClick={() => setSplashExpanded(!splashExpanded)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <Layers size={18} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Splash</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Configurar tela de abertura do menu</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-full">
+              Em breve
+            </span>
+            <ChevronRight size={20} className={`text-slate-400 transition-transform ${splashExpanded ? 'rotate-90' : ''}`} />
+          </div>
+        </button>
+
+        {splashExpanded && (
+          <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
+            <div className="py-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
+                <Layers size={32} className="text-purple-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">Splash Screen</h3>
+              <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
+                Configure uma tela de abertura personalizada para o seu menu digital. Esta funcionalidade estará disponível em breve.
+              </p>
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm font-medium">
+                <Loader2 size={14} className="animate-spin" />
+                Em desenvolvimento
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Product Modal */}
       <Modal

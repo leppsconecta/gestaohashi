@@ -246,7 +246,7 @@ const MenuOnline: React.FC = () => {
 
       {/* Categories Bar */}
       <div id="menu-start" className="sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
-        <div className="flex gap-1 p-2 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 p-2 overflow-x-auto scrollbar-hide justify-center md:justify-center">
           {MENU_DATA.map(cat => (
             <button
               key={cat.id}
@@ -276,19 +276,22 @@ const MenuOnline: React.FC = () => {
               onClick={() => openExpanded(activeCatId, idx)}
               className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group relative ${item.isCombo ? 'border-purple-200 ring-1 ring-purple-100' : 'border-slate-100'}`}
             >
-              {/* Combo Badge */}
+              {/* Combo and Savings Badges - Stacked vertically on mobile */}
               {item.isCombo && (
-                <div className="absolute top-3 left-3 z-10 px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg">
-                  <Layers size={10} />
-                  COMBO
-                </div>
-              )}
+                <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                  {/* Combo Badge */}
+                  <div className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
+                    <Layers size={10} />
+                    COMBO
+                  </div>
 
-              {/* Savings Badge */}
-              {item.isCombo && item.showSavings && item.savingsAmount && (
-                <div className="absolute top-3 right-3 z-10 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg">
-                  <Sparkles size={10} />
-                  -R${item.savingsAmount}
+                  {/* Savings Badge */}
+                  {item.showSavings && item.savingsAmount && (
+                    <div className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
+                      <Sparkles size={10} />
+                      -R${item.savingsAmount}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -368,7 +371,7 @@ const MenuOnline: React.FC = () => {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             className={`
-              bg-white rounded-3xl overflow-hidden max-w-md w-[90%] max-h-[85vh] shadow-2xl
+              bg-white rounded-3xl overflow-hidden overflow-y-auto max-w-md w-[90%] max-h-[85vh] shadow-2xl
               transition-all duration-150 ease-out
               ${slideDirection === 'left' ? '-translate-x-full opacity-0' : ''}
               ${slideDirection === 'right' ? 'translate-x-full opacity-0' : ''}
@@ -413,10 +416,10 @@ const MenuOnline: React.FC = () => {
                       {/* Expanded Carousel View */}
                       {expandedComboItemIndex !== null && (
                         <div className="bg-white rounded-2xl border-2 border-purple-200 overflow-hidden mb-4 shadow-lg">
-                          {/* Carousel Header */}
+                          {/* Carousel Header with Combo X label */}
                           <div className="bg-purple-100 px-4 py-2 flex items-center justify-between">
                             <span className="text-xs font-bold text-purple-700">
-                              Combo {expandedComboItemIndex + 1} de {currentItem.comboItens.length}
+                              Item {expandedComboItemIndex + 1} de {currentItem.comboItens.length}
                             </span>
                             <button
                               onClick={() => setExpandedComboItemIndex(null)}
@@ -426,74 +429,116 @@ const MenuOnline: React.FC = () => {
                             </button>
                           </div>
 
-                          {/* Carousel Content */}
-                          <div className="relative">
-                            <div className="aspect-video bg-slate-100 overflow-hidden">
-                              {currentItem.comboItens[expandedComboItemIndex].foto ? (
+                          {/* Carousel Content - Only show image section if item has photo */}
+                          {currentItem.comboItens[expandedComboItemIndex].foto ? (
+                            <div className="relative">
+                              <div className="aspect-video bg-slate-100 overflow-hidden">
                                 <img
                                   src={currentItem.comboItens[expandedComboItemIndex].foto}
                                   alt={currentItem.comboItens[expandedComboItemIndex].nome}
                                   className="w-full h-full object-cover"
                                 />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Package size={32} className="text-slate-300" />
-                                </div>
+                              </div>
+
+                              {/* Navigation Arrows */}
+                              {expandedComboItemIndex > 0 && (
+                                <button
+                                  onClick={() => setExpandedComboItemIndex(expandedComboItemIndex - 1)}
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all"
+                                >
+                                  <ChevronLeft size={18} className="text-purple-600" />
+                                </button>
+                              )}
+                              {expandedComboItemIndex < currentItem.comboItens.length - 1 && (
+                                <button
+                                  onClick={() => setExpandedComboItemIndex(expandedComboItemIndex + 1)}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all"
+                                >
+                                  <ChevronRight size={18} className="text-purple-600" />
+                                </button>
                               )}
                             </div>
+                          ) : null}
 
-                            {/* Navigation Arrows */}
-                            {expandedComboItemIndex > 0 && (
-                              <button
-                                onClick={() => setExpandedComboItemIndex(expandedComboItemIndex - 1)}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all"
-                              >
-                                <ChevronLeft size={18} className="text-purple-600" />
-                              </button>
-                            )}
-                            {expandedComboItemIndex < currentItem.comboItens.length - 1 && (
-                              <button
-                                onClick={() => setExpandedComboItemIndex(expandedComboItemIndex + 1)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all"
-                              >
-                                <ChevronRight size={18} className="text-purple-600" />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Item Details */}
+                          {/* Item Details - Full information when expanded */}
                           <div className="p-4">
                             <h4 className="font-bold text-slate-800 mb-1">{currentItem.comboItens[expandedComboItemIndex].nome}</h4>
-                            <p className="text-sm text-slate-500 mb-2">{currentItem.comboItens[expandedComboItemIndex].descricao || 'Sem descrição'}</p>
+                            <p className="text-sm text-slate-500 mb-2">{currentItem.comboItens[expandedComboItemIndex].descricao}</p>
                             <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
                               {currentItem.comboItens[expandedComboItemIndex].quantidade} {currentItem.comboItens[expandedComboItemIndex].unidade || 'Unid'}
                             </span>
                           </div>
+
+                          {/* Carousel dots indicator - only show dots for items with descriptions */}
+                          <div className="flex justify-center gap-1.5 pb-3">
+                            {currentItem.comboItens.filter(i => i.descricao).map((item, idx) => {
+                              const realIdx = currentItem.comboItens.findIndex(i => i.id === item.id);
+                              return (
+                                <button
+                                  key={item.id}
+                                  onClick={() => setExpandedComboItemIndex(realIdx)}
+                                  className={`w-2 h-2 rounded-full transition-all ${realIdx === expandedComboItemIndex ? 'bg-purple-600 w-4' : 'bg-purple-200 hover:bg-purple-300'}`}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
-                      {/* Products List */}
-                      <div className="bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm">
-                        {currentItem.comboItens.map((item, idx) => (
-                          <button
-                            key={item.id}
-                            onClick={() => setExpandedComboItemIndex(expandedComboItemIndex === idx ? null : idx)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-purple-50 last:border-0 ${expandedComboItemIndex === idx ? 'bg-purple-50' : 'hover:bg-slate-50'}`}
-                          >
-                            <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-                              {idx + 1}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-slate-800 text-sm truncate">{item.nome}</p>
-                              <p className="text-xs text-slate-400 truncate">{item.descricao || 'Sem descrição'}</p>
+                      {/* Products List - Compact view with scroll after 5 items */}
+                      <div className={`bg-white rounded-2xl border border-purple-100 overflow-hidden shadow-sm ${currentItem.comboItens.length > 5 ? 'max-h-80 overflow-y-auto' : ''}`}>
+                        {currentItem.comboItens.map((item, idx) => {
+                          const hasDescription = !!item.descricao;
+                          const isClickable = hasDescription;
+
+                          return (
+                            <div key={item.id} className="relative">
+                              {/* Item X label above each item */}
+                              <div className="bg-purple-50 px-4 py-1 border-b border-purple-100">
+                                <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wide">
+                                  Item {idx + 1}
+                                </span>
+                              </div>
+                              {isClickable ? (
+                                <button
+                                  onClick={() => setExpandedComboItemIndex(expandedComboItemIndex === idx ? null : idx)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-purple-50 last:border-0 ${expandedComboItemIndex === idx ? 'bg-purple-50' : 'hover:bg-slate-50'}`}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    {/* Product Name */}
+                                    <p className="font-semibold text-slate-800 text-sm truncate">{item.nome}</p>
+                                    {/* Brief Description */}
+                                    <p className="text-xs text-slate-400 truncate">{item.descricao}</p>
+                                  </div>
+                                  {/* Quantity */}
+                                  <span className="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                    {item.quantidade}x
+                                  </span>
+                                  <ChevronRight size={14} className={`text-slate-400 transition-transform flex-shrink-0 ${expandedComboItemIndex === idx ? 'rotate-90' : ''}`} />
+                                </button>
+                              ) : (
+                                <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-purple-50 last:border-0">
+                                  <div className="flex-1 min-w-0">
+                                    {/* Product Name */}
+                                    <p className="font-semibold text-slate-800 text-sm truncate">{item.nome}</p>
+                                    {/* No description indicator */}
+                                    <p className="text-xs text-slate-300 italic">Sem descrição</p>
+                                  </div>
+                                  {/* Quantity */}
+                                  <span className="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                    {item.quantidade}x
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            <span className="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                              {item.quantidade} {item.unidade || 'Unid'}
-                            </span>
-                            <ChevronRight size={14} className={`text-slate-400 transition-transform flex-shrink-0 ${expandedComboItemIndex === idx ? 'rotate-90' : ''}`} />
-                          </button>
-                        ))}
+                          );
+                        })}
                       </div>
+
+                      {/* Scroll hint */}
+                      {currentItem.comboItens.length > 5 && (
+                        <p className="text-[10px] text-center text-purple-400 mt-2">Role para ver mais itens</p>
+                      )}
                     </div>
                   )}
 
