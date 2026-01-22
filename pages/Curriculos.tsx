@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Trash2, StickyNote, RefreshCw } from 'lucide-react';
+import { Eye, StickyNote, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
@@ -42,30 +42,6 @@ const CurriculosPage: React.FC = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
-  const handleDeleteClick = (e: React.MouseEvent, item: Curriculo) => {
-    e.stopPropagation();
-    setModalConfig({
-      isOpen: true,
-      type: 'confirm-delete',
-      title: 'Confirmar exclusão',
-      content: `Tem certeza que deseja excluir o currículo de ${item.nome}? Esta ação não pode ser desfeita.`,
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase
-            .from('view_curriculos_gestao')
-            .delete()
-            .eq('id', item.id);
-
-          if (error) throw error;
-
-          queryClient.invalidateQueries({ queryKey: ['curriculos'] });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-          alert('Erro ao excluir registro.');
-        }
-      }
-    });
-  };
 
   const handleObsClick = (e: React.MouseEvent, item: Curriculo) => {
     e.stopPropagation();
@@ -168,13 +144,7 @@ const CurriculosPage: React.FC = () => {
           >
             <Eye size={18} />
           </button>
-          <button
-            onClick={(e) => handleDeleteClick(e, item)}
-            className="p-2 text-slate-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-lg transition-all"
-            title="Excluir"
-          >
-            <Trash2 size={18} />
-          </button>
+
         </div>
       ),
       className: 'w-28'
