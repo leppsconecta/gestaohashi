@@ -110,7 +110,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
 
   const isLoginPath = location.pathname === AppRoute.LOGIN || location.pathname === '/';
-  const isPublicFormPath = location.pathname.startsWith('/public/');
+  const isPublicFormPath = location.pathname.startsWith('/public/') || location.pathname === AppRoute.PUBLIC_FORM_FUNCIONARIO;
   const isPublicRoute = isLoginPath || isPublicFormPath;
 
   useEffect(() => {

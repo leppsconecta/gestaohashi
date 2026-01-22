@@ -1,398 +1,458 @@
-
-import React, { useState } from 'react';
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  CreditCard, 
-  FileText, 
-  MapPin, 
-  CheckCircle2, 
-  Briefcase,
-  ChevronRight,
-  ArrowLeft,
-  Plus
+import React, { useState, useEffect } from 'react';
+import {
+  Briefcase, User, CreditCard, Upload, MapPin, FileText, CheckCircle, Search, ChevronDown
 } from 'lucide-react';
-import { Funcionario, FuncionarioContrato } from '../types';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 const PublicFormFuncionario: React.FC = () => {
-  const [step, setStep] = useState(1);
-  const [submitted, setSubmitted] = useState(false);
-  
-  // Estado do formulário
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [formClosed, setFormClosed] = useState(false);
+
+  // Initial check if form is enabled
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .schema('gestaohashi')
+          .from('config')
+          .select('value')
+          .eq('key', 'public_form_enabled')
+          .single();
+
+        if (error) throw error;
+
+        const isEnabled = data?.value === 'true';
+        if (!isEnabled) {
+          setFormClosed(true);
+        }
+      } catch (err) {
+        console.error('Error checking form status:', err);
+        // Fail safe: close form if error? Or keep open? 
+        // Let's close it to be safe, or maybe default to open if we just created it?
+        // The user initialized it to 'true' in migration.
+      }
+    };
+
+    checkStatus();
+  }, []);
+
   const [formData, setFormData] = useState({
-    tipoContrato: 'CLT (Padrão)' as FuncionarioContrato,
+    status: 'Ativo', // Default to active for new public registrations? Or maybe 'Pending'? Keeping 'Ativo' as per previous form but user might want 'Inativo' or 'Pendente' for approval. Sticking to User request "preencher formulário".
+    tipoContrato: 'CLT',
     funcao: '',
+    dataEntrada: new Date().toISOString().split('T')[0],
     nome: '',
-    contato: '',
-    email: '',
     sexo: 'Masculino',
     dataNascimento: '',
-    titularConta: '',
+    telefone: '',
+    telefoneRecado: '',
+    email: '',
+    titular: '',
     banco: '',
     pixTipo: 'CPF',
     pixChave: '',
-    documentoNumero: '',
+    docTipo: 'RG',
+    docNumero: '',
     rua: '',
     numero: '',
     bairro: '',
     cidade: '',
-    estado: 'SP'
+    estado: 'SP',
+    complemento: ''
   });
 
-  const isFreelancer = formData.tipoContrato === 'Freelancer';
+  const [roles, setRoles] = useState<{ id: string, name: string }[]>([]);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [docFrente, setDocFrente] = useState<File | null>(null);
+  const [docVerso, setDocVerso] = useState<File | null>(null);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const fetchRoles = async () => {
+    const { data } = await supabase.schema('gestaohashi').from('cargos').select('*').order('name');
+    if (data) setRoles(data);
   };
 
-  const inputClass = "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-medium";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1";
-  const stepTitle = "text-xl font-black text-slate-800 uppercase tracking-tight mb-6 flex items-center gap-2";
+  useEffect(() => { fetchRoles(); }, []);
 
-  const handleSubmit = () => {
-    // Gerar dados automáticos de sistema
-    const newFuncionario: Funcionario = {
-      id: String(Date.now()),
-      codigo: `#${Math.floor(1000 + Math.random() * 9000)}`,
-      dataEntrada: new Date().toLocaleDateString('pt-BR'),
-      status: 'Ativo',
-      ...formData,
-      endereco: !isFreelancer ? {
-        rua: formData.rua,
-        numero: formData.numero,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        estado: formData.estado
-      } : undefined
-    };
-
-    // Simular salvamento (em um SaaS real seria uma chamada de API)
-    const existing = JSON.parse(localStorage.getItem('hashi_public_submissions') || '[]');
-    localStorage.setItem('hashi_public_submissions', JSON.stringify([newFuncionario, ...existing]));
-    
-    setSubmitted(true);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  if (submitted) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'frente' | 'verso') => {
+    if (e.target.files && e.target.files[0]) {
+      if (type === 'frente') setDocFrente(e.target.files[0]);
+      else setDocVerso(e.target.files[0]);
+    }
+  };
+
+  const uploadFile = async (file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `docs/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('curriculos')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('curriculos')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      let frenteUrl = '';
+      let versoUrl = '';
+
+      if (docFrente) {
+        frenteUrl = await uploadFile(docFrente);
+      }
+      if (docVerso) {
+        versoUrl = await uploadFile(docVerso);
+      }
+
+      const isFreelancer = formData.tipoContrato === 'Freelancer';
+
+      const payload = {
+        status: 'Ativo',
+        type: formData.tipoContrato,
+        role: isFreelancer ? 'Freelancer' : formData.funcao,
+        admission_date: isFreelancer ? null : formData.dataEntrada,
+        name: formData.nome,
+        gender: isFreelancer ? null : formData.sexo,
+        birth_date: isFreelancer ? null : (formData.dataNascimento || null),
+        phone: formData.telefone,
+        email: isFreelancer ? null : formData.email,
+        bank_account_name: formData.titular,
+        bank_name: formData.banco,
+        bank_key_type: formData.pixTipo,
+        bank_key: formData.pixChave,
+        document_type: isFreelancer ? null : formData.docTipo,
+        document: isFreelancer ? null : formData.docNumero,
+        document_front: frenteUrl,
+        document_back: versoUrl,
+        street: isFreelancer ? null : formData.rua,
+        number: isFreelancer ? null : formData.numero,
+        neighborhood: isFreelancer ? null : formData.bairro,
+        city: isFreelancer ? null : formData.cidade,
+        state: isFreelancer ? null : formData.estado,
+        complement: isFreelancer ? null : formData.complemento,
+        // Code generation
+        code: Math.floor(Math.random() * 9000) + 1000
+      };
+
+      const { error } = await supabase.schema('gestaohashi').from('equipe').insert(payload);
+      if (error) throw error;
+
+      setSuccess(true);
+    } catch (error: any) {
+      console.error('Erro ao salvar:', error);
+      alert('Erro ao realizar cadastro: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (formClosed) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 text-center space-y-6 animate-in zoom-in-95 duration-500">
-          <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 size={48} className="text-emerald-500" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <h1 className="text-xl font-bold text-slate-800 mb-2">Formulário Indisponível</h1>
+          <p className="text-slate-500">Este formulário de cadastro não está aceitando respostas no momento.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-600 p-4 animate-in fade-in duration-500">
+        <div className="bg-white p-10 rounded-2xl shadow-2xl max-w-md w-full text-center space-y-6">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
+            <CheckCircle size={40} strokeWidth={3} />
           </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Cadastro Enviado!</h1>
-            <p className="text-slate-500 font-medium leading-relaxed">Seus dados foram recebidos com sucesso. A equipe do Hashi entrará em contato em breve.</p>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 mb-2">Cadastro Realizado!</h1>
+            <p className="text-slate-500 font-medium">Seus dados foram enviados com sucesso para a equipe administrativa.</p>
           </div>
-          <button 
+          <button
             onClick={() => window.location.reload()}
-            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all active:scale-95"
+            className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors"
           >
-            Enviar outro cadastro
+            Voltar ao Início
           </button>
         </div>
       </div>
     );
   }
 
+  const labelClass = "block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider";
+  const inputClass = "w-full p-3 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all";
+  const sectionHeader = "flex items-center gap-2 text-xs font-bold text-red-600 uppercase tracking-widest py-2 border-b border-slate-100 mb-6 mt-8 first:mt-0";
+
+  const isFreelancer = formData.tipoContrato === 'Freelancer';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-12 px-6">
-      <div className="max-w-3xl w-full text-center mb-12 space-y-4">
-        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-blue-100 font-black text-white text-2xl">H</div>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Cadastro de Colaborador</h1>
-          <p className="text-slate-500 font-medium">Portal de contratação Hashi Express.</p>
-        </div>
-      </div>
-
-      <div className="max-w-3xl w-full bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 sm:p-12">
-        <div className="flex gap-2 mb-10">
-          {[1, 2, 3].map(i => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-blue-600' : 'bg-slate-100'}`} />
-          ))}
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-red-600 p-6 sm:p-10 text-center">
+          <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">Ficha Cadastral</h1>
+          <p className="text-red-100 font-medium text-sm">Preencha todos os campos obrigatórios para completar seu cadastro.</p>
         </div>
 
-        {step === 1 && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className={stepTitle}><Briefcase className="text-blue-500" /> Vínculo e Identificação</h2>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelClass}>Tipo de Contrato</label>
-                  <select 
-                    className={inputClass} 
-                    value={formData.tipoContrato} 
-                    onChange={(e) => handleChange('tipoContrato', e.target.value)}
-                  >
-                    <option>CLT (Padrão)</option>
-                    <option>Freelancer</option>
-                    <option>PJ</option>
-                    <option>Estágio</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>Cargo / Função</label>
-                  <input 
-                    type="text" 
-                    className={inputClass} 
-                    placeholder="Ex: Garçom" 
-                    value={formData.funcao}
-                    onChange={(e) => handleChange('funcao', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={labelClass}>Nome Completo</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input 
-                    type="text" 
-                    className={`${inputClass} pl-12`} 
-                    placeholder="Como no seu documento" 
-                    value={formData.nome}
-                    onChange={(e) => handleChange('nome', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className={isFreelancer ? 'sm:col-span-1' : ''}>
-                  <label className={labelClass}>Sexo</label>
-                  <select 
-                    className={inputClass} 
-                    value={formData.sexo}
-                    onChange={(e) => handleChange('sexo', e.target.value)}
-                  >
-                    <option>Masculino</option>
-                    <option>Feminino</option>
-                    <option>Outro</option>
-                  </select>
-                </div>
-                <div className={isFreelancer ? 'sm:col-span-1' : ''}>
-                  <label className={labelClass}>WhatsApp Principal</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="text" 
-                      className={`${inputClass} pl-12`} 
-                      placeholder="(00) 00000-0000" 
-                      value={formData.contato}
-                      onChange={(e) => handleChange('contato', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="p-6 sm:p-10">
 
-              {!isFreelancer && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                   <div>
-                    <label className={labelClass}>E-mail</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                      <input 
-                        type="email" 
-                        className={`${inputClass} pl-12`} 
-                        placeholder="seu@email.com" 
-                        value={formData.email}
-                        onChange={(e) => handleChange('email', e.target.value)}
-                      />
+          {/* Dados Empresa */}
+          <div className={sectionHeader}><Briefcase size={14} /> Dados Profissionais</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Tipo de Contrato</label>
+              <select name="tipoContrato" value={formData.tipoContrato} onChange={handleChange} className={inputClass} required>
+                <option value="CLT">CLT</option>
+                <option value="PJ">PJ</option>
+                <option value="Freelancer">Freelancer</option>
+                <option value="Estágio">Estágio</option>
+                <option value="Temporário">Temporário</option>
+              </select>
+            </div>
+
+            {!isFreelancer && (
+              <>
+                <div>
+                  <label className={labelClass}>Função/Cargo</label>
+                  <div className="relative group">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Search size={14} />
                     </div>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Data de Nascimento</label>
-                    <input 
-                      type="date" 
-                      className={inputClass} 
-                      value={formData.dataNascimento}
-                      onChange={(e) => handleChange('dataNascimento', e.target.value)}
+                    <input
+                      name="funcao"
+                      value={formData.funcao}
+                      onChange={handleChange}
+                      onFocus={() => setShowRoleDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowRoleDropdown(false), 200)}
+                      className={`${inputClass} pl-9`}
+                      placeholder="Pesquisar ou selecionar..."
+                      autoComplete="off"
+                      required={!isFreelancer}
                     />
-                  </div>
-                </div>
-              )}
-              
-              <button 
-                onClick={() => setStep(2)}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-100 mt-4"
-              >
-                Próximo Passo <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <ChevronDown size={14} />
+                    </div>
 
-        {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className={stepTitle}><CreditCard className="text-blue-500" /> Dados Bancários</h2>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Nome do Titular da Conta</label>
-                  <input 
-                    type="text" 
-                    className={inputClass} 
-                    placeholder="Conforme registrado no banco" 
-                    value={formData.titularConta}
-                    onChange={(e) => handleChange('titularConta', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Instituição Bancária</label>
-                  <input 
-                    type="text" 
-                    className={inputClass} 
-                    placeholder="Ex: Nubank, Itaú..." 
-                    value={formData.banco}
-                    onChange={(e) => handleChange('banco', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Tipo de Chave PIX</label>
-                  <select 
-                    className={inputClass}
-                    value={formData.pixTipo}
-                    onChange={(e) => handleChange('pixTipo', e.target.value)}
-                  >
-                    <option>CPF</option>
-                    <option>E-mail</option>
-                    <option>Celular</option>
-                    <option>Chave Aleatória</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Chave PIX</label>
-                  <input 
-                    type="text" 
-                    className={inputClass} 
-                    placeholder="Sua chave para recebimento" 
-                    value={formData.pixChave}
-                    onChange={(e) => handleChange('pixChave', e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setStep(1)}
-                  className="w-20 py-4 border border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-50 transition-all active:scale-95"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <button 
-                  onClick={() => setStep(3)}
-                  className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-100"
-                >
-                  Próximo Passo <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className={stepTitle}><FileText className="text-blue-500" /> Finalização</h2>
-            <div className="space-y-6">
-              
-              {!isFreelancer ? (
-                <div className="space-y-6">
-                  <div>
-                    <label className={labelClass}>RG ou CPF</label>
-                    <input 
-                      type="text" 
-                      className={inputClass} 
-                      placeholder="Apenas números" 
-                      value={formData.documentoNumero}
-                      onChange={(e) => handleChange('documentoNumero', e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-5">
-                    <div className="sm:col-span-9">
-                      <label className={labelClass}>Rua / Logradouro</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input 
-                          type="text" 
-                          className={`${inputClass} pl-12`} 
-                          placeholder="Nome da rua" 
-                          value={formData.rua}
-                          onChange={(e) => handleChange('rua', e.target.value)}
-                        />
+                    {showRoleDropdown && (
+                      <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto custom-scrollbar">
+                        {roles.filter(r => r.name.toLowerCase().includes(formData.funcao.toLowerCase())).length > 0 ? (
+                          roles
+                            .filter(r => r.name.toLowerCase().includes(formData.funcao.toLowerCase()))
+                            .map(r => (
+                              <div
+                                key={r.id}
+                                className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                                onClick={() => setFormData(prev => ({ ...prev, funcao: r.name }))}
+                              >
+                                {r.name}
+                              </div>
+                            ))
+                        ) : (
+                          <div className="p-3 text-xs text-slate-500 text-center">Nenhuma função encontrada.</div>
+                        )}
                       </div>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <label className={labelClass}>Nº</label>
-                      <input 
-                        type="text" 
-                        className={inputClass} 
-                        placeholder="123" 
-                        value={formData.numero}
-                        onChange={(e) => handleChange('numero', e.target.value)}
-                      />
-                    </div>
-                    <div className="sm:col-span-6">
-                      <label className={labelClass}>Bairro</label>
-                      <input 
-                        type="text" 
-                        className={inputClass} 
-                        placeholder="Bairro" 
-                        value={formData.bairro}
-                        onChange={(e) => handleChange('bairro', e.target.value)}
-                      />
-                    </div>
-                    <div className="sm:col-span-6">
-                      <label className={labelClass}>Cidade</label>
-                      <input 
-                        type="text" 
-                        className={inputClass} 
-                        placeholder="Cidade" 
-                        value={formData.cidade}
-                        onChange={(e) => handleChange('cidade', e.target.value)}
-                      />
-                    </div>
+                    )}
                   </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Data Disponibilidade</label>
+                  <input type="date" name="dataEntrada" value={formData.dataEntrada} onChange={handleChange} className={inputClass} required={!isFreelancer} />
+                </div>
+              </>
+            )}
+          </div>
 
-                  <div className="space-y-2">
-                    <label className={labelClass}>Foto do Documento (Frente)</label>
-                    <div className="border-2 border-dashed border-slate-100 rounded-[2rem] h-32 flex flex-col items-center justify-center text-slate-300 hover:text-blue-500 hover:border-blue-500 cursor-pointer transition-all">
-                      <Plus size={24} />
-                      <span className="text-[10px] font-black uppercase tracking-widest mt-2">Toque para anexar</span>
-                    </div>
-                  </div>
+          {/* Dados Pessoais */}
+          <div className={sectionHeader}><User size={14} /> Dados Pessoais</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className={labelClass}>Nome Completo</label>
+              <input name="nome" value={formData.nome} onChange={handleChange} className={inputClass} required placeholder="Nome completo sem abreviações" />
+            </div>
+
+            {!isFreelancer && (
+              <>
+                <div>
+                  <label className={labelClass}>Sexo</label>
+                  <select name="sexo" value={formData.sexo} onChange={handleChange} className={inputClass} required={!isFreelancer}>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                    <option value="Outro">Outro</option>
+                  </select>
                 </div>
-              ) : (
-                <div className="bg-blue-50 p-8 rounded-[2.5rem] border border-blue-100 text-center space-y-4">
-                  <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <p className="text-sm font-bold text-blue-800 leading-relaxed">
-                    Como Freelancer, seus dados básicos e bancários já foram coletados. O Hashi Express agradece sua disponibilidade.
-                  </p>
+                <div>
+                  <label className={labelClass}>Data Nascimento</label>
+                  <input type="date" name="dataNascimento" value={formData.dataNascimento} onChange={handleChange} className={inputClass} required={!isFreelancer} />
                 </div>
-              )}
-              
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setStep(2)}
-                  className="w-20 py-4 border border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-50 transition-all active:scale-95"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <button 
-                  onClick={handleSubmit}
-                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-100"
-                >
-                  Finalizar Cadastro <CheckCircle2 size={18} />
-                </button>
-              </div>
+              </>
+            )}
+
+            <div>
+              <label className={labelClass}>Celular / WhatsApp</label>
+              <input name="telefone" value={formData.telefone} onChange={handleChange} className={inputClass} placeholder="(00) 00000-0000" required />
+            </div>
+
+            {!isFreelancer && (
+              <>
+                <div>
+                  <label className={labelClass}>Telefone Recado</label>
+                  <input name="telefoneRecado" value={formData.telefoneRecado} onChange={handleChange} className={inputClass} placeholder="(00) 00000-0000" required />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>E-mail</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="exemplo@email.com" required={!isFreelancer} />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Dados Bancários */}
+          <div className={sectionHeader}><CreditCard size={14} /> Dados Bancários</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Nome do Titular</label>
+              <input name="titular" value={formData.titular} onChange={handleChange} className={inputClass} placeholder="Nome completo como no banco" required />
+            </div>
+            <div>
+              <label className={labelClass}>Banco</label>
+              <input name="banco" value={formData.banco} onChange={handleChange} className={inputClass} placeholder="Ex: Nubank, Itaú" required />
+            </div>
+            <div>
+              <label className={labelClass}>Tipo de Chave PIX</label>
+              <select name="pixTipo" value={formData.pixTipo} onChange={handleChange} className={inputClass} required>
+                <option value="CPF">CPF</option>
+                <option value="Celular">Celular</option>
+                <option value="Email">Email</option>
+                <option value="Aleatória">Aleatória</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Chave PIX</label>
+              <input name="pixChave" value={formData.pixChave} onChange={handleChange} className={inputClass} placeholder="Chave PIX" required />
             </div>
           </div>
-        )}
+
+          {!isFreelancer && (
+            <>
+              {/* Documentos */}
+              <div className={sectionHeader}><FileText size={14} /> Documentos</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Tipo de Documento</label>
+                  <select name="docTipo" value={formData.docTipo} onChange={handleChange} className={inputClass} required={!isFreelancer}>
+                    <option value="RG">RG</option>
+                    <option value="CPF">CPF</option>
+                    <option value="CNH">CNH</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Número do Documento</label>
+                  <input name="docNumero" value={formData.docNumero} onChange={handleChange} className={inputClass} placeholder="00.000.000-0" required={!isFreelancer} />
+                </div>
+                <div>
+                  <label className={labelClass}>Foto Documento (Frente)</label>
+                  <div className="relative border border-slate-200 rounded-lg p-3 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
+                    <input type="file" onChange={(e) => handleFileChange(e, 'frente')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*,application/pdf" />
+                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                      {docFrente ? (
+                        <>
+                          <CheckCircle size={24} className="text-green-500" />
+                          <span className="text-xs text-green-600 font-medium truncate max-w-full px-2">{docFrente.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={20} />
+                          <span className="text-xs">Clique para enviar</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Foto Documento (Verso)</label>
+                  <div className="relative border border-slate-200 rounded-lg p-3 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
+                    <input type="file" onChange={(e) => handleFileChange(e, 'verso')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*,application/pdf" />
+                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                      {docVerso ? (
+                        <>
+                          <CheckCircle size={24} className="text-green-500" />
+                          <span className="text-xs text-green-600 font-medium truncate max-w-full px-2">{docVerso.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={20} />
+                          <span className="text-xs">Clique para enviar</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div className={sectionHeader}><MapPin size={14} /> Endereço Completo</div>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-3">
+                  <label className={labelClass}>Rua / Logradouro</label>
+                  <input name="rua" value={formData.rua} onChange={handleChange} className={inputClass} placeholder="Nome da Rua" required={!isFreelancer} />
+                </div>
+                <div>
+                  <label className={labelClass}>Número</label>
+                  <input name="numero" value={formData.numero} onChange={handleChange} className={inputClass} placeholder="123" required={!isFreelancer} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelClass}>Complemento</label>
+                  <input name="complemento" value={formData.complemento} onChange={handleChange} className={inputClass} placeholder="Apto, Bloco" />
+                </div>
+                <div>
+                  <label className={labelClass}>Bairro</label>
+                  <input name="bairro" value={formData.bairro} onChange={handleChange} className={inputClass} required={!isFreelancer} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cidade</label>
+                  <input name="cidade" value={formData.cidade} onChange={handleChange} className={inputClass} required={!isFreelancer} />
+                </div>
+                <div className="col-span-4">
+                  <label className={labelClass}>Estado (UF)</label>
+                  <input name="estado" value={formData.estado} onChange={handleChange} className={inputClass} placeholder="SP" maxLength={2} required={!isFreelancer} />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-xl transition-all shadow-lg shadow-red-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Confirmar Cadastro'}
+            </button>
+          </div>
+
+        </form>
       </div>
 
-      <p className="mt-8 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-        Hashi Tecnologia • Segurança de Dados 256-bit
-      </p>
+      <div className="mt-8 text-center">
+        <p className="text-xs text-slate-400 font-medium">© {new Date().getFullYear()} Lepps Conecta. Todos os direitos reservados.</p>
+      </div>
     </div>
   );
 };

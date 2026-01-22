@@ -18,7 +18,7 @@ export enum AppRoute {
   CARDAPIO = '/cardapio',
   LOGINS_SENHAS = '/logins-senhas',
   ARQUIVOS = '/arquivos',
-  PUBLIC_FORM_FUNCIONARIO = '/public/cadastro-funcionario',
+  PUBLIC_FORM_FUNCIONARIO = '/cadastroequipe',
   MENU_ONLINE = '/public/menu',
   LINK_MANAGEMENT = '/gestao-link'
 }
@@ -97,7 +97,7 @@ export interface Curriculo {
 }
 
 export type FuncionarioStatus = 'Ativo' | 'Inativo' | 'Férias' | 'Afastado';
-export type FuncionarioContrato = 'CLT (Padrão)' | 'Freelancer' | 'PJ' | 'Estágio';
+export type FuncionarioContrato = 'CLT' | 'PJ' | 'Estágio' | 'Temporário' | 'Freelancer';
 
 export interface Funcionario {
   id: string;
@@ -126,6 +126,7 @@ export interface Funcionario {
     bairro: string;
     cidade: string;
     estado: string;
+    complemento?: string;
   };
   documentoFrente?: string;
   documentoVerso?: string;
