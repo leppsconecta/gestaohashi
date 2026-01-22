@@ -11,8 +11,10 @@ import {
   Handshake,
   Layers,
   Package,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 // Mock data - In production, this would come from database/context shared with Cardapio.tsx
 interface ComboProduct {
@@ -106,11 +108,14 @@ const MENU_DATA: MenuCategory[] = [
   },
 ];
 
-const HERO_IMAGES = [
-  "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=1200",
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=1200",
-  "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=1200"
-];
+// Hero Image Interface
+interface HeroImage {
+  id: string;
+  foto: string;
+  titulo: string;
+  subtitulo: string;
+  showDescription: boolean;
+}
 
 interface ExpandedItem {
   categoryId: string;
@@ -118,8 +123,11 @@ interface ExpandedItem {
 }
 
 const MenuOnline: React.FC = () => {
+  const [categorias, setCategorias] = useState<MenuCategory[]>([]);
+  const [heroImages, setHeroImages] = useState<HeroImage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentHero, setCurrentHero] = useState(0);
-  const [activeCatId, setActiveCatId] = useState(MENU_DATA[0].id);
+  const [activeCatId, setActiveCatId] = useState<string | null>(null);
   const [expandedItem, setExpandedItem] = useState<ExpandedItem | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -135,15 +143,114 @@ const MenuOnline: React.FC = () => {
     { icon: Handshake, label: 'Parcerias', color: 'bg-orange-500' },
   ];
 
-  const activeCategory = MENU_DATA.find(c => c.id === activeCatId);
-  const allItems = MENU_DATA.flatMap(cat => cat.itens.filter(i => i.visivel !== false).map(item => ({ ...item, categoryId: cat.id })));
+  const activeCategory = categorias.find(c => c.id === activeCatId);
+  const allItems = categorias.flatMap(cat => cat.itens.filter(i => i.visivel !== false).map(item => ({ ...item, categoryId: cat.id })));
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch categories
+      const { data: catData, error: catError } = await supabase
+        .schema('gestaohashi')
+        .from('categorias')
+        .select('*')
+        .order('ordem', { ascending: true });
+
+      if (catError) throw catError;
+
+      // Fetch products
+      const { data: prodData, error: prodError } = await supabase
+        .schema('gestaohashi')
+        .from('produtos')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem', { ascending: true });
+
+      if (prodError) throw prodError;
+
+      // Fetch combo items
+      const { data: comboItemData, error: comboItemError } = await supabase
+        .schema('gestaohashi')
+        .from('combo_produtos')
+        .select('*');
+
+      if (comboItemError) throw comboItemError;
+
+      // Format data
+      const formattedCategorias: MenuCategory[] = catData.map(cat => ({
+        id: cat.id,
+        nome: cat.nome,
+        itens: prodData
+          .filter(p => p.categoria_id === cat.id)
+          .map(p => ({
+            id: p.id,
+            nome: p.nome,
+            descricao: p.descricao || '',
+            preco: p.preco?.toString().replace('.', ',') || '0,00',
+            foto: p.foto_url,
+            isCombo: p.is_combo ?? false,
+            showSavings: p.show_savings ?? false,
+            savingsAmount: p.savings_amount?.toString().replace('.', ',') || '',
+            visivel: p.visivel ?? true,
+            comboItens: comboItemData
+              .filter(ci => ci.combo_id === p.id)
+              .map(ci => ({
+                id: ci.id,
+                nome: ci.nome,
+                descricao: ci.descricao,
+                quantidade: ci.quantidade,
+                unidade: ci.unidade as any,
+                foto: ci.foto_url
+              }))
+          }))
+      }));
+
+      setCategorias(formattedCategorias);
+      if (formattedCategorias.length > 0) {
+        setActiveCatId(formattedCategorias[0].id);
+      }
+
+      // Fetch Hero Images
+      try {
+        const { data: heroData, error: heroError } = await supabase
+          .schema('gestaohashi')
+          .from('hero_images')
+          .select('*')
+          .order('ordem', { ascending: true });
+
+        if (!heroError && heroData && heroData.length > 0) {
+          const formattedHeroes = heroData.map(h => ({
+            id: h.id,
+            foto: h.foto_url,
+            titulo: h.titulo || '',
+            subtitulo: h.subtitulo || '',
+            showDescription: h.show_description ?? false
+          }));
+          setHeroImages(formattedHeroes);
+        }
+      } catch (e) {
+        console.warn('Hero images not found');
+      }
+
+    } catch (error) {
+      console.error('Error fetching menu data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentHero(prev => (prev + 1) % HERO_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(timer);
+    fetchData();
   }, []);
+
+  useEffect(() => {
+    if (heroImages.length > 0) {
+      const timer = setInterval(() => {
+        setCurrentHero(prev => (prev + 1) % heroImages.length);
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [heroImages]);
 
   // Get current expanded item details
   const getCurrentExpandedItem = () => {
@@ -215,23 +322,30 @@ const MenuOnline: React.FC = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-20 font-sans">
       {/* Hero Carousel */}
-      <section className="h-[40vh] sm:h-[50vh] relative overflow-hidden">
-        {HERO_IMAGES.map((img, idx) => (
-          <div
-            key={idx}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentHero ? 'opacity-100' : 'opacity-0'}`}
-          >
-            <img src={img} alt="Ambiente" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
+      <section className="h-[40vh] sm:h-[50vh] relative overflow-hidden bg-slate-900">
+        {heroImages.length > 0 ? (
+          heroImages.map((hero, idx) => (
+            <div
+              key={hero.id}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentHero ? 'opacity-100' : 'opacity-0'}`}
+            >
+              <img src={hero.foto} alt={hero.titulo} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
+
+              {hero.showDescription && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6 animate-fadeIn">
+                  <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">{hero.titulo}</h1>
+                  <p className="text-sm sm:text-base font-medium opacity-80">{hero.subtitulo}</p>
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">Hashi Express</h1>
+            <p className="text-sm sm:text-base font-medium opacity-80">Sabor e tradição em cada detalhe</p>
           </div>
-        ))}
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
-
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">Hashi Express</h1>
-          <p className="text-sm sm:text-base font-medium opacity-80">Sabor e tradição em cada detalhe</p>
-
-        </div>
+        )}
 
         {/* Person Icon Button */}
         <button
@@ -244,24 +358,30 @@ const MenuOnline: React.FC = () => {
       </section>
 
       {/* Categories Bar */}
-      <div id="menu-start" className="sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
-        <div className="flex gap-1 p-2 overflow-x-auto scrollbar-hide justify-center md:justify-center">
-          {MENU_DATA.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCatId(cat.id)}
-              className={`
-                flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap
-                ${activeCatId === cat.id
-                  ? 'bg-red-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }
-              `}
-            >
-              {cat.nome}
-            </button>
-          ))}
-        </div>
+      <div id="menu-start" className="sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm min-h-[58px]">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-[58px]">
+            <Loader2 size={24} className="text-red-600 animate-spin" />
+          </div>
+        ) : (
+          <div className="flex gap-1 p-2 overflow-x-auto scrollbar-hide justify-center md:justify-center">
+            {categorias.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCatId(cat.id)}
+                className={`
+                  flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap
+                  ${activeCatId === cat.id
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }
+                `}
+              >
+                {cat.nome}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Products Grid */}
