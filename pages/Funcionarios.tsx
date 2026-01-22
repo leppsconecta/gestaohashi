@@ -708,8 +708,8 @@ const FuncionariosPage: React.FC = () => {
     documentoVerso: includeDocs ? item.document_back : ''
   });
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: result, error } = await supabase
         .schema('gestaohashi')
@@ -758,9 +758,10 @@ const FuncionariosPage: React.FC = () => {
         content: `Deseja remover ${item.nome}?`,
         onConfirm: async () => {
           try {
-            const { error } = await supabase.schema('gestaohashi').from('equipe').delete().eq('id', item.id);
-            if (error) throw error;
-            loadData();
+            // Optimistic update: remove from list immediately
+            setData(prev => prev.filter(p => p.id !== item.id));
+
+            // Close confirm modal immediately to show success
             setModalConfig({
               isOpen: true,
               type: 'confirm-insert',
@@ -770,9 +771,19 @@ const FuncionariosPage: React.FC = () => {
               showCancel: false,
               onConfirm: () => setModalConfig({ isOpen: false })
             });
+
+            // Perform deletion in background
+            const { error } = await supabase.schema('gestaohashi').from('equipe').delete().eq('id', item.id);
+            if (error) {
+              // Rollback if needed, but for now just alert
+              throw error;
+            }
+            // Silent refresh to ensure sync
+            loadData(true);
           } catch (error) {
             console.error('Erro ao excluir:', error);
             alert('Erro ao excluir funcionário.');
+            loadData(true); // Re-fetch to restore if failed
           }
         }
       });
@@ -800,7 +811,6 @@ const FuncionariosPage: React.FC = () => {
             initialData={item}
             setModalConfig={setModalConfig}
             onSuccess={() => {
-              loadData();
               setModalConfig({
                 isOpen: true,
                 type: 'confirm-update',
@@ -810,6 +820,7 @@ const FuncionariosPage: React.FC = () => {
                 confirmText: 'OK',
                 onConfirm: () => setModalConfig({ isOpen: false })
               });
+              loadData(true); // Silent refresh
             }}
           />
         ),
@@ -878,7 +889,6 @@ const FuncionariosPage: React.FC = () => {
           ref={formRef}
           setModalConfig={setModalConfig}
           onSuccess={() => {
-            loadData();
             setModalConfig({
               isOpen: true,
               type: 'confirm-insert',
@@ -888,6 +898,7 @@ const FuncionariosPage: React.FC = () => {
               confirmText: 'OK',
               onConfirm: () => setModalConfig({ isOpen: false })
             });
+            loadData(true); // Silent refresh
           }}
         />
       ),
@@ -981,7 +992,7 @@ const FuncionariosPage: React.FC = () => {
             <Plus size={16} />
             Novo Funcionário
           </button>
-          <button onClick={loadData} className="p-2 text-slate-400 hover:text-indigo-600"><RefreshCw size={20} className={loading ? 'animate-spin' : ''} /></button>
+          <button onClick={() => loadData(false)} className="p-2 text-slate-400 hover:text-indigo-600"><RefreshCw size={20} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
