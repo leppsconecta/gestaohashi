@@ -209,6 +209,11 @@ const CardapioPage: React.FC = () => {
   const [productsExpanded, setProductsExpanded] = useState(true); // Products expanded by default
   const [splashExpanded, setSplashExpanded] = useState(false);
 
+  // Custom Modals State
+  const [deleteCategoryModal, setDeleteCategoryModal] = useState<{ isOpen: boolean, categoryId: string | null }>({ isOpen: false, categoryId: null });
+  const [deleteItemModal, setDeleteItemModal] = useState<{ isOpen: boolean, itemId: string | null }>({ isOpen: false, itemId: null });
+  const [addCategoryModal, setAddCategoryModal] = useState<{ isOpen: boolean, name: string }>({ isOpen: false, name: '' });
+
   // Get all products from all categories for autocomplete
   const allProducts = categorias.flatMap(cat =>
     cat.itens.filter(item => !item.isCombo).map(item => ({ ...item, categoryName: cat.nome }))
@@ -323,20 +328,33 @@ const CardapioPage: React.FC = () => {
   };
 
   const handleAddCategoria = () => {
-    const nome = prompt("Nome da nova categoria:");
-    if (nome) {
-      const newCat = { id: `cat-${Date.now()}`, nome, itens: [] };
+    setAddCategoryModal({ isOpen: true, name: '' });
+  };
+
+  const handleConfirmAddCategoria = () => {
+    if (addCategoryModal.name.trim()) {
+      const newCat = { id: `cat-${Date.now()}`, nome: addCategoryModal.name.trim(), itens: [] };
       setCategorias([...categorias, newCat]);
       setActiveCatId(newCat.id);
+      setAddCategoryModal({ isOpen: false, name: '' });
     }
   };
 
   const handleDeleteCategoria = (id: string) => {
-    if (confirm("Deseja excluir esta categoria e todos os itens?")) {
-      setCategorias(categorias.filter(c => c.id !== id));
-      if (activeCatId === id && categorias.length > 1) {
-        setActiveCatId(categorias[0].id === id ? categorias[1].id : categorias[0].id);
+    setDeleteCategoryModal({ isOpen: true, categoryId: id });
+  };
+
+  const handleConfirmDeleteCategoria = () => {
+    if (deleteCategoryModal.categoryId) {
+      setCategorias(categorias.filter(c => c.id !== deleteCategoryModal.categoryId));
+      if (activeCatId === deleteCategoryModal.categoryId && categorias.length > 1) {
+        // Switch to adjacent category if current is deleted
+        const remaining = categorias.filter(c => c.id !== deleteCategoryModal.categoryId);
+        if (remaining.length > 0) {
+          setActiveCatId(remaining[0].id);
+        }
       }
+      setDeleteCategoryModal({ isOpen: false, categoryId: null });
     }
   };
 
@@ -665,11 +683,16 @@ const CardapioPage: React.FC = () => {
   };
 
   const handleDeleteItem = (itemId: string) => {
-    if (confirm("Excluir este produto?")) {
+    setDeleteItemModal({ isOpen: true, itemId });
+  };
+
+  const handleConfirmDeleteItem = () => {
+    if (deleteItemModal.itemId) {
       setCategorias(prev => prev.map(cat => ({
         ...cat,
-        itens: cat.itens.filter(item => item.id !== itemId)
+        itens: cat.itens.filter(item => item.id !== deleteItemModal.itemId)
       })));
+      setDeleteItemModal({ isOpen: false, itemId: null });
     }
   };
 
@@ -997,14 +1020,7 @@ const CardapioPage: React.FC = () => {
                   </div>
                 ))}
 
-                {/* Add Category Button */}
-                <button
-                  onClick={handleAddCategoria}
-                  className="flex-shrink-0 flex items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition-all whitespace-nowrap shadow-sm"
-                >
-                  <Plus size={18} />
-                  Nova Categoria
-                </button>
+
               </div>
 
               {canScrollRight && (
@@ -1027,23 +1043,7 @@ const CardapioPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* View Toggle */}
-                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                      title="Visualização em grade"
-                    >
-                      <Grid3X3 size={18} />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                      title="Visualização em lista"
-                    >
-                      <List size={18} />
-                    </button>
-                  </div>
+
 
                   {/* Filter */}
                   <div className="relative flex items-center">
@@ -1076,6 +1076,13 @@ const CardapioPage: React.FC = () => {
                   </div>
 
                   {/* Add Dropdown */}
+                  <button
+                    onClick={handleAddCategoria}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-all shadow-sm"
+                  >
+                    <Plus size={16} />
+                    Nova Categoria
+                  </button>
                   <div className="relative">
                     <button
                       onClick={() => setShowAddDropdown(!showAddDropdown)}
@@ -1119,13 +1126,23 @@ const CardapioPage: React.FC = () => {
                     )}
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteCategoria(activeCategory.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                    title="Excluir categoria"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  {/* View Toggle */}
+                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 ml-2">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                      title="Visualização em grade"
+                    >
+                      <Grid3X3 size={18} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                      title="Visualização em lista"
+                    >
+                      <List size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1794,6 +1811,55 @@ const CardapioPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Add Category Modal */}
+      <Modal
+        isOpen={addCategoryModal.isOpen}
+        type="confirm-insert"
+        title="Nova Categoria"
+        content={
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">Digite o nome da nova categoria para o seu cardápio.</p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Nome da Categoria</label>
+              <input
+                type="text"
+                value={addCategoryModal.name}
+                onChange={(e) => setAddCategoryModal({ ...addCategoryModal, name: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddCategoria()}
+                autoFocus
+                placeholder="Ex: Lanches, Bebidas..."
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-sm"
+              />
+            </div>
+          </div>
+        }
+        onConfirm={handleConfirmAddCategoria}
+        confirmText="Criar Categoria"
+        onClose={() => setAddCategoryModal({ isOpen: false, name: '' })}
+      />
+
+      {/* Delete Category Modal */}
+      <Modal
+        isOpen={deleteCategoryModal.isOpen}
+        type="confirm-delete"
+        title="Excluir Categoria"
+        content="Tem certeza que deseja excluir esta categoria? Todos os produtos vinculados a ela também serão excluídos permanentemente."
+        onConfirm={handleConfirmDeleteCategoria}
+        confirmText="Sim, Excluir Tudo"
+        onClose={() => setDeleteCategoryModal({ isOpen: false, categoryId: null })}
+      />
+
+      {/* Delete Item Modal */}
+      <Modal
+        isOpen={deleteItemModal.isOpen}
+        type="confirm-delete"
+        title="Excluir Produto"
+        content="Tem certeza que deseja remover este produto do cardápio?"
+        onConfirm={handleConfirmDeleteItem}
+        confirmText="Sim, Remover"
+        onClose={() => setDeleteItemModal({ isOpen: false, itemId: null })}
+      />
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar {
