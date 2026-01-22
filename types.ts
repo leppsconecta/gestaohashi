@@ -59,6 +59,7 @@ export interface CardapioItem {
   preco?: string;
   foto?: string;
   ativo: boolean;
+  visivel?: boolean;
 }
 
 export interface CardapioCategoria {

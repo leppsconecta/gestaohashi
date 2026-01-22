@@ -21,7 +21,9 @@ import {
   Filter,
   Search,
   Layers,
-  MoreVertical
+  MoreVertical,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import { ModalType } from '../types';
@@ -51,6 +53,7 @@ interface CardapioItem {
   comboItens?: ComboProduct[];
   showSavings?: boolean; // Show savings info
   savingsAmount?: string; // Amount saved, e.g., "15,00"
+  visivel?: boolean; // New property for visibility
 }
 
 interface CardapioCategoria {
@@ -65,10 +68,10 @@ const INITIAL_CATEGORIAS: CardapioCategoria[] = [
     id: 'cat-1',
     nome: 'Bebidas',
     itens: [
-      { id: 'item-1', nome: 'Coca-Cola 350ml', descricao: 'Refrigerante gelado', preco: '6,00', foto: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400', ativo: true },
-      { id: 'item-2', nome: 'Suco Natural Laranja', descricao: 'Suco de laranja natural 500ml', preco: '12,00', foto: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400', ativo: true },
-      { id: 'item-3', nome: 'Água Mineral 500ml', descricao: 'Água mineral sem gás', preco: '4,00', foto: 'https://images.unsplash.com/photo-1559839914-17aae19cec71?w=400', ativo: true },
-      { id: 'item-4', nome: 'Cerveja Heineken', descricao: 'Long neck 330ml', preco: '14,00', foto: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400', ativo: true },
+      { id: 'item-1', nome: 'Coca-Cola 350ml', descricao: 'Refrigerante gelado', preco: '6,00', foto: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400', ativo: true, visivel: true },
+      { id: 'item-2', nome: 'Suco Natural Laranja', descricao: 'Suco de laranja natural 500ml', preco: '12,00', foto: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400', ativo: true, visivel: true },
+      { id: 'item-3', nome: 'Água Mineral 500ml', descricao: 'Água mineral sem gás', preco: '4,00', foto: 'https://images.unsplash.com/photo-1559839914-17aae19cec71?w=400', ativo: true, visivel: true },
+      { id: 'item-4', nome: 'Cerveja Heineken', descricao: 'Long neck 330ml', preco: '14,00', foto: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400', ativo: true, visivel: true },
     ]
   },
   {
@@ -138,7 +141,8 @@ const CardapioPage: React.FC = () => {
     nome: '',
     descricao: '',
     preco: '',
-    foto: ''
+    foto: '',
+    visivel: true
   });
 
   // Category name editing
@@ -213,6 +217,8 @@ const CardapioPage: React.FC = () => {
   const [deleteCategoryModal, setDeleteCategoryModal] = useState<{ isOpen: boolean, categoryId: string | null }>({ isOpen: false, categoryId: null });
   const [deleteItemModal, setDeleteItemModal] = useState<{ isOpen: boolean, itemId: string | null }>({ isOpen: false, itemId: null });
   const [addCategoryModal, setAddCategoryModal] = useState<{ isOpen: boolean, name: string }>({ isOpen: false, name: '' });
+  const [itemMenuOpen, setItemMenuOpen] = useState<string | null>(null);
+  const [itemMenuPosition, setItemMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
 
   // Get all products from all categories for autocomplete
   const allProducts = categorias.flatMap(cat =>
@@ -636,7 +642,8 @@ const CardapioPage: React.FC = () => {
       nome: item?.nome || '',
       descricao: item?.descricao || '',
       preco: item?.preco || '',
-      foto: item?.foto || ''
+      foto: item?.foto || '',
+      visivel: item?.visivel ?? true
     });
     setModalConfig({
       isOpen: true,
@@ -671,7 +678,8 @@ const CardapioPage: React.FC = () => {
               descricao: formData.descricao,
               preco: formData.preco,
               foto: formData.foto,
-              ativo: true
+              ativo: true,
+              visivel: true
             }]
           };
         }
@@ -719,6 +727,20 @@ const CardapioPage: React.FC = () => {
           ...cat,
           itens: cat.itens.map(item =>
             item.id === itemId ? { ...item, [field]: value } : item
+          )
+        };
+      }
+      return cat;
+    }));
+  };
+
+  const toggleVisibility = (itemId: string) => {
+    setCategorias(prev => prev.map(cat => {
+      if (cat.id === activeCatId) {
+        return {
+          ...cat,
+          itens: cat.itens.map(item =>
+            item.id === itemId ? { ...item, visivel: !item.visivel } : item
           )
         };
       }
@@ -1182,23 +1204,88 @@ const CardapioPage: React.FC = () => {
                             COMBO
                           </div>
                         )}
-                        {/* Hover Actions */}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {/* Visibility Overlay */}
+                        {!item.visivel && (
+                          <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                            <div className="bg-slate-900/80 text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 shadow-lg">
+                              <EyeOff size={14} />
+                              Produto oculto do MENU
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3-dots Menu - Replaces Hover Actions */}
+                        <div className="absolute top-2 right-2 z-20">
                           <button
-                            onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                            className="p-2 bg-white text-slate-700 rounded-lg hover:bg-slate-100 transition-all"
-                            title="Editar"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setItemMenuPosition({ top: rect.bottom + 5, left: rect.left - 100 });
+                              setItemMenuOpen(itemMenuOpen === item.id ? null : item.id);
+                            }}
+                            className="p-1.5 bg-white/90 hover:bg-white text-slate-700 rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95"
                           >
-                            <Edit3 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
-                            title="Excluir"
-                          >
-                            <Trash2 size={16} />
+                            <MoreVertical size={16} />
                           </button>
                         </div>
+
+                        {/* Item Menu Dropdown */}
+                        {itemMenuOpen === item.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[100]"
+                              onClick={(e) => { e.stopPropagation(); setItemMenuOpen(null); }}
+                            />
+                            <div
+                              className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[150px]"
+                              style={{
+                                top: itemMenuPosition.top,
+                                left: itemMenuPosition.left
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                onClick={() => {
+                                  item.isCombo ? openComboModal(item) : openItemModal(item);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
+                              >
+                                <Edit3 size={14} className="text-indigo-500" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  toggleVisibility(item.id);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
+                              >
+                                {item.visivel ? (
+                                  <>
+                                    <EyeOff size={14} className="text-slate-500" />
+                                    Ocultar do Menu
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye size={14} className="text-emerald-500" />
+                                    Exibir no Menu
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleDeleteItem(item.id);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
+                              >
+                                <Trash2 size={14} className="text-red-500" />
+                                Deletar
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {/* Product Info */}
@@ -1305,6 +1392,15 @@ const CardapioPage: React.FC = () => {
                               className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             />
                           </div>
+
+                          <button
+                            onClick={() => toggleVisibility(item.id)}
+                            className={`p-2 rounded-lg transition-all flex-shrink-0 ${item.visivel ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                            title={item.visivel ? "Ocultar do Menu" : "Exibir no Menu"}
+                          >
+                            {item.visivel ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+
                           <button
                             onClick={() => handleDeleteItem(item.id)}
                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all flex-shrink-0"

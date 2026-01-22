@@ -34,6 +34,7 @@ interface MenuItem {
   comboItens?: ComboProduct[];
   showSavings?: boolean;
   savingsAmount?: string;
+  visivel?: boolean;
 }
 
 interface MenuCategory {
@@ -135,7 +136,7 @@ const MenuOnline: React.FC = () => {
   ];
 
   const activeCategory = MENU_DATA.find(c => c.id === activeCatId);
-  const allItems = MENU_DATA.flatMap(cat => cat.itens.map(item => ({ ...item, categoryId: cat.id })));
+  const allItems = MENU_DATA.flatMap(cat => cat.itens.filter(i => i.visivel !== false).map(item => ({ ...item, categoryId: cat.id })));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -226,9 +227,7 @@ const MenuOnline: React.FC = () => {
         ))}
 
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
-          <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-2xl font-black mb-4 shadow-lg">
-            H
-          </div>
+
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">Hashi Express</h1>
           <p className="text-sm sm:text-base font-medium opacity-80">Sabor e tradição em cada detalhe</p>
 
@@ -270,7 +269,7 @@ const MenuOnline: React.FC = () => {
         <h2 className="text-2xl font-bold text-slate-800 mb-6">{activeCategory?.nome}</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {activeCategory?.itens.map((item, idx) => (
+          {activeCategory?.itens.filter(item => item.visivel !== false).map((item, idx) => (
             <div
               key={item.id}
               onClick={() => openExpanded(activeCatId, idx)}
