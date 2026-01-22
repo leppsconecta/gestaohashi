@@ -127,24 +127,34 @@ const FuncionarioDetailsView: React.FC<{ data: Funcionario }> = ({ data }) => {
 
       <div>
         <h3 className={sectionTitle}><FileText size={14} /> Documentos</h3>
-        <div className="flex gap-3">
-          <button
-            onClick={() => fetchAndDownload('front')}
-            disabled={downloading === 'front'}
-            className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {downloading === 'front' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
-            <span className="font-bold text-xs uppercase">Baixar Frente</span>
-          </button>
-          <button
-            onClick={() => fetchAndDownload('back')}
-            disabled={downloading === 'back'}
-            className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {downloading === 'back' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
-            <span className="font-bold text-xs uppercase">Baixar Verso</span>
-          </button>
-        </div>
+        {(data.documentoFrente || data.documentoVerso) ? (
+          <div className="flex gap-3">
+            {data.documentoFrente && (
+              <button
+                onClick={() => fetchAndDownload('front')}
+                disabled={downloading === 'front'}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {downloading === 'front' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
+                <span className="font-bold text-xs uppercase">Baixar Frente</span>
+              </button>
+            )}
+            {data.documentoVerso && (
+              <button
+                onClick={() => fetchAndDownload('back')}
+                disabled={downloading === 'back'}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {downloading === 'back' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
+                <span className="font-bold text-xs uppercase">Baixar Verso</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500 italic p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+            Nenhum documento anexado
+          </div>
+        )}
       </div>
     </div>
   );
@@ -269,18 +279,11 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[handleSubmit] Form submitted, formData:', formData);
     setLoading(true);
+
     try {
-      // Upload simulation
-      let frenteUrl = '';
-      let versoUrl = '';
-
-      // NOTE: Actual upload disabled to prevent errors without bucket info.
-      // if (docFrente) frenteUrl = await uploadFile(docFrente, `docs/${Date.now()}_frente_${docFrente.name}`);
-      // if (docVerso) versoUrl = await uploadFile(docVerso, `docs/${Date.now()}_verso_${docVerso.name}`);
-
       const isFreelancer = formData.tipoContrato === 'Freelancer';
-
       const payload = {
         status: formData.status,
         type: formData.tipoContrato,
@@ -304,10 +307,10 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         city: isFreelancer ? null : formData.cidade,
         state: isFreelancer ? null : formData.estado,
         complement: isFreelancer ? null : formData.complemento,
-        // document_front: frenteUrl,
-        // document_back: versoUrl,
         code: initialData?.codigo ? parseInt(initialData.codigo) : Math.floor(Math.random() * 9000) + 1000
       };
+
+      console.log('[handleSubmit] Saving to DB with payload:', payload);
 
       let error;
       if (initialData?.id) {
@@ -318,13 +321,19 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         error = insertError;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('[handleSubmit] DB Error:', error);
+        alert('Erro ao salvar funcionário: ' + error.message);
+        setLoading(false);
+        return;
+      }
 
+      console.log('[handleSubmit] Save successful! Calling onSuccess()');
       onSuccess();
+
     } catch (error: any) {
-      console.error('Erro ao salvar:', error);
+      console.error('[handleSubmit] Catch error:', error);
       alert('Erro ao salvar funcionário: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -359,19 +368,10 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         // Prevent default browser behavior if needed, but here we just want to ensure feedback
         const target = e.target as HTMLInputElement;
         if (!target.validity.valid) {
-          // If the invalid element is hidden or scrolled out, the user won't see it.
-          // We can show a generic alert to ensure they know SOMETHING is wrong.
-          // Debounce this so we don't spam alerts for every invalid field (bubbling).
-          // However, onInvalid is per element.
-          // Simplest: just ensure the form shows visual indicators.
-          // A global toast would be better, but alert is requested/standard here.
-          // Actually, let's just let the browser bubble show, but if we suspect it's hidden:
-          // We can't easily detect if visible.
-          // Let's add the alert in the onConfirm logic instead.
+          // Standard browser bubbles will appear
         }
       }}
     >
-
       {/* Dados Empresa */}
       <div className={sectionHeader}><Briefcase size={14} /> Dados da Empresa</div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -467,14 +467,14 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className={sectionHeader}><User size={14} /> Dados Pessoais</div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-1">
-          <label className={labelClass}>Nome Completo</label>
+          <label className={labelClass}>Nome Completo <span className="text-red-500">*</span></label>
           <input name="nome" value={formData.nome} onChange={handleChange} className={inputClass} required />
         </div>
 
         {!isFreelancer && (
           <>
             <div>
-              <label className={labelClass}>Sexo</label>
+              <label className={labelClass}>Sexo <span className="text-red-500">*</span></label>
               <select name="sexo" value={formData.sexo} onChange={handleChange} className={inputClass} required={!isFreelancer}>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
@@ -482,14 +482,14 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
               </select>
             </div>
             <div>
-              <label className={labelClass}>Data Nascimento</label>
+              <label className={labelClass}>Data Nascimento <span className="text-red-500">*</span></label>
               <input type="date" name="dataNascimento" value={formData.dataNascimento} onChange={handleChange} className={inputClass} required={!isFreelancer} />
             </div>
           </>
         )}
 
         <div>
-          <label className={labelClass}>Telefone Principal</label>
+          <label className={labelClass}>Telefone Principal <span className="text-red-500">*</span></label>
           <input name="telefone" value={formData.telefone} onChange={handleChange} className={inputClass} placeholder="(00) 00000-0000" required />
         </div>
 
@@ -511,15 +511,15 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className={sectionHeader}><CreditCard size={14} /> Dados Bancários</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className={labelClass}>Nome do Titular</label>
+          <label className={labelClass}>Nome do Titular <span className="text-red-500">*</span></label>
           <input name="titular" value={formData.titular} onChange={handleChange} className={inputClass} placeholder="Nome completo como no banco" required />
         </div>
         <div>
-          <label className={labelClass}>Banco</label>
+          <label className={labelClass}>Banco <span className="text-red-500">*</span></label>
           <input name="banco" value={formData.banco} onChange={handleChange} className={inputClass} placeholder="Ex: Nubank, Itaú" required />
         </div>
         <div>
-          <label className={labelClass}>Tipo de Chave PIX</label>
+          <label className={labelClass}>Tipo de Chave PIX <span className="text-red-500">*</span></label>
           <select name="pixTipo" value={formData.pixTipo} onChange={handleChange} className={inputClass} required>
             <option value="CPF">CPF</option>
             <option value="Celular">Celular</option>
@@ -528,7 +528,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
           </select>
         </div>
         <div>
-          <label className={labelClass}>Chave PIX</label>
+          <label className={labelClass}>Chave PIX <span className="text-red-500">*</span></label>
           <input name="pixChave" value={formData.pixChave} onChange={handleChange} className={inputClass} placeholder="Chave PIX" required />
         </div>
       </div>
@@ -539,7 +539,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
           <div className={sectionHeader}><FileText size={14} /> Documentos e Fotos</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Tipo de Documento</label>
+              <label className={labelClass}>Tipo de Documento <span className="text-red-500">*</span></label>
               <select name="docTipo" value={formData.docTipo} onChange={handleChange} className={inputClass} required={!isFreelancer}>
                 <option value="RG">RG</option>
                 <option value="CPF">CPF</option>
@@ -547,7 +547,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
               </select>
             </div>
             <div>
-              <label className={labelClass}>Número do Documento</label>
+              <label className={labelClass}>Número do Documento <span className="text-red-500">*</span></label>
               <input name="docNumero" value={formData.docNumero} onChange={handleChange} className={inputClass} placeholder="00.000.000-0" required={!isFreelancer} />
             </div>
 
@@ -574,11 +574,11 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
           <div className={sectionHeader}><MapPin size={14} /> Endereço Completo</div>
           <div className="grid grid-cols-4 gap-4">
             <div className="col-span-3">
-              <label className={labelClass}>Rua / Logradouro</label>
+              <label className={labelClass}>Rua / Logradouro <span className="text-red-500">*</span></label>
               <input name="rua" value={formData.rua} onChange={handleChange} className={inputClass} placeholder="Nome da Rua" required={!isFreelancer} />
             </div>
             <div>
-              <label className={labelClass}>Número</label>
+              <label className={labelClass}>Número <span className="text-red-500">*</span></label>
               <input name="numero" value={formData.numero} onChange={handleChange} className={inputClass} placeholder="123" required={!isFreelancer} />
             </div>
 
@@ -587,15 +587,15 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
               <input name="complemento" value={formData.complemento} onChange={handleChange} className={inputClass} placeholder="Apto 23, Bloco B" />
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>Bairro</label>
+              <label className={labelClass}>Bairro <span className="text-red-500">*</span></label>
               <input name="bairro" value={formData.bairro} onChange={handleChange} className={inputClass} required={!isFreelancer} />
             </div>
             <div className="col-span-3">
-              <label className={labelClass}>Cidade</label>
+              <label className={labelClass}>Cidade <span className="text-red-500">*</span></label>
               <input name="cidade" value={formData.cidade} onChange={handleChange} className={inputClass} required={!isFreelancer} />
             </div>
             <div>
-              <label className={labelClass}>Estado (UF)</label>
+              <label className={labelClass}>Estado (UF) <span className="text-red-500">*</span></label>
               <input name="estado" value={formData.estado} onChange={handleChange} className={inputClass} placeholder="SP" maxLength={2} required={!isFreelancer} />
             </div>
           </div>
@@ -878,10 +878,17 @@ const FuncionariosPage: React.FC = () => {
       confirmText: 'Salvar Funcionário',
       autoClose: false,
       onConfirm: () => {
+        console.log('[handleCreate] onConfirm called, formRef.current:', formRef.current);
         if (formRef.current) {
+          console.log('[handleCreate] Calling reportValidity()');
           if (formRef.current.reportValidity()) {
+            console.log('[handleCreate] Valid! Calling requestSubmit()');
             formRef.current.requestSubmit();
+          } else {
+            console.log('[handleCreate] Form is NOT valid');
           }
+        } else {
+          console.log('[handleCreate] formRef.current is NULL!');
         }
       },
       content: (
@@ -1013,7 +1020,11 @@ const FuncionariosPage: React.FC = () => {
         confirmText={modalConfig.confirmText}
         onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
         // @ts-ignore
+        autoClose={modalConfig.autoClose}
+        // @ts-ignore
         hideFooter={modalConfig.hideFooter}
+        // @ts-ignore
+        showCancel={modalConfig.showCancel}
       />
     </div>
   );
