@@ -3,7 +3,7 @@ import React from 'react';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { ModalProps, ModalType } from '../../types';
 
-const Modal: React.FC<ModalProps & { hideFooter?: boolean }> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg', confirmText, autoClose = true, hideFooter = false }) => {
+const Modal: React.FC<ModalProps & { hideFooter?: boolean, showCancel?: boolean }> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg', confirmText, autoClose = true, hideFooter = false, showCancel = true }) => {
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -25,7 +25,7 @@ const Modal: React.FC<ModalProps & { hideFooter?: boolean }> = ({ isOpen, type, 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose ? onClose : undefined}>
       <div
         className={`bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full ${maxWidth} flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
@@ -52,12 +52,14 @@ const Modal: React.FC<ModalProps & { hideFooter?: boolean }> = ({ isOpen, type, 
         {/* Footer - Fixo, opcional */}
         {!hideFooter && (
           <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 dark:border-slate-700 shrink-0">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
-            >
-              Cancelar
-            </button>
+            {showCancel && (
+              <button
+                onClick={onClose}
+                className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
+              >
+                Cancelar
+              </button>
+            )}
             {onConfirm && (
               <button
                 onClick={() => {

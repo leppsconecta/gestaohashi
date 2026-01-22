@@ -85,6 +85,7 @@ const FuncionarioDetailsView: React.FC<{ data: Funcionario }> = ({ data }) => {
             <div className={itemClass}>
               <p className={labelClass}>Contato</p>
               <p className={valueClass}>{data.contato}</p>
+              {data.contatoRecado && <p className="text-xs text-slate-500 mt-0.5">Recado: {data.contatoRecado}</p>}
               <p className="text-xs text-slate-500 mt-0.5">{data.email}</p>
             </div>
           </div>
@@ -319,7 +320,6 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
 
       if (error) throw error;
 
-      alert(`Funcionário ${initialData?.id ? 'atualizado' : 'cadastrado'} com sucesso!`);
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
@@ -351,7 +351,26 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
   const isFreelancer = formData.tipoContrato === 'Freelancer';
 
   return (
-    <form ref={ref} onSubmit={handleSubmit} className="space-y-1">
+    <form
+      ref={ref}
+      onSubmit={handleSubmit}
+      className="space-y-1"
+      onInvalidCapture={(e) => {
+        // Prevent default browser behavior if needed, but here we just want to ensure feedback
+        const target = e.target as HTMLInputElement;
+        if (!target.validity.valid) {
+          // If the invalid element is hidden or scrolled out, the user won't see it.
+          // We can show a generic alert to ensure they know SOMETHING is wrong.
+          // Debounce this so we don't spam alerts for every invalid field (bubbling).
+          // However, onInvalid is per element.
+          // Simplest: just ensure the form shows visual indicators.
+          // A global toast would be better, but alert is requested/standard here.
+          // Actually, let's just let the browser bubble show, but if we suspect it's hidden:
+          // We can't easily detect if visible.
+          // Let's add the alert in the onConfirm logic instead.
+        }
+      }}
+    >
 
       {/* Dados Empresa */}
       <div className={sectionHeader}><Briefcase size={14} /> Dados da Empresa</div>
@@ -567,15 +586,15 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
               <label className={labelClass}>Complemento</label>
               <input name="complemento" value={formData.complemento} onChange={handleChange} className={inputClass} placeholder="Apto 23, Bloco B" />
             </div>
-            <div>
+            <div className="col-span-2">
               <label className={labelClass}>Bairro</label>
               <input name="bairro" value={formData.bairro} onChange={handleChange} className={inputClass} required={!isFreelancer} />
             </div>
-            <div>
+            <div className="col-span-3">
               <label className={labelClass}>Cidade</label>
               <input name="cidade" value={formData.cidade} onChange={handleChange} className={inputClass} required={!isFreelancer} />
             </div>
-            <div className="col-span-4">
+            <div>
               <label className={labelClass}>Estado (UF)</label>
               <input name="estado" value={formData.estado} onChange={handleChange} className={inputClass} placeholder="SP" maxLength={2} required={!isFreelancer} />
             </div>
@@ -708,6 +727,18 @@ const FuncionariosPage: React.FC = () => {
         const formattedData: Funcionario[] = result.map(item => mapToFuncionario(item, false));
         setData(formattedData);
       }
+
+      // Fetch config
+      const { data: configData } = await supabase
+        .schema('gestaohashi')
+        .from('config')
+        .select('value')
+        .eq('key', 'public_form_enabled')
+        .single();
+
+      if (configData) {
+        setPublicLinkEnabled(configData.value === 'true');
+      }
     } catch (error: any) {
       console.error('Erro ao carregar funcionários:', error);
       alert(`Erro: ${error.message || JSON.stringify(error)}`);
@@ -730,7 +761,15 @@ const FuncionariosPage: React.FC = () => {
             const { error } = await supabase.schema('gestaohashi').from('equipe').delete().eq('id', item.id);
             if (error) throw error;
             loadData();
-            setModalConfig({ isOpen: false });
+            setModalConfig({
+              isOpen: true,
+              type: 'confirm-insert',
+              title: 'Sucesso',
+              content: 'Funcionário excluído com sucesso!',
+              confirmText: 'OK',
+              showCancel: false,
+              onConfirm: () => setModalConfig({ isOpen: false })
+            });
           } catch (error) {
             console.error('Erro ao excluir:', error);
             alert('Erro ao excluir funcionário.');
@@ -745,7 +784,15 @@ const FuncionariosPage: React.FC = () => {
         confirmText: 'Salvar Alterações',
         autoClose: false,
         onConfirm: () => {
-          if (formRef.current) formRef.current.requestSubmit();
+          if (formRef.current) {
+            if (formRef.current.reportValidity()) {
+              formRef.current.requestSubmit();
+            } else {
+              // Usually reportValidity shows the bubbles.
+              // If they don't show, we can alert.
+              // alert('Por favor, preencha todos os campos obrigatórios.');
+            }
+          }
         },
         content: (
           <FuncionarioForm
@@ -754,7 +801,15 @@ const FuncionariosPage: React.FC = () => {
             setModalConfig={setModalConfig}
             onSuccess={() => {
               loadData();
-              setModalConfig((prev: any) => ({ ...prev, isOpen: false }));
+              setModalConfig({
+                isOpen: true,
+                type: 'confirm-update',
+                title: 'Sucesso',
+                content: 'Funcionário atualizado com sucesso!',
+                showCancel: false,
+                confirmText: 'OK',
+                onConfirm: () => setModalConfig({ isOpen: false })
+              });
             }}
           />
         ),
@@ -768,7 +823,7 @@ const FuncionariosPage: React.FC = () => {
           .schema('gestaohashi')
           .from('equipe')
           .select(`
-            id, code, admission_date, type, name, status, role, phone, email, gender,
+            id, code, admission_date, type, name, status, role, phone, emergency_phone, email, gender,
             birth_date, nationality, bank_account_name, bank_name, bank_key_type,
             bank_key, document_type, document, street, number, neighborhood, city, state, complement
           `) // Explicitly NO document_front/back
@@ -812,7 +867,11 @@ const FuncionariosPage: React.FC = () => {
       confirmText: 'Salvar Funcionário',
       autoClose: false,
       onConfirm: () => {
-        if (formRef.current) formRef.current.requestSubmit();
+        if (formRef.current) {
+          if (formRef.current.reportValidity()) {
+            formRef.current.requestSubmit();
+          }
+        }
       },
       content: (
         <FuncionarioForm
@@ -820,7 +879,15 @@ const FuncionariosPage: React.FC = () => {
           setModalConfig={setModalConfig}
           onSuccess={() => {
             loadData();
-            setModalConfig((prev: any) => ({ ...prev, isOpen: false }));
+            setModalConfig({
+              isOpen: true,
+              type: 'confirm-insert',
+              title: 'Sucesso',
+              content: 'Funcionário cadastrado com sucesso!',
+              showCancel: false,
+              confirmText: 'OK',
+              onConfirm: () => setModalConfig({ isOpen: false })
+            });
           }}
         />
       ),
@@ -865,7 +932,15 @@ const FuncionariosPage: React.FC = () => {
         <button
           onClick={() => {
             navigator.clipboard.writeText(item.pixChave);
-            alert('Chave Pix copiada!');
+            setModalConfig({
+              isOpen: true,
+              type: 'confirm-insert',
+              title: 'Sucesso',
+              content: 'Chave Pix copiada!',
+              confirmText: 'OK',
+              showCancel: false,
+              onConfirm: () => setModalConfig({ isOpen: false })
+            });
           }}
           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all group relative"
           title={item.pixChave}
