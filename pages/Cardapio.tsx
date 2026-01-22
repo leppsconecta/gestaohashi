@@ -128,7 +128,8 @@ const INITIAL_CATEGORIAS: CardapioCategoria[] = [
 ];
 
 const CardapioPage: React.FC = () => {
-  const [categorias, setCategorias] = useState<CardapioCategoria[]>(INITIAL_CATEGORIAS);
+  const [categorias, setCategorias] = useState<CardapioCategoria[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeCatId, setActiveCatId] = useState<string>('cat-1');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -280,21 +281,26 @@ const CardapioPage: React.FC = () => {
 
     setIsUploading(true);
     try {
-      // Convert to base64 for local storage (in production, upload to Supabase storage)
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        setFormData(prev => ({ ...prev, foto: base64 }));
-        setMediaType(isVideo ? 'video' : 'image');
-        setIsUploading(false);
-      };
-      reader.onerror = () => {
-        alert('Erro ao processar o arquivo.');
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      alert('Erro ao fazer upload.');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `produtos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cardapio')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('cardapio')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, foto: publicUrl }));
+      setMediaType(isVideo ? 'video' : 'image');
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      alert('Erro ao fazer upload da imagem: ' + (error.message || 'Erro desconhecido.'));
+    } finally {
       setIsUploading(false);
     }
 
@@ -314,6 +320,110 @@ const CardapioPage: React.FC = () => {
       setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 5);
     }
   };
+
+  // Fetch data on mount
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch categories
+      const { data: catData, error: catError } = await supabase
+        .schema('gestaohashi')
+        .from('categorias')
+        .select('*')
+        .order('ordem', { ascending: true });
+
+      if (catError) throw catError;
+
+      // Fetch products for these categories
+      const { data: prodData, error: prodError } = await supabase
+        .schema('gestaohashi')
+        .from('produtos')
+        .select('*')
+        .order('ordem', { ascending: true });
+
+      if (prodError) throw prodError;
+
+      // Fetch combo items
+      const { data: comboItemData, error: comboItemError } = await supabase
+        .schema('gestaohashi')
+        .from('combo_produtos')
+        .select('*');
+
+      if (comboItemError) throw comboItemError;
+
+      // Format data
+      const formattedCategorias: CardapioCategoria[] = catData.map(cat => ({
+        id: cat.id,
+        nome: cat.nome,
+        itens: prodData
+          .filter(p => p.categoria_id === cat.id)
+          .map(p => ({
+            id: p.id,
+            nome: p.nome,
+            descricao: p.descricao || '',
+            preco: p.preco?.toString().replace('.', ',') || '0,00',
+            foto: p.foto_url,
+            ativo: p.ativo ?? true,
+            isCombo: p.is_combo ?? false,
+            showSavings: p.show_savings ?? false,
+            savingsAmount: p.savings_amount?.toString().replace('.', ',') || '',
+            visivel: p.visivel ?? true,
+            comboItens: comboItemData
+              .filter(ci => ci.combo_id === p.id)
+              .map(ci => ({
+                id: ci.id,
+                nome: ci.nome,
+                descricao: ci.descricao,
+                quantidade: ci.quantidade,
+                unidade: ci.unidade as any,
+                foto: ci.foto_url,
+                isFromCardapio: !!ci.produto_id,
+                originalItemId: ci.produto_id
+              }))
+          }))
+      }));
+
+      setCategorias(formattedCategorias);
+
+      // Fetch Hero Images
+      try {
+        const { data: heroData, error: heroError } = await supabase
+          .schema('gestaohashi')
+          .from('hero_images')
+          .select('*')
+          .order('ordem', { ascending: true });
+
+        if (!heroError && heroData && heroData.length > 0) {
+          const formattedHeroes = [0, 1, 2].map(idx => {
+            const h = heroData.find(hd => hd.ordem === idx);
+            return h ? {
+              id: h.id,
+              foto: h.foto_url,
+              titulo: h.titulo || '',
+              subtitulo: h.subtitulo || '',
+              showDescription: h.show_description ?? false
+            } : { id: `hero-${idx}`, foto: '', titulo: '', subtitulo: '', showDescription: false };
+          });
+          setHeroImages(formattedHeroes);
+        }
+      } catch (e) {
+        console.warn('Hero images table might not be ready yet.');
+      }
+
+    } catch (error: any) {
+      console.error('Error fetching cardapio data:', error);
+      // Only alert if it's not a common "table not found" during setup
+      if (error.code !== 'PGRST116' && error.code !== '42P01') {
+        alert('Erro ao carregar dados: ' + (error.message || 'Verifique sua conexão.'));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   useEffect(() => {
     checkScroll();
@@ -337,12 +447,29 @@ const CardapioPage: React.FC = () => {
     setAddCategoryModal({ isOpen: true, name: '' });
   };
 
-  const handleConfirmAddCategoria = () => {
+  const handleConfirmAddCategoria = async () => {
     if (addCategoryModal.name.trim()) {
-      const newCat = { id: `cat-${Date.now()}`, nome: addCategoryModal.name.trim(), itens: [] };
-      setCategorias([...categorias, newCat]);
-      setActiveCatId(newCat.id);
-      setAddCategoryModal({ isOpen: false, name: '' });
+      try {
+        const { data, error } = await supabase
+          .schema('gestaohashi')
+          .from('categorias')
+          .insert({
+            nome: addCategoryModal.name.trim(),
+            ordem: categorias.length
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const newCat = { id: data.id, nome: data.nome, itens: [] };
+        setCategorias([...categorias, newCat]);
+        setActiveCatId(newCat.id);
+        setAddCategoryModal({ isOpen: false, name: '' });
+      } catch (error: any) {
+        console.error('Error adding category:', error);
+        alert('Erro ao adicionar categoria: ' + (error.message || 'Erro desconhecido.'));
+      }
     }
   };
 
@@ -350,25 +477,50 @@ const CardapioPage: React.FC = () => {
     setDeleteCategoryModal({ isOpen: true, categoryId: id });
   };
 
-  const handleConfirmDeleteCategoria = () => {
+  const handleConfirmDeleteCategoria = async () => {
     if (deleteCategoryModal.categoryId) {
-      setCategorias(categorias.filter(c => c.id !== deleteCategoryModal.categoryId));
-      if (activeCatId === deleteCategoryModal.categoryId && categorias.length > 1) {
-        // Switch to adjacent category if current is deleted
-        const remaining = categorias.filter(c => c.id !== deleteCategoryModal.categoryId);
-        if (remaining.length > 0) {
-          setActiveCatId(remaining[0].id);
+      try {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('categorias')
+          .delete()
+          .eq('id', deleteCategoryModal.categoryId);
+
+        if (error) throw error;
+
+        setCategorias(categorias.filter(c => c.id !== deleteCategoryModal.categoryId));
+        if (activeCatId === deleteCategoryModal.categoryId && categorias.length > 1) {
+          const remaining = categorias.filter(c => c.id !== deleteCategoryModal.categoryId);
+          if (remaining.length > 0) {
+            setActiveCatId(remaining[0].id);
+          }
         }
+        setDeleteCategoryModal({ isOpen: false, categoryId: null });
+      } catch (error) {
+        console.error('Error deleting category:', error);
+        alert('Erro ao excluir categoria do banco de dados.');
       }
-      setDeleteCategoryModal({ isOpen: false, categoryId: null });
     }
   };
 
-  const handleUpdateCategoryName = (id: string) => {
+  const handleUpdateCategoryName = async (id: string) => {
     if (editingCategoryName.trim()) {
-      setCategorias(prev => prev.map(cat =>
-        cat.id === id ? { ...cat, nome: editingCategoryName.trim() } : cat
-      ));
+      try {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('categorias')
+          .update({ nome: editingCategoryName.trim() })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        setCategorias(prev => prev.map(cat =>
+          cat.id === id ? { ...cat, nome: editingCategoryName.trim() } : cat
+        ));
+      } catch (error) {
+        console.error('Error updating category name:', error);
+        alert('Erro ao atualizar nome da categoria.');
+      }
     }
     setEditingCategoryId(null);
     setEditingCategoryName('');
@@ -459,19 +611,25 @@ const CardapioPage: React.FC = () => {
 
     setIsComboUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        setComboFormData(prev => ({ ...prev, foto: base64 }));
-        setIsComboUploading(false);
-      };
-      reader.onerror = () => {
-        alert('Erro ao processar o arquivo.');
-        setIsComboUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      alert('Erro ao fazer upload.');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `combos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cardapio')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('cardapio')
+        .getPublicUrl(filePath);
+
+      setComboFormData(prev => ({ ...prev, foto: publicUrl }));
+    } catch (error: any) {
+      console.error('Error uploading combo image:', error);
+      alert('Erro ao fazer upload da imagem do combo: ' + (error.message || 'Erro desconhecido.'));
+    } finally {
       setIsComboUploading(false);
     }
 
@@ -498,25 +656,66 @@ const CardapioPage: React.FC = () => {
     setUploadingHeroIndex(index);
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setHeroImages(prev => prev.map((img, idx) =>
-          idx === index ? { ...img, foto: reader.result as string } : img
-        ));
-        setUploadingHeroIndex(null);
-      };
-      reader.onerror = () => {
-        alert('Erro ao processar o arquivo.');
-        setUploadingHeroIndex(null);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      alert('Erro ao fazer upload.');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `hero/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cardapio')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('cardapio')
+        .getPublicUrl(filePath);
+
+      setHeroImages(prev => prev.map((img, idx) =>
+        idx === index ? { ...img, foto: publicUrl } : img
+      ));
+    } catch (error: any) {
+      console.error('Error uploading hero image:', error);
+      alert('Erro ao fazer upload da imagem de capa: ' + (error.message || 'Erro desconhecido.'));
+    } finally {
       setUploadingHeroIndex(null);
     }
 
     if (heroFileInputRefs[index]?.current) {
       heroFileInputRefs[index].current!.value = '';
+    }
+  };
+
+  const handleSaveHero = async () => {
+    try {
+      const promises = heroImages.map((hero, idx) => {
+        const payload = {
+          foto_url: hero.foto,
+          titulo: hero.titulo,
+          subtitulo: hero.subtitulo,
+          show_description: hero.showDescription,
+          ordem: idx
+        };
+
+        if (hero.id && !hero.id.startsWith('hero-')) {
+          return supabase
+            .schema('gestaohashi')
+            .from('hero_images')
+            .update(payload)
+            .eq('id', hero.id);
+        } else {
+          return supabase
+            .schema('gestaohashi')
+            .from('hero_images')
+            .insert(payload);
+        }
+      });
+
+      await Promise.all(promises);
+      alert('Imagens de capa salvas com sucesso!');
+      await fetchData();
+    } catch (error) {
+      console.error('Error saving hero images:', error);
+      alert('Erro ao salvar imagens de capa.');
     }
   };
 
@@ -556,7 +755,7 @@ const CardapioPage: React.FC = () => {
     setShowProductSuggestions(false);
   };
 
-  const handleSaveCombo = () => {
+  const handleSaveCombo = async () => {
     if (!comboFormData.nome.trim()) {
       alert('Informe o nome do combo');
       return;
@@ -566,52 +765,78 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
-    setCategorias(prev => prev.map(cat => {
-      if (cat.id === activeCatId) {
-        if (editingCombo) {
-          return {
-            ...cat,
-            itens: cat.itens.map(item =>
-              item.id === editingCombo.id
-                ? {
-                  ...item,
-                  nome: comboFormData.nome,
-                  descricao: comboFormData.descricao,
-                  preco: comboFormData.preco,
-                  foto: comboFormData.foto,
-                  isCombo: true,
-                  comboItens: comboProducts,
-                  showSavings: comboFormData.showSavings,
-                  savingsAmount: comboFormData.savingsAmount
-                }
-                : item
-            )
-          };
-        } else {
-          return {
-            ...cat,
-            itens: [...cat.itens, {
-              id: `combo-${Date.now()}`,
-              nome: comboFormData.nome,
-              descricao: comboFormData.descricao,
-              preco: comboFormData.preco,
-              foto: comboFormData.foto,
-              ativo: true,
-              isCombo: true,
-              comboItens: comboProducts,
-              showSavings: comboFormData.showSavings,
-              savingsAmount: comboFormData.savingsAmount
-            }]
-          };
-        }
-      }
-      return cat;
-    }));
+    try {
+      const priceVal = parseFloat(comboFormData.preco.replace(',', '.')) || 0;
+      const savingsVal = parseFloat(comboFormData.savingsAmount.replace(',', '.')) || 0;
 
-    setComboModalOpen(false);
-    setEditingCombo(null);
-    setComboFormData({ nome: '', descricao: '', preco: '', foto: '', showSavings: false, savingsAmount: '' });
-    setComboProducts([]);
+      let comboId = editingCombo?.id;
+
+      const comboPayload = {
+        nome: comboFormData.nome,
+        descricao: comboFormData.descricao,
+        preco: priceVal,
+        foto_url: comboFormData.foto,
+        is_combo: true,
+        show_savings: comboFormData.showSavings,
+        savings_amount: savingsVal,
+        categoria_id: activeCatId,
+        ativo: true,
+        visivel: true
+      };
+
+      if (editingCombo) {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('produtos')
+          .update(comboPayload)
+          .eq('id', comboId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .schema('gestaohashi')
+          .from('produtos')
+          .insert(comboPayload)
+          .select()
+          .single();
+        if (error) throw error;
+        comboId = data.id;
+      }
+
+      // Sync combo items
+      // 1. Delete old items
+      const { error: delError } = await supabase
+        .schema('gestaohashi')
+        .from('combo_produtos')
+        .delete()
+        .eq('combo_id', comboId);
+      if (delError) throw delError;
+
+      // 2. Insert new items
+      const itemsPayload = comboProducts.map(cp => ({
+        combo_id: comboId,
+        produto_id: cp.isFromCardapio ? cp.originalItemId : null,
+        nome: cp.nome,
+        descricao: cp.descricao,
+        quantidade: cp.quantidade,
+        unidade: cp.unidade,
+        foto_url: cp.foto
+      }));
+
+      const { error: insError } = await supabase
+        .schema('gestaohashi')
+        .from('combo_produtos')
+        .insert(itemsPayload);
+      if (insError) throw insError;
+
+      await fetchData(); // Refresh all to reflect changes
+      setComboModalOpen(false);
+      setEditingCombo(null);
+      setComboFormData({ nome: '', descricao: '', preco: '', foto: '', showSavings: false, savingsAmount: '' });
+      setComboProducts([]);
+    } catch (error) {
+      console.error('Error saving combo:', error);
+      alert('Erro ao salvar combo no banco de dados.');
+    }
   };
 
   const addProductToCombo = () => {
@@ -652,55 +877,69 @@ const CardapioPage: React.FC = () => {
     });
   };
 
-  const handleSaveItem = () => {
+  const handleSaveItem = async () => {
     if (!formData.nome.trim()) {
       alert('Informe o nome do produto');
       return;
     }
 
-    setCategorias(prev => prev.map(cat => {
-      if (cat.id === activeCatId) {
-        if (editingItem) {
-          return {
-            ...cat,
-            itens: cat.itens.map(item =>
-              item.id === editingItem.id
-                ? { ...item, ...formData }
-                : item
-            )
-          };
-        } else {
-          return {
-            ...cat,
-            itens: [...cat.itens, {
-              id: `item-${Date.now()}`,
-              nome: formData.nome,
-              descricao: formData.descricao,
-              preco: formData.preco,
-              foto: formData.foto,
-              ativo: true,
-              visivel: true
-            }]
-          };
-        }
-      }
-      return cat;
-    }));
+    try {
+      const priceVal = parseFloat(formData.preco.replace(',', '.')) || 0;
+      const payload = {
+        nome: formData.nome,
+        descricao: formData.descricao,
+        preco: priceVal,
+        foto_url: formData.foto,
+        visivel: formData.visivel,
+        categoria_id: activeCatId,
+        ativo: true,
+        is_combo: false
+      };
 
-    setModalConfig({ isOpen: false });
+      if (editingItem) {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('produtos')
+          .update(payload)
+          .eq('id', editingItem.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('produtos')
+          .insert(payload);
+        if (error) throw error;
+      }
+
+      await fetchData();
+      setModalConfig({ isOpen: false });
+    } catch (error) {
+      console.error('Error saving item:', error);
+      alert('Erro ao salvar produto no banco de dados.');
+    }
   };
 
   const handleDeleteItem = (itemId: string) => {
     setDeleteItemModal({ isOpen: true, itemId });
   };
 
-  const handleConfirmDeleteItem = () => {
+  const handleConfirmDeleteItem = async () => {
     if (deleteItemModal.itemId) {
-      setCategorias(prev => prev.map(cat => ({
-        ...cat,
-        itens: cat.itens.filter(item => item.id !== deleteItemModal.itemId)
-      })));
-      setDeleteItemModal({ isOpen: false, itemId: null });
+      try {
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('produtos')
+          .delete()
+          .eq('id', deleteItemModal.itemId);
+
+        if (error) throw error;
+
+        await fetchData();
+        setDeleteItemModal({ isOpen: false, itemId: null });
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        alert('Erro ao excluir produto.');
+      }
     }
   };
 
@@ -734,18 +973,34 @@ const CardapioPage: React.FC = () => {
     }));
   };
 
-  const toggleVisibility = (itemId: string) => {
-    setCategorias(prev => prev.map(cat => {
-      if (cat.id === activeCatId) {
-        return {
-          ...cat,
-          itens: cat.itens.map(item =>
-            item.id === itemId ? { ...item, visivel: !item.visivel } : item
-          )
-        };
-      }
-      return cat;
-    }));
+  const toggleVisibility = async (itemId: string) => {
+    const item = activeCategory?.itens.find(i => i.id === itemId);
+    if (!item) return;
+
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('produtos')
+        .update({ visivel: !item.visivel })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      setCategorias(prev => prev.map(cat => {
+        if (cat.id === activeCatId) {
+          return {
+            ...cat,
+            itens: cat.itens.map(item =>
+              item.id === itemId ? { ...item, visivel: !item.visivel } : item
+            )
+          };
+        }
+        return cat;
+      }));
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+      alert('Erro ao alterar visibilidade no banco de dados.');
+    }
   };
 
   const formatPrice = (value: string) => {
@@ -755,7 +1010,13 @@ const CardapioPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 relative min-h-[400px]">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center rounded-2xl">
+          <Loader2 size={40} className="text-indigo-600 animate-spin mb-4" />
+          <p className="text-slate-600 dark:text-slate-300 font-medium">Carregando cardápio...</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -788,7 +1049,21 @@ const CardapioPage: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">Adicione até 3 imagens para o carrossel do menu</p>
             </div>
           </div>
-          <ChevronRight size={20} className={`text-slate-400 transition-transform ${heroImagesExpanded ? 'rotate-90' : ''}`} />
+          <div className="flex items-center gap-3">
+            {heroImagesExpanded && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSaveHero();
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
+              >
+                <Save size={14} />
+                Salvar Alterações
+              </button>
+            )}
+            <ChevronRight size={20} className={`text-slate-400 transition-transform ${heroImagesExpanded ? 'rotate-90' : ''}`} />
+          </div>
         </button>
 
         {heroImagesExpanded && (
@@ -1147,7 +1422,6 @@ const CardapioPage: React.FC = () => {
                       </>
                     )}
                   </div>
-
                   {/* View Toggle */}
                   <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 ml-2">
                     <button
@@ -1166,6 +1440,21 @@ const CardapioPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {!isLoading && categorias.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <Layers size={48} className="text-slate-300 mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nenhuma categoria encontrada</h3>
+                <p className="text-slate-500 mb-6 text-center max-w-xs">Comece criando uma nova categoria para adicionar seus produtos.</p>
+                <button
+                  onClick={handleAddCategoria}
+                  className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md"
+                >
+                  <Plus size={20} />
+                  Criar minha primeira categoria
+                </button>
               </div>
             )}
 
