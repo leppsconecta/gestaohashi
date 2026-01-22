@@ -1,101 +1,155 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Share2, Eye, Edit3, Trash2, Briefcase, User, CreditCard, RefreshCw, Upload, MapPin, FileText, Check, Copy
+  Plus, Share2, Eye, Edit3, Trash2, Briefcase, User, CreditCard, RefreshCw, Upload, MapPin, FileText, Check, Copy, Settings
 } from 'lucide-react';
 import Table, { Column } from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
+import RoleManager from '../components/RoleManager';
 
 import { Funcionario, ModalType, AppRoute } from '../types';
 import { supabase } from '../lib/supabase';
 
 const FuncionarioDetailsView: React.FC<{ data: Funcionario }> = ({ data }) => {
-  const labelClass = "text-[11px] text-slate-500 dark:text-slate-400 mb-1 block ml-1";
-  const valueClass = "text-sm text-slate-900 dark:text-slate-100 font-medium";
-  const sectionTitle = "flex items-center gap-2 text-[11px] text-indigo-600 dark:text-indigo-400 uppercase tracking-widest py-3 border-b border-slate-100 dark:border-slate-800 mb-4 mt-6 first:mt-0 font-bold";
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const sectionTitle = "text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2";
+  const itemClass = "bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800";
+  const labelClass = "text-[10px] text-slate-500 uppercase font-bold mb-1";
+  const valueClass = "text-sm text-slate-900 dark:text-white font-medium truncate";
+
+  const fetchAndDownload = async (type: 'front' | 'back') => {
+    setDownloading(type);
+    try {
+      const { data: result, error } = await supabase
+        .schema('gestaohashi')
+        .from('equipe')
+        .select(type === 'front' ? 'document_front' : 'document_back')
+        .eq('id', data.id)
+        .single();
+
+      if (error) throw error;
+
+      const content = type === 'front' ? (result as any)?.document_front : (result as any)?.document_back;
+      if (!content) return alert('Arquivo não encontrado.');
+
+      const link = document.createElement('a');
+      link.href = content;
+      link.download = `Doc_${type === 'front' ? 'Frente' : 'Verso'}_${data.nome}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao baixar arquivo.');
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-4 p-6 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl shadow-lg">
+    <div className="space-y-6">
+      {/* Header Compacto */}
+      <div className="flex items-start gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-lg shrink-0">
           {data.nome.charAt(0)}
         </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white truncate">{data.nome}</h2>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-bold text-slate-500 uppercase tracking-wider">{data.funcao}</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${data.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+              }`}>{data.status}</span>
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wider">{data.tipoContrato}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none mb-1">{data.nome}</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 tracking-wider shadow-sm font-bold">
-              {data.codigo}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">{data.funcao}</span>
+          <h3 className={sectionTitle}><User size={14} /> Pessoal & Contato</h3>
+          <div className="space-y-2">
+            <div className={itemClass}>
+              <p className={labelClass}>CPF / RG</p>
+              <p className={valueClass}>{data.documentoNumero || '-'}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className={itemClass}>
+                <p className={labelClass}>Nascimento</p>
+                <p className={valueClass}>{data.dataNascimento || '-'}</p>
+              </div>
+              <div className={itemClass}>
+                <p className={labelClass}>Sexo</p>
+                <p className={valueClass}>{data.sexo}</p>
+              </div>
+            </div>
+            <div className={itemClass}>
+              <p className={labelClass}>Contato</p>
+              <p className={valueClass}>{data.contato}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{data.email}</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className={sectionTitle}><CreditCard size={14} /> Dados Bancários</h3>
+          <div className="space-y-2">
+            <div className={itemClass}>
+              <p className={labelClass}>Titular</p>
+              <p className={valueClass}>{data.titularConta || '-'}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className={itemClass}>
+                <p className={labelClass}>Banco</p>
+                <p className={valueClass}>{data.banco || '-'}</p>
+              </div>
+              <div className={itemClass}>
+                <p className={labelClass}>Pix ({data.pixTipo})</p>
+                <div className="flex items-center justify-between">
+                  <p className={valueClass}>{data.pixChave || '-'}</p>
+                  {data.pixChave && <Copy size={12} className="text-slate-400 cursor-pointer hover:text-indigo-600" onClick={() => navigator.clipboard.writeText(data.pixChave)} />}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <section>
-        <div className={sectionTitle}><Briefcase size={14} /> Dados Profissionais</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div><label className={labelClass}>Status</label><span className={valueClass}>{data.status}</span></div>
-          <div><label className={labelClass}>Contrato</label><span className={valueClass}>{data.tipoContrato}</span></div>
-          <div><label className={labelClass}>Função</label><span className={valueClass}>{data.funcao}</span></div>
-          <div><label className={labelClass}>Data entrada</label><span className={valueClass}>{data.dataEntrada || '-'}</span></div>
+      <div>
+        <h3 className={sectionTitle}><MapPin size={14} /> Endereço</h3>
+        <div className={`${itemClass} flex items-center gap-3`}>
+          <MapPin size={18} className="text-slate-400 shrink-0" />
+          <p className={valueClass}>
+            {data.endereco?.rua}, {data.endereco?.numero} - {data.endereco?.bairro}, {data.endereco?.cidade}/{data.endereco?.estado}
+          </p>
         </div>
-      </section>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <section>
-          <div className={sectionTitle}><User size={14} /> Dados Pessoais</div>
-          <div className="grid grid-cols-2 gap-6">
-            <div><label className={labelClass}>CPF/RG ({data.documentoTipo || 'Doc'})</label><span className={valueClass}>{data.documentoNumero || '-'}</span></div>
-            <div><label className={labelClass}>Nascimento</label><span className={valueClass}>{data.dataNascimento || '-'}</span></div>
-            <div><label className={labelClass}>Nacionalidade</label><span className={valueClass}>{data.nacionalidade || '-'}</span></div>
-            <div><label className={labelClass}>Sexo</label><span className={valueClass}>{data.sexo || '-'}</span></div>
-            <div className="col-span-2"><label className={labelClass}>Email</label><span className={valueClass}>{data.email || '-'}</span></div>
-            <div className="col-span-2"><label className={labelClass}>Telefone</label><span className={valueClass}>{data.contato || '-'}</span></div>
-          </div>
-        </section>
-
-        <section>
-          <div className={sectionTitle}><MapPin size={14} /> Endereço</div>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="col-span-2"><label className={labelClass}>Rua</label><span className={valueClass}>{data.endereco?.rua || '-'}, {data.endereco?.numero || ''}</span></div>
-            <div><label className={labelClass}>Bairro</label><span className={valueClass}>{data.endereco?.bairro || '-'}</span></div>
-            <div><label className={labelClass}>Cidade/UF</label><span className={valueClass}>{data.endereco?.cidade || '-'}/{data.endereco?.estado || ''}</span></div>
-          </div>
-        </section>
       </div>
 
-      <section>
-        <div className={sectionTitle}><CreditCard size={14} /> Dados Bancários</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div><label className={labelClass}>Banco</label><span className={valueClass}>{data.banco || '-'}</span></div>
-          <div><label className={labelClass}>PIX ({data.pixTipo})</label><span className={valueClass}>{data.pixChave || '-'}</span></div>
-          <div className="col-span-2"><label className={labelClass}>Titular</label><span className={valueClass}>{data.titularConta || '-'}</span></div>
+      <div>
+        <h3 className={sectionTitle}><FileText size={14} /> Documentos</h3>
+        <div className="flex gap-3">
+          <button
+            onClick={() => fetchAndDownload('front')}
+            disabled={downloading === 'front'}
+            className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {downloading === 'front' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
+            <span className="font-bold text-xs uppercase">Baixar Frente</span>
+          </button>
+          <button
+            onClick={() => fetchAndDownload('back')}
+            disabled={downloading === 'back'}
+            className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {downloading === 'back' ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} className="rotate-180" />}
+            <span className="font-bold text-xs uppercase">Baixar Verso</span>
+          </button>
         </div>
-      </section>
-
-      {(data.documentoFrente || data.documentoVerso) && (
-        <section>
-          <div className={sectionTitle}><FileText size={14} /> Documentos Anexados</div>
-          <div className="flex gap-4">
-            {data.documentoFrente && (
-              <a href={data.documentoFrente} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-100">
-                <FileText size={18} />
-                <span className="font-bold text-xs">Ver Frente</span>
-              </a>
-            )}
-            {data.documentoVerso && (
-              <a href={data.documentoVerso} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-100">
-                <FileText size={18} />
-                <span className="font-bold text-xs">Ver Verso</span>
-              </a>
-            )}
-          </div>
-        </section>
-      )}
+      </div>
     </div>
   );
 };
 
-const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => void; initialData?: any }>(({ onSuccess, initialData }, ref) => {
+const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => void; initialData?: any; setModalConfig: React.Dispatch<React.SetStateAction<any>> }>(({ onSuccess, initialData, setModalConfig }, ref) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     status: 'Ativo',
@@ -149,6 +203,40 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
     }
   }, [initialData]);
 
+
+
+  // Roles
+  const [roles, setRoles] = useState<{ id: string, name: string }[]>([]);
+  const [showRoleManager, setShowRoleManager] = useState(false);
+
+
+
+  const fetchRoles = async () => {
+    const { data } = await supabase.schema('gestaohashi').from('cargos').select('*').order('name');
+    if (data) setRoles(data);
+  };
+
+  useEffect(() => { fetchRoles(); }, []);
+
+  // Handle Role Manager Overlay
+  useEffect(() => {
+    if (showRoleManager) {
+      setModalConfig((prev: any) => ({
+        ...prev,
+        hideFooter: true,
+        title: 'Gerenciar Cargos',
+        maxWidth: 'max-w-xs'
+      }));
+    } else {
+      setModalConfig((prev: any) => ({
+        ...prev,
+        hideFooter: false,
+        title: initialData?.id ? 'Editar Funcionário' : 'Novo Funcionário',
+        maxWidth: 'max-w-4xl'
+      }));
+    }
+  }, [showRoleManager, setModalConfig, initialData]);
+
   // Files
   const [docFrente, setDocFrente] = useState<File | null>(null);
   const [docVerso, setDocVerso] = useState<File | null>(null);
@@ -166,8 +254,8 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
   };
 
   const uploadFile = async (file: File, path: string) => {
-    // Placeholder for upload logic. 
-    // real implementation requires bucket setup. 
+    // Placeholder for upload logic.
+    // real implementation requires bucket setup.
     // returning fake URL for now if no bucket known.
     // In a real scenario: await supabase.storage.from('documents').upload(path, file);
     return `https://fake-url.com/${path}`;
@@ -236,6 +324,21 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
   const inputClass = "w-full p-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
   const sectionHeader = "flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest py-2 border-b border-slate-100 dark:border-slate-800 mb-4 mt-6 first:mt-0";
 
+  if (showRoleManager) {
+    return (
+      <div className="p-2">
+        <div className="flex items-center gap-2 mb-4 text-slate-500 cursor-pointer hover:text-indigo-600" onClick={() => setShowRoleManager(false)}>
+          <div className="rotate-180"><Share2 size={16} /></div> {/* Using Share2 as placeholder for back arrow since ArrowLeft wasn't imported yet, or just text */}
+          <span className="text-xs font-bold uppercase">Voltar para o formulário</span>
+        </div>
+        <RoleManager
+          onClose={() => setShowRoleManager(false)}
+          onUpdate={fetchRoles}
+        />
+      </div>
+    );
+  }
+
   return (
     <form ref={ref} onSubmit={handleSubmit} className="space-y-1">
 
@@ -244,7 +347,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <label className={labelClass}>Status</label>
-          <select name="status" value={formData.status} onChange={handleChange} className={inputClass}>
+          <select name="status" value={formData.status} onChange={handleChange} className={inputClass} required>
             <option value="Ativo">Ativo</option>
             <option value="Inativo">Inativo</option>
             <option value="Férias">Férias</option>
@@ -252,9 +355,10 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>Tipo de Contrato</label>
-          <select name="tipoContrato" value={formData.tipoContrato} onChange={handleChange} className={inputClass}>
+          <select name="tipoContrato" value={formData.tipoContrato} onChange={handleChange} className={inputClass} required>
             <option value="CLT (Padrão)">CLT (Padrão)</option>
             <option value="PJ">PJ</option>
+            <option value="Freelancer">Freelance</option>
             <option value="Estágio">Estágio</option>
             <option value="Temporário">Temporário</option>
           </select>
@@ -262,13 +366,31 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         <div>
           <label className={labelClass}>Função/Cargo</label>
           <div className="flex gap-2">
-            <input name="funcao" value={formData.funcao} onChange={handleChange} className={inputClass} placeholder="Selecione ou digite" />
-            {/* <button type="button" className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500"><Edit3 size={16} /></button> */}
+            <input
+              list="roles-list"
+              name="funcao"
+              value={formData.funcao}
+              onChange={handleChange}
+              className={inputClass}
+              placeholder="Digite para pesquisar..."
+              required
+            />
+            <datalist id="roles-list">
+              {roles.map(r => <option key={r.id} value={r.name} />)}
+            </datalist>
+            <button
+              type="button"
+              onClick={() => setShowRoleManager(true)}
+              className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              title="Gerenciar Cargos"
+            >
+              <Settings size={18} />
+            </button>
           </div>
         </div>
         <div>
           <label className={labelClass}>Data Entrada</label>
-          <input type="date" name="dataEntrada" value={formData.dataEntrada} onChange={handleChange} className={inputClass} />
+          <input type="date" name="dataEntrada" value={formData.dataEntrada} onChange={handleChange} className={inputClass} required />
         </div>
       </div>
 
@@ -281,7 +403,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>Sexo</label>
-          <select name="sexo" value={formData.sexo} onChange={handleChange} className={inputClass}>
+          <select name="sexo" value={formData.sexo} onChange={handleChange} className={inputClass} required>
             <option value="Masculino">Masculino</option>
             <option value="Feminino">Feminino</option>
             <option value="Outro">Outro</option>
@@ -289,11 +411,11 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>Data Nascimento</label>
-          <input type="date" name="dataNascimento" value={formData.dataNascimento} onChange={handleChange} className={inputClass} />
+          <input type="date" name="dataNascimento" value={formData.dataNascimento} onChange={handleChange} className={inputClass} required />
         </div>
         <div>
           <label className={labelClass}>Telefone Principal</label>
-          <input name="telefone" value={formData.telefone} onChange={handleChange} className={inputClass} placeholder="(00) 00000-0000" />
+          <input name="telefone" value={formData.telefone} onChange={handleChange} className={inputClass} placeholder="(00) 00000-0000" required />
         </div>
         <div>
           <label className={labelClass}>Telefone Recado</label>
@@ -301,7 +423,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>E-mail</label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="exemplo@email.com" />
+          <input type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} placeholder="exemplo@email.com" required />
         </div>
       </div>
 
@@ -310,15 +432,15 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Nome do Titular</label>
-          <input name="titular" value={formData.titular} onChange={handleChange} className={inputClass} placeholder="Nome completo como no banco" />
+          <input name="titular" value={formData.titular} onChange={handleChange} className={inputClass} placeholder="Nome completo como no banco" required />
         </div>
         <div>
           <label className={labelClass}>Banco</label>
-          <input name="banco" value={formData.banco} onChange={handleChange} className={inputClass} placeholder="Ex: Nubank, Itaú" />
+          <input name="banco" value={formData.banco} onChange={handleChange} className={inputClass} placeholder="Ex: Nubank, Itaú" required />
         </div>
         <div>
           <label className={labelClass}>Tipo de Chave PIX</label>
-          <select name="pixTipo" value={formData.pixTipo} onChange={handleChange} className={inputClass}>
+          <select name="pixTipo" value={formData.pixTipo} onChange={handleChange} className={inputClass} required>
             <option value="CPF">CPF</option>
             <option value="Celular">Celular</option>
             <option value="Email">Email</option>
@@ -327,7 +449,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>Chave PIX</label>
-          <input name="pixChave" value={formData.pixChave} onChange={handleChange} className={inputClass} placeholder="Chave PIX" />
+          <input name="pixChave" value={formData.pixChave} onChange={handleChange} className={inputClass} placeholder="Chave PIX" required />
         </div>
       </div>
 
@@ -336,7 +458,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Tipo de Documento</label>
-          <select name="docTipo" value={formData.docTipo} onChange={handleChange} className={inputClass}>
+          <select name="docTipo" value={formData.docTipo} onChange={handleChange} className={inputClass} required>
             <option value="RG">RG</option>
             <option value="CPF">CPF</option>
             <option value="CNH">CNH</option>
@@ -344,7 +466,7 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
         </div>
         <div>
           <label className={labelClass}>Número do Documento</label>
-          <input name="docNumero" value={formData.docNumero} onChange={handleChange} className={inputClass} placeholder="00.000.000-0" />
+          <input name="docNumero" value={formData.docNumero} onChange={handleChange} className={inputClass} placeholder="00.000.000-0" required />
         </div>
 
         <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer relative group">
@@ -371,23 +493,23 @@ const FuncionarioForm = React.forwardRef<HTMLFormElement, { onSuccess: () => voi
       <div className="grid grid-cols-4 gap-4">
         <div className="col-span-3">
           <label className={labelClass}>Rua / Logradouro</label>
-          <input name="rua" value={formData.rua} onChange={handleChange} className={inputClass} placeholder="Nome da Rua" />
+          <input name="rua" value={formData.rua} onChange={handleChange} className={inputClass} placeholder="Nome da Rua" required />
         </div>
         <div>
           <label className={labelClass}>Número</label>
-          <input name="numero" value={formData.numero} onChange={handleChange} className={inputClass} placeholder="123" />
+          <input name="numero" value={formData.numero} onChange={handleChange} className={inputClass} placeholder="123" required />
         </div>
         <div className="col-span-2">
           <label className={labelClass}>Bairro</label>
-          <input name="bairro" value={formData.bairro} onChange={handleChange} className={inputClass} />
+          <input name="bairro" value={formData.bairro} onChange={handleChange} className={inputClass} required />
         </div>
         <div>
           <label className={labelClass}>Cidade</label>
-          <input name="cidade" value={formData.cidade} onChange={handleChange} className={inputClass} />
+          <input name="cidade" value={formData.cidade} onChange={handleChange} className={inputClass} required />
         </div>
         <div>
           <label className={labelClass}>Estado (UF)</label>
-          <input name="estado" value={formData.estado} onChange={handleChange} className={inputClass} placeholder="SP" maxLength={2} />
+          <input name="estado" value={formData.estado} onChange={handleChange} className={inputClass} placeholder="SP" maxLength={2} required />
         </div>
       </div>
 
@@ -402,6 +524,36 @@ const FuncionariosPage: React.FC = () => {
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const formRef = React.useRef<HTMLFormElement>(null);
 
+  const mapToFuncionario = (item: any, includeDocs = false): Funcionario => ({
+    id: item.id,
+    codigo: item.code?.toString() || '',
+    dataEntrada: item.admission_date ? new Date(item.admission_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+    tipoContrato: item.type || '',
+    nome: item.name || 'Sem nome',
+    status: (item.status || 'Ativo') as any,
+    funcao: item.role || '',
+    contato: item.phone || '',
+    email: item.email || '',
+    sexo: item.gender || '',
+    dataNascimento: item.birth_date ? new Date(item.birth_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+    nacionalidade: item.nationality || '',
+    titularConta: item.bank_account_name || '',
+    banco: item.bank_name || '',
+    pixTipo: item.bank_key_type || '',
+    pixChave: item.bank_key || '',
+    documentoTipo: item.document_type || '',
+    documentoNumero: item.document || '',
+    endereco: {
+      rua: item.street || '',
+      numero: item.number || '',
+      bairro: item.neighborhood || '',
+      cidade: item.city || '',
+      estado: item.state || ''
+    },
+    documentoFrente: includeDocs ? item.document_front : '',
+    documentoVerso: includeDocs ? item.document_back : ''
+  });
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -409,8 +561,8 @@ const FuncionariosPage: React.FC = () => {
         .schema('gestaohashi')
         .from('equipe')
         .select(`
-          id, code, admission_date, type, name, status, role, phone, email, gender, 
-          birth_date, nationality, bank_account_name, bank_name, bank_key_type, 
+          id, code, admission_date, type, name, status, role, phone, email, gender,
+          birth_date, nationality, bank_account_name, bank_name, bank_key_type,
           bank_key, document_type, document, street, number, neighborhood, city, state
         `)
         .order('name');
@@ -418,36 +570,7 @@ const FuncionariosPage: React.FC = () => {
       if (error) throw error;
 
       if (result) {
-        const formattedData: Funcionario[] = result.map(item => ({
-          id: item.id,
-          codigo: item.code?.toString() || '',
-          dataEntrada: item.admission_date ? new Date(item.admission_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
-          tipoContrato: item.type || '',
-          nome: item.name || 'Sem nome',
-          // Garantir que status seja um valor válido ou 'Ativo' como fallback
-          status: (item.status || 'Ativo') as any,
-          funcao: item.role || '',
-          contato: item.phone || '',
-          email: item.email || '',
-          sexo: item.gender || '',
-          dataNascimento: item.birth_date ? new Date(item.birth_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
-          nacionalidade: item.nationality || '',
-          titularConta: item.bank_account_name || '',
-          banco: item.bank_name || '',
-          pixTipo: item.bank_key_type || '',
-          pixChave: item.bank_key || '',
-          documentoTipo: item.document_type || '',
-          documentoNumero: item.document || '',
-          endereco: {
-            rua: item.street || '',
-            numero: item.number || '',
-            bairro: item.neighborhood || '',
-            cidade: item.city || '',
-            estado: item.state || ''
-          },
-          documentoFrente: '', // Not loading in list for performance
-          documentoVerso: ''   // Not loading in list for performance
-        }));
+        const formattedData: Funcionario[] = result.map(item => mapToFuncionario(item, false));
         setData(formattedData);
       }
     } catch (error: any) {
@@ -493,6 +616,7 @@ const FuncionariosPage: React.FC = () => {
           <FuncionarioForm
             ref={formRef}
             initialData={item}
+            setModalConfig={setModalConfig}
             onSuccess={() => {
               loadData();
               setModalConfig((prev: any) => ({ ...prev, isOpen: false }));
@@ -502,19 +626,22 @@ const FuncionariosPage: React.FC = () => {
         maxWidth: 'max-w-4xl'
       });
     } else {
-      // Fetch full details including heavy documents
+      // Fetch full details from DB to sync, but EXCLUDE heavy documents for speed (load on demand)
       let fullData = { ...item };
       try {
         const { data, error } = await supabase
           .schema('gestaohashi')
           .from('equipe')
-          .select('document_front, document_back')
+          .select(`
+            id, code, admission_date, type, name, status, role, phone, email, gender,
+            birth_date, nationality, bank_account_name, bank_name, bank_key_type,
+            bank_key, document_type, document, street, number, neighborhood, city, state
+          `) // Explicitly NO document_front/back
           .eq('id', item.id)
           .single();
 
         if (data && !error) {
-          fullData.documentoFrente = data.document_front;
-          fullData.documentoVerso = data.document_back;
+          fullData = mapToFuncionario(data, false);
         }
       } catch (err) {
         console.error('Erro ao carregar detalhes:', err);
@@ -524,7 +651,7 @@ const FuncionariosPage: React.FC = () => {
         isOpen: true,
         type: 'view-content',
         title: 'Ficha Cadastral',
-        maxWidth: 'max-w-4xl',
+        maxWidth: 'max-w-xl', // Reduced width for simplification
         content: <FuncionarioDetailsView data={fullData} />
       });
     }
@@ -549,6 +676,7 @@ const FuncionariosPage: React.FC = () => {
       content: (
         <FuncionarioForm
           ref={formRef}
+          setModalConfig={setModalConfig}
           onSuccess={() => {
             loadData();
             setModalConfig((prev: any) => ({ ...prev, isOpen: false }));
@@ -577,6 +705,35 @@ const FuncionariosPage: React.FC = () => {
       className: 'w-56'
     },
     { header: 'Função', accessor: 'funcao', className: 'w-36 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-tight' },
+    {
+      header: 'Vínculo',
+      accessor: (item) => (
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${item.tipoContrato === 'CLT (Padrão)' ? 'bg-blue-50 text-blue-700' :
+          item.tipoContrato === 'Freelancer' ? 'bg-orange-50 text-orange-700' :
+            item.tipoContrato === 'PJ' ? 'bg-purple-50 text-purple-700' :
+              'bg-slate-100 text-slate-600'
+          }`}>
+          {item.tipoContrato}
+        </span>
+      ),
+      className: 'w-28'
+    },
+    {
+      header: 'Pix',
+      accessor: (item) => item.pixChave ? (
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(item.pixChave);
+            alert('Chave Pix copiada!');
+          }}
+          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all group relative"
+          title={item.pixChave}
+        >
+          <Copy size={16} />
+        </button>
+      ) : <span className="text-slate-300">-</span>,
+      className: 'w-16 text-center'
+    },
     { header: 'Status', accessor: (item) => <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-100">{item.status}</span>, className: 'w-28 text-center' },
     { header: 'Contato', accessor: 'contato', className: 'w-36 text-slate-500 font-bold' },
     {
@@ -626,6 +783,8 @@ const FuncionariosPage: React.FC = () => {
         content={modalConfig.content}
         onConfirm={modalConfig.onConfirm}
         onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+        // @ts-ignore
+        hideFooter={modalConfig.hideFooter}
       />
     </div>
   );

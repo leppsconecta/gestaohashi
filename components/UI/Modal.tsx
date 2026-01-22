@@ -3,7 +3,7 @@ import React from 'react';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { ModalProps, ModalType } from '../../types';
 
-const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg', confirmText, autoClose = true }) => {
+const Modal: React.FC<ModalProps & { hideFooter?: boolean }> = ({ isOpen, type, title, content, onConfirm, onClose, maxWidth = 'max-w-lg', confirmText, autoClose = true, hideFooter = false }) => {
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -49,26 +49,28 @@ const Modal: React.FC<ModalProps> = ({ isOpen, type, title, content, onConfirm, 
           {typeof content === 'string' ? <p className="leading-relaxed">{content}</p> : content}
         </div>
 
-        {/* Footer - Fixo */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 dark:border-slate-700 shrink-0">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
-          >
-            Cancelar
-          </button>
-          {onConfirm && (
+        {/* Footer - Fixo, opcional */}
+        {!hideFooter && (
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 dark:border-slate-700 shrink-0">
             <button
-              onClick={() => {
-                onConfirm();
-                if (autoClose) onClose();
-              }}
-              className={`px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors shadow-sm ${getConfirmButtonStyles()}`}
+              onClick={onClose}
+              className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
             >
-              {confirmText || (type === 'confirm-delete' ? 'Confirmar Exclusão' : 'Confirmar')}
+              Cancelar
             </button>
-          )}
-        </div>
+            {onConfirm && (
+              <button
+                onClick={() => {
+                  onConfirm();
+                  if (autoClose) onClose();
+                }}
+                className={`px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors shadow-sm ${getConfirmButtonStyles()}`}
+              >
+                {confirmText || (type === 'confirm-delete' ? 'Confirmar Exclusão' : 'Confirmar')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
