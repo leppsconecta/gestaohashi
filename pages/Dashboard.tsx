@@ -1,20 +1,17 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, RefreshCw } from 'lucide-react';
 import { AppRoute } from '../types';
 import { DBService } from '../lib/db';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
       const data = await DBService.getDashboardStats();
-      setStats({
+      return {
         ...data,
         feedbacksDistribucao: {
           elogios: 82,
@@ -23,11 +20,11 @@ const DashboardPage: React.FC = () => {
           reclamacoes: 12,
           total: 124
         }
-      });
-      setLoading(false);
-    };
-    fetchStats();
-  }, []);
+      };
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5, // 5 minutes
+  });
 
   if (loading) {
     return (
@@ -64,23 +61,23 @@ const DashboardPage: React.FC = () => {
               key={card.id}
               onClick={() => navigate(card.path)}
               className={`relative group p-5 rounded-[2rem] border transition-all duration-300 text-left flex flex-col justify-between h-44 shadow-sm active:scale-95 overflow-hidden
-                ${card.alert 
-                  ? 'bg-red-600 border-red-500 text-white animate-[pulse_2s_infinite] shadow-lg shadow-red-200 dark:shadow-none ring-4 ring-red-500/20' 
+                ${card.alert
+                  ? 'bg-red-600 border-red-500 text-white animate-[pulse_2s_infinite] shadow-lg shadow-red-200 dark:shadow-none ring-4 ring-red-500/20'
                   : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white hover:border-red-300 hover:shadow-md'
                 }
               `}
             >
               <div className="flex justify-between items-start relative z-10">
-                 <div className="flex flex-col">
-                   <span className={`text-[11px] font-bold ${card.alert ? 'text-red-50' : 'text-slate-600 dark:text-slate-400 tracking-wide'}`}>
+                <div className="flex flex-col">
+                  <span className={`text-[11px] font-bold ${card.alert ? 'text-red-50' : 'text-slate-600 dark:text-slate-400 tracking-wide'}`}>
                     {card.label}
-                   </span>
-                   {card.total !== undefined && (
-                     <span className={`text-[10px] font-semibold ${card.alert ? 'text-red-100' : 'text-red-700 dark:text-red-400'}`}>
-                       Total: {card.total}
-                     </span>
-                   )}
-                 </div>
+                  </span>
+                  {card.total !== undefined && (
+                    <span className={`text-[10px] font-semibold ${card.alert ? 'text-red-100' : 'text-red-700 dark:text-red-400'}`}>
+                      Total: {card.total}
+                    </span>
+                  )}
+                </div>
                 <ChevronRight size={18} className={`${card.alert ? 'text-white' : 'text-slate-400'} opacity-0 group-hover:opacity-100 transition-opacity`} />
               </div>
 
@@ -107,8 +104,8 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </div>
                     <div className={`h-1.5 w-full rounded-full overflow-hidden flex ${card.alert ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                      <div 
-                        className={`h-full transition-all duration-1000 ${card.alert ? 'bg-white' : 'bg-red-600'}`} 
+                      <div
+                        className={`h-full transition-all duration-1000 ${card.alert ? 'bg-white' : 'bg-red-600'}`}
                         style={{ width: `${(stats.reservasPendentes / (stats.reservasHoje || 1)) * 100}%` }}
                       />
                     </div>
@@ -154,10 +151,10 @@ const DashboardPage: React.FC = () => {
                       {d.val}
                     </span>
                     <div className="absolute inset-x-0 bottom-0 h-full w-full max-w-[36px] mx-auto bg-slate-50 dark:bg-slate-800/40 rounded-t-2xl -z-10" />
-                    <div 
+                    <div
                       className={`w-full max-w-[36px] rounded-t-2xl transition-all duration-1000 cursor-pointer relative shadow-sm
-                        ${isToday 
-                          ? 'bg-gradient-to-t from-red-700 to-red-500 shadow-red-200 dark:shadow-none' 
+                        ${isToday
+                          ? 'bg-gradient-to-t from-red-700 to-red-500 shadow-red-200 dark:shadow-none'
                           : 'bg-slate-300 dark:bg-slate-700 group-hover:bg-red-400/50'
                         }
                       `}
@@ -192,12 +189,12 @@ const DashboardPage: React.FC = () => {
             <div className="relative w-36 h-36 shrink-0">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="16" fill="none" className="stroke-slate-100 dark:stroke-slate-800" strokeWidth="4" />
-                <circle 
-                  cx="18" cy="18" r="16" fill="none" 
-                  className="stroke-emerald-600 transition-all duration-1000" 
-                  strokeWidth="4" 
-                  strokeDasharray={`${(stats.feedbacksDistribucao.elogios / stats.feedbacksDistribucao.total) * 100} 100`} 
-                  strokeLinecap="round" 
+                <circle
+                  cx="18" cy="18" r="16" fill="none"
+                  className="stroke-emerald-600 transition-all duration-1000"
+                  strokeWidth="4"
+                  strokeDasharray={`${(stats.feedbacksDistribucao.elogios / stats.feedbacksDistribucao.total) * 100} 100`}
+                  strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -223,9 +220,9 @@ const DashboardPage: React.FC = () => {
                       <span className="text-slate-950 dark:text-white tabular-nums">{item.val}</span>
                     </div>
                     <div className="h-2.5 w-full bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-100 dark:border-slate-800">
-                      <div 
-                        className={`h-full ${item.color} rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.05)]`} 
-                        style={{ width: `${percentage}%` }} 
+                      <div
+                        className={`h-full ${item.color} rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.05)]`}
+                        style={{ width: `${percentage}%` }}
                       />
                     </div>
                   </div>

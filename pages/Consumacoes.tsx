@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Trash2, StickyNote, Calendar as CalendarIcon, Hash, User, Type, Award, Activity, FileText, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
 import { Consumacao, ConsumacaoStatus, ConsumacaoTipo, ModalType } from '../types';
@@ -140,8 +141,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
 };
 
 const ConsumacoesPage: React.FC = () => {
-  const [data, setData] = useState<Consumacao[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void; maxWidth?: string }>({
     isOpen: false,
     type: 'view-content',
@@ -153,9 +153,9 @@ const ConsumacoesPage: React.FC = () => {
   // Estado temporário para capturar dados do formulário
   const [formTempData, setFormTempData] = useState<Partial<Consumacao>>({});
 
-  const fetchConsumacoes = async () => {
-    setLoading(true);
-    try {
+  const { data = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['consumacoes'],
+    queryFn: async () => {
       const { data: result, error } = await supabase
         .from('view_consumacoes_gestao')
         .select('*')
@@ -164,25 +164,17 @@ const ConsumacoesPage: React.FC = () => {
       if (error) throw error;
 
       if (result) {
-        // Formatar datas para exibição PT-BR
-        const formatted = result.map(item => ({
+        return result.map(item => ({
           ...item,
           data: new Date(item.data).toLocaleDateString('pt-BR'),
           validade: item.validade ? new Date(item.validade).toLocaleDateString('pt-BR') : ''
         }));
-        setData(formatted);
       }
-    } catch (error) {
-      console.error('Erro ao buscar consumações:', error);
-      alert('Erro ao carregar dados.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchConsumacoes();
-  }, []);
+      return [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5,
+  });
 
   const handleStatusChange = async (id: string, newStatus: ConsumacaoStatus) => {
     try {
@@ -193,7 +185,8 @@ const ConsumacoesPage: React.FC = () => {
 
       if (error) throw error;
 
-      setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
+      // Invalidate query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao salvar status.');
@@ -225,7 +218,7 @@ const ConsumacoesPage: React.FC = () => {
         if (error) throw error;
       }
 
-      fetchConsumacoes(); // Recarregar tudo para garantir consistência
+      await queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert('Erro ao salvar registro.');
@@ -249,7 +242,7 @@ const ConsumacoesPage: React.FC = () => {
               .delete()
               .eq('id', item.id);
             if (error) throw error;
-            setData(prev => prev.filter(c => c.id !== item.id));
+            queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
           } catch (e) {
             console.error(e);
             alert('Erro ao excluir.');
@@ -337,8 +330,8 @@ const ConsumacoesPage: React.FC = () => {
       header: 'Tipo',
       accessor: (item: Consumacao) => (
         <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${item.tipo === 'Sorteio' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-            item.tipo === 'Cortesia' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-              'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+          item.tipo === 'Cortesia' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
           }`}>
           {item.tipo}
         </span>
@@ -400,7 +393,7 @@ const ConsumacoesPage: React.FC = () => {
           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Gerenciamento de cortesias, sorteios e prêmios do estabelecimento.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={fetchConsumacoes} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
+          <button onClick={() => refetch()} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
           <button

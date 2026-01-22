@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Trash2, StickyNote, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
 import { Curriculo, ModalType } from '../types';
@@ -8,8 +9,7 @@ import { supabase } from '../lib/supabase';
 
 const CurriculosPage: React.FC = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<Curriculo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void }>({
     isOpen: false,
     type: 'view-content',
@@ -17,9 +17,9 @@ const CurriculosPage: React.FC = () => {
     content: ''
   });
 
-  const fetchCurriculos = async () => {
-    setLoading(true);
-    try {
+  const { data: data = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['curriculos'],
+    queryFn: async () => {
       const { data: curriculos, error } = await supabase
         .from('view_curriculos_gestao')
         .select('*')
@@ -31,26 +31,16 @@ const CurriculosPage: React.FC = () => {
       }
 
       if (curriculos) {
-        // Formatar datas se necessário ou garantir tipagem
-        // O Supabase retorna datas como string (ISO ou YYYY-MM-DD), o Table espera string formatada
-        // Vamos formatar para pt-BR visualmente
-        const formattedData = curriculos.map(item => ({
+        return curriculos.map(item => ({
           ...item,
           data: new Date(item.data).toLocaleDateString('pt-BR')
         }));
-        setData(formattedData);
       }
-    } catch (error) {
-      console.error('Erro ao buscar currículos:', error);
-      alert('Erro ao carregar currículos. Verifique o console.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCurriculos();
-  }, []);
+      return [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5,
+  });
 
   const handleDeleteClick = (e: React.MouseEvent, item: Curriculo) => {
     e.stopPropagation();
@@ -68,7 +58,7 @@ const CurriculosPage: React.FC = () => {
 
           if (error) throw error;
 
-          setData(prev => prev.filter(c => c.id !== item.id));
+          queryClient.invalidateQueries({ queryKey: ['curriculos'] });
         } catch (error) {
           console.error('Erro ao excluir:', error);
           alert('Erro ao excluir registro.');
@@ -199,7 +189,7 @@ const CurriculosPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Currículos</h1>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerencie as candidaturas e currículos recebidos pelo sistema.</p>
           </div>
-          <button onClick={fetchCurriculos} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
+          <button onClick={() => refetch()} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>

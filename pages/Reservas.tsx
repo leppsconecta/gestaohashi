@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Trash2, StickyNote, Calendar as CalendarIcon, Clock, User, Users, Phone, Activity, FileText, Bookmark, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
 import { Reserva, ReservaStatus, ModalType } from '../types';
@@ -89,9 +90,9 @@ const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
   );
 };
 
+
 const ReservasPage: React.FC = () => {
-  const [data, setData] = useState<Reserva[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('Pendente');
 
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void; maxWidth?: string }>({
@@ -102,9 +103,9 @@ const ReservasPage: React.FC = () => {
     maxWidth: 'max-w-lg'
   });
 
-  const fetchReservas = async () => {
-    setLoading(true);
-    try {
+  const { data: data = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['reservas'],
+    queryFn: async () => {
       const { data: result, error } = await supabase
         .schema('gestaohashi')
         .from('reservas')
@@ -118,11 +119,10 @@ const ReservasPage: React.FC = () => {
       if (error) throw error;
 
       if (result) {
-        const formattedData: Reserva[] = result.map(item => ({
+        return result.map(item => ({
           id: item.id,
           codigo: item.code || '',
           data: item.date ? new Date(item.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
-          // Hora pode vir nula ou incompleta, garantir robustez
           hora: item.time ? item.time.substring(0, 5) : '00:00',
           tipo: item.type || 'Outro',
           nome: item.customer_name || 'Cliente Sem Nome',
@@ -132,19 +132,12 @@ const ReservasPage: React.FC = () => {
           status: (item.status || 'Pendente') as ReservaStatus,
           observacao: item.notes || ''
         }));
-        setData(formattedData);
       }
-    } catch (error: any) {
-      console.error('Erro ao buscar reservas:', error);
-      alert(`Erro: ${error.message || JSON.stringify(error)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchReservas();
-  }, []);
+      return [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5,
+  });
 
   const handleStatusChange = async (id: string, newStatus: ReservaStatus) => {
     try {
@@ -156,7 +149,9 @@ const ReservasPage: React.FC = () => {
 
       if (error) throw error;
 
-      setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status.');
@@ -172,7 +167,9 @@ const ReservasPage: React.FC = () => {
 
       if (error) throw error;
 
-      setData(prev => prev.filter(r => r.id !== id));
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
     } catch (error) {
       console.error('Erro ao excluir:', error);
       alert('Erro ao excluir reserva.');
@@ -298,7 +295,7 @@ const ReservasPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Reservas</h1>
-            <button onClick={fetchReservas} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
+            <button onClick={() => refetch()} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>

@@ -14,14 +14,13 @@ const KEYS = {
   DRIVE_LINK: 'hashi_drive_link'
 };
 
-// Simulação de latência de rede (0.5s)
-const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
+// Artificial delay removed
 
 export const DBService = {
   // --- AUTH ---
   auth: {
     login: async (email: string, pass: string): Promise<boolean> => {
-      await delay();
+
       if (
         ((email === 'admin@admin.com' || email === 'felipelepefe@gmail.com') && (pass === '123' || pass === 'admin')) ||
         (email === 'gestao@hashiexpressjundiai.com.br' && pass === '@Hashi2810')
@@ -38,7 +37,7 @@ export const DBService = {
     isAuthenticated: () => localStorage.getItem(KEYS.AUTH) === 'true',
     isAdminUnlocked: () => localStorage.getItem(KEYS.ADMIN_UNLOCKED) === 'true',
     unlockAdmin: async (pass: string): Promise<boolean> => {
-      await delay(300);
+
       if (pass === '281084') {
         localStorage.setItem(KEYS.ADMIN_UNLOCKED, 'true');
         return true;
@@ -61,11 +60,11 @@ export const DBService = {
   // --- FUNCIONARIOS ---
   funcionarios: {
     getAll: async (): Promise<Funcionario[]> => {
-      await delay();
+
       return DBService.privateGet<Funcionario>(KEYS.FUNCIONARIOS);
     },
     save: async (item: Funcionario): Promise<void> => {
-      await delay(300);
+
       const items = DBService.privateGet<Funcionario>(KEYS.FUNCIONARIOS);
       const index = items.findIndex(i => i.id === item.id);
       if (index > -1) items[index] = item;
@@ -73,7 +72,7 @@ export const DBService = {
       DBService.privateSave(KEYS.FUNCIONARIOS, items);
     },
     delete: async (id: string): Promise<void> => {
-      await delay(200);
+
       const items = DBService.privateGet<Funcionario>(KEYS.FUNCIONARIOS);
       DBService.privateSave(KEYS.FUNCIONARIOS, items.filter(i => i.id !== id));
     }
@@ -82,11 +81,11 @@ export const DBService = {
   // --- RESERVAS ---
   reservas: {
     getAll: async (): Promise<Reserva[]> => {
-      await delay();
+
       return DBService.privateGet<Reserva>(KEYS.RESERVAS);
     },
     save: async (item: Reserva): Promise<void> => {
-      await delay(300);
+
       const items = DBService.privateGet<Reserva>(KEYS.RESERVAS);
       const index = items.findIndex(i => i.id === item.id);
       if (index > -1) items[index] = item;

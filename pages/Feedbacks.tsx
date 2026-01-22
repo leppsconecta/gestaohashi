@@ -1,15 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trash2, StickyNote, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
 import { Feedback, FeedbackStatus, ModalType } from '../types';
 import { supabase } from '../lib/supabase';
 
 const FeedbacksPage: React.FC = () => {
-  const [data, setData] = useState<Feedback[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void; maxWidth?: string }>({
     isOpen: false,
     type: 'view-content',
@@ -19,10 +17,11 @@ const FeedbacksPage: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<string>('Elogio');
+  const queryClient = useQueryClient();
 
-  const fetchFeedbacks = async () => {
-    setLoading(true);
-    try {
+  const { data: data = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['feedbacks'],
+    queryFn: async () => {
       const { data: result, error } = await supabase
         .schema('gestaohashi')
         .from('feedbacks')
@@ -32,28 +31,18 @@ const FeedbacksPage: React.FC = () => {
       if (error) throw error;
 
       if (result) {
-        // Formatar datas
-        const formatted = result.map(item => ({
+        return result.map(item => ({
           ...item,
           data: item.data ? new Date(item.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
-          // Normalize data: 'Reclamação' -> 'Reclamacao'
           tipo: item.tipo === 'Reclamação' ? 'Reclamacao' : item.tipo,
-          // Ensure description is not null for UI check
           descricao: item.descricao || ''
         }));
-        setData(formatted);
       }
-    } catch (error) {
-      console.error('Erro ao buscar feedbacks:', error);
-      alert('Erro ao carregar dados.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchFeedbacks();
-  }, []);
+      return [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 60 * 5,
+  });
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
@@ -65,7 +54,9 @@ const FeedbacksPage: React.FC = () => {
 
       if (error) throw error;
 
-      setData(prev => prev.map(f => f.id === id ? { ...f, status: newStatus as FeedbackStatus } : f));
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status.');
@@ -183,7 +174,7 @@ const FeedbacksPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Feedbacks</h1>
-            <button onClick={fetchFeedbacks} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
+            <button onClick={() => refetch()} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
