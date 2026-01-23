@@ -254,6 +254,16 @@ export interface CronogramaMensal {
 
 export type ModalType = 'confirm-delete' | 'confirm-insert' | 'confirm-update' | 'view-content';
 
+
+export interface Cupom {
+  id: string;
+  titulo: string;
+  descricao: string;
+  link: string;
+  ativa: boolean;
+  created_at?: string;
+}
+
 export interface ModalProps {
   isOpen: boolean;
   type: ModalType;

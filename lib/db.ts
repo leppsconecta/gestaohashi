@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Funcionario, Reserva, Feedback, Consumacao, LoginSenha, Promocao } from '../types';
+import { Funcionario, Reserva, Feedback, Consumacao, LoginSenha, Promocao, Cupom } from '../types';
 
 const KEYS = {
   AUTH: 'hashi_auth_token',
@@ -152,7 +152,121 @@ export const DBService = {
     }
   },
 
+  // --- CUPONS ---
+  cupons: {
+    getAll: async (): Promise<Cupom[]> => {
+      const { data, error } = await supabase
+        .schema('gestaohashi')
+        .from('cupons')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching cupons:', error);
+        return [];
+      }
+      return data as Cupom[];
+    },
+    create: async (cupom: Omit<Cupom, 'id' | 'created_at'>): Promise<void> => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('cupons')
+        .insert(cupom);
+
+      if (error) console.error('Error creating cupom:', error);
+    },
+    update: async (id: string, cupom: Partial<Cupom>): Promise<void> => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('cupons')
+        .update(cupom)
+        .eq('id', id);
+
+      if (error) console.error('Error updating cupom:', error);
+    },
+    delete: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('cupons')
+        .delete()
+        .eq('id', id);
+
+      if (error) console.error('Error deleting cupom:', error);
+    }
+  },
+
+  // --- PROMOCOES ---
+  // --- PROMOCOES ---
+  promocoes: {
+    getAll: async (): Promise<Promocao[]> => {
+      const { data, error } = await supabase
+        .schema('gestaohashi')
+        .from('promocoes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching promocoes:', error);
+        return [];
+      }
+      return (data || []).map((p: any) => ({
+        ...p,
+        dataInicio: p.data_inicio,
+        dataFim: p.data_fim
+      }));
+    },
+    create: async (promocao: Omit<Promocao, 'id'>): Promise<void> => {
+      const payload = {
+        titulo: promocao.titulo,
+        categoria: promocao.categoria,
+        descricao: promocao.descricao,
+        ativa: promocao.ativa,
+        data_inicio: promocao.dataInicio || null,
+        data_fim: promocao.dataFim || null
+      };
+
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('promocoes')
+        .insert(payload);
+
+      if (error) console.error('Error creating promocao:', error);
+    },
+    update: async (id: string, promocao: Partial<Promocao>): Promise<void> => {
+      const payload: any = { ...promocao };
+
+      // Map camelCase to snake_case for DB
+      if (promocao.dataInicio !== undefined) {
+        payload.data_inicio = promocao.dataInicio || null;
+        delete payload.dataInicio;
+      }
+      if (promocao.dataFim !== undefined) {
+        payload.data_fim = promocao.dataFim || null;
+        delete payload.dataFim;
+      }
+
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('promocoes')
+        .update(payload)
+        .eq('id', id);
+
+      if (error) console.error('Error updating promocao:', error);
+    },
+    delete: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('promocoes')
+        .delete()
+        .eq('id', id);
+
+      if (error) console.error('Error deleting promocao:', error);
+    }
+  },
+
   // --- DASHBOARD STATS ---
+
+
   getDashboardStats: async () => {
     const todayObj = new Date();
     const today = todayObj.toISOString().split('T')[0];

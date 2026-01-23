@@ -1,64 +1,69 @@
 
+
 import React, { useState } from 'react';
-import { Plus, Search, Tag, Edit3, Trash2, Eye, Copy, ExternalLink, Ticket } from 'lucide-react';
-import { ModalType } from '../types';
+import { Plus, Search, Tag, Edit3, Trash2, Eye, Copy, ExternalLink, Ticket, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ModalType, Cupom } from '../types';
 import Modal from '../components/UI/Modal';
+import { DBService } from '../lib/db';
 
-interface Cupom {
-  id: string;
-  titulo: string;
-  descricao: string;
-  link: string;
-  ativa: boolean;
-}
+const CupomForm: React.FC<{ initialData?: Cupom; onSubmit: (data: Omit<Cupom, 'id' | 'created_at'>) => void }> = ({ initialData, onSubmit }) => {
+  const [titulo, setTitulo] = useState(initialData?.titulo || '');
+  const [descricao, setDescricao] = useState(initialData?.descricao || '');
+  const [link, setLink] = useState(initialData?.link || '');
 
-const MOCK_CUPONS: Cupom[] = [
-  {
-    id: 'c1',
-    titulo: 'Resolve problemas',
-    descricao: 'Este cupom serve para resolver pendências com o cliente, utilize em momentos onde o cliente está insatisfeito com algo. 15% De desconto para o Cliente',
-    link: 'https://pedido.anota.ai/loja/hashi-express-problemas',
-    ativa: true
-  },
-  {
-    id: 'c2',
-    titulo: '1º Compra - Anota.aí',
-    descricao: 'Este cupom dá 13% de desconto para a primeira compra do cliente no anota.aí',
-    link: 'https://pedido.anota.ai/loja/hashi-express-primeira',
-    ativa: true
-  },
-  {
-    id: 'c3',
-    titulo: 'Aniversariante - Anota.ai',
-    descricao: 'Este cupom dá 10% de desconto para o aniversariante no anota aí',
-    link: 'https://pedido.anota.ai/loja/hashi-express-niver',
-    ativa: true
-  }
-];
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      titulo,
+      descricao,
+      link,
+      ativa: initialData?.ativa ?? true
+    });
+  };
 
-const CupomForm: React.FC<{ initialData?: Cupom }> = ({ initialData }) => {
   const inputClass = "w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all text-slate-800 dark:text-slate-200";
 
   return (
-    <div className="space-y-5">
+    <form id="cupom-form" onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Título do Cupom</label>
-        <input type="text" className={inputClass} placeholder="Ex: Cupom de Desconto" defaultValue={initialData?.titulo} />
+        <input
+          type="text"
+          required
+          className={inputClass}
+          placeholder="Ex: Cupom de Desconto"
+          value={titulo}
+          onChange={e => setTitulo(e.target.value)}
+        />
       </div>
       <div className="space-y-2">
         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Descrição</label>
-        <textarea className={`${inputClass} h-24 resize-none`} placeholder="Regras do cupom..." defaultValue={initialData?.descricao} />
+        <textarea
+          required
+          className={`${inputClass} h-24 resize-none`}
+          placeholder="Regras do cupom..."
+          value={descricao}
+          onChange={e => setDescricao(e.target.value)}
+        />
       </div>
       <div className="space-y-2">
         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Link/Código do Cupom</label>
-        <input type="text" className={inputClass} placeholder="https://..." defaultValue={initialData?.link} />
+        <input
+          type="text"
+          required
+          className={inputClass}
+          placeholder="https://..."
+          value={link}
+          onChange={e => setLink(e.target.value)}
+        />
       </div>
-    </div>
+    </form>
   );
 };
 
 const CuponsPage: React.FC = () => {
-  const [cupons, setCupons] = useState<Cupom[]>(MOCK_CUPONS);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void }>({
     isOpen: false,
@@ -67,8 +72,37 @@ const CuponsPage: React.FC = () => {
     content: ''
   });
 
-  const toggleCupomActive = (id: string) => {
-    setCupons(prev => prev.map(c => c.id === id ? { ...c, ativa: !c.ativa } : c));
+  const { data: cupons = [], isLoading } = useQuery({
+    queryKey: ['cupons'],
+    queryFn: DBService.cupons.getAll,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: DBService.cupons.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cupons'] });
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Cupom> }) => DBService.cupons.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cupons'] });
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: DBService.cupons.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cupons'] });
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+    }
+  });
+
+  const toggleCupomActive = (id: string, currentStatus: boolean) => {
+    updateMutation.mutate({ id, data: { ativa: !currentStatus } });
   };
 
   const handleCopy = (link: string) => {
@@ -80,8 +114,14 @@ const CuponsPage: React.FC = () => {
       isOpen: true,
       type: 'confirm-insert',
       title: 'Novo Cupom',
-      content: <CupomForm />,
-      onConfirm: () => console.log('Cupom criado')
+      content: <CupomForm onSubmit={(data) => createMutation.mutate(data)} />,
+      onConfirm: () => {
+        // Trigger generic submit button if needed, or handle inside form
+        // For simplicity, we can rely on the form submit or make the modal 'Confirm' button trigger form submission.
+        // But since our Modal component structure might expect checking 'confirm' click:
+        const form = document.getElementById('cupom-form') as HTMLFormElement;
+        if (form) form.requestSubmit();
+      }
     });
   };
 
@@ -92,15 +132,18 @@ const CuponsPage: React.FC = () => {
         type: 'confirm-delete',
         title: 'Excluir Cupom',
         content: `Deseja realmente excluir o cupom "${cupom.titulo}"?`,
-        onConfirm: () => setCupons(prev => prev.filter(c => c.id !== cupom.id))
+        onConfirm: () => deleteMutation.mutate(cupom.id)
       });
     } else if (type === 'edit') {
       setModalConfig({
         isOpen: true,
         type: 'confirm-update',
         title: 'Editar Cupom',
-        content: <CupomForm initialData={cupom} />,
-        onConfirm: () => console.log('Cupom editado')
+        content: <CupomForm initialData={cupom} onSubmit={(data) => updateMutation.mutate({ id: cupom.id, data })} />,
+        onConfirm: () => {
+          const form = document.getElementById('cupom-form') as HTMLFormElement;
+          if (form) form.requestSubmit();
+        }
       });
     } else {
       setModalConfig({
@@ -132,8 +175,16 @@ const CuponsPage: React.FC = () => {
     c.descricao.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (isLoading) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <RefreshCw size={40} className="text-red-600 animate-spin opacity-50" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8 pb-10 animate-in fade-in duration-500">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">Cupons</h1>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Gerencie cupons de desconto e ações de fidelização.</p>
@@ -173,8 +224,8 @@ const CuponsPage: React.FC = () => {
                   <div className="flex-1 flex items-center gap-2">
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md border ${cupom.ativa
-                          ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30'
-                          : 'text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'
+                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30'
+                        : 'text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'
                         }`}>
                         {idx + 1}
                       </span>
@@ -188,7 +239,7 @@ const CuponsPage: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => toggleCupomActive(cupom.id)}
+                    onClick={() => toggleCupomActive(cupom.id, cupom.ativa)}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${cupom.ativa ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
                   >
                     <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${cupom.ativa ? 'translate-x-5' : 'translate-x-0'}`} />
