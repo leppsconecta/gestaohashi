@@ -203,7 +203,8 @@ export const DBService = {
         .schema('gestaohashi')
         .from('promocoes')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('titulo', { ascending: true });
 
       if (error) {
         console.error('Error fetching promocoes:', error);
@@ -300,11 +301,14 @@ export const DBService = {
       ]);
 
       const feedbacks = feedbacksAll.data || [];
+      const normalize = (s: any) => (typeof s === 'string' && s) ? s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
       const dist = {
-        elogios: feedbacks.filter((f: any) => f.tipo === 'Elogio').length,
-        sugestao: feedbacks.filter((f: any) => f.tipo === 'Sugestão').length,
-        denuncia: feedbacks.filter((f: any) => f.tipo === 'Denúncia').length,
-        reclamacoes: feedbacks.filter((f: any) => f.tipo === 'Reclamação').length,
+        elogios: feedbacks.filter((f: any) => normalize(f.tipo) === 'elogio').length,
+        sugestao: feedbacks.filter((f: any) => normalize(f.tipo) === 'sugestao').length,
+        denuncia: feedbacks.filter((f: any) => normalize(f.tipo) === 'denuncia').length,
+        reclamacoes: feedbacks.filter((f: any) => normalize(f.tipo) === 'reclamacao').length,
+        neutro: feedbacks.filter((f: any) => normalize(f.tipo) === 'neutral' || normalize(f.tipo) === 'neutro').length,
         total: feedbacks.length
       };
 
@@ -342,7 +346,7 @@ export const DBService = {
         reservasHoje: 0,
         reservasTotal: 0,
         feedbacksPendentes: 0,
-        feedbacksDistribucao: { elogios: 0, sugestao: 0, denuncia: 0, reclamacoes: 0, total: 0 },
+        feedbacksDistribucao: { elogios: 0, sugestao: 0, denuncia: 0, reclamacoes: 0, neutro: 0, total: 0 },
         consumacoesPendentes: 0,
         promocoesAtivas: 0,
         cuponsAtivos: 0,

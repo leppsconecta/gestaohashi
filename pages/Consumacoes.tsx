@@ -299,7 +299,7 @@ const ConsumacoesPage: React.FC = () => {
             </div>
             <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
               <label className="text-xs text-slate-400 uppercase font-bold">Descrição</label>
-              <div className="text-sm text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed max-h-40 overflow-y-auto">
+              <div className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed max-h-40 overflow-y-auto">
                 {item.descricao}
               </div>
             </div>

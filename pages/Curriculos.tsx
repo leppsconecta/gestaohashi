@@ -63,7 +63,7 @@ const CurriculosPage: React.FC = () => {
           </div>
           <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 tracking-widest uppercase font-bold">Observação</p>
-            <p className="text-slate-800 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 italic font-medium">
+            <p className="text-slate-800 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 font-medium">
               {item.observacao || 'Nenhuma observação cadastrada.'}
             </p>
           </div>

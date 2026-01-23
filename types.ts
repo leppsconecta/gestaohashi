@@ -165,7 +165,7 @@ export interface EscalaAtribuicao {
 }
 
 export type FeedbackStatus = 'Pendente' | 'Resolvendo' | 'Resolvido';
-export type FeedbackTipo = 'Reclamação' | 'Elogio' | 'Sugestão' | 'Denúncia';
+export type FeedbackTipo = 'Reclamação' | 'Elogio' | 'Sugestão' | 'Denúncia' | 'Reclamacao' | 'Neutral' | 'Neutros';
 export type FeedbackOrigem = 'Site' | 'Whatsapp' | 'Google';
 
 export interface Feedback {

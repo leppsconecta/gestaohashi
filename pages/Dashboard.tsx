@@ -22,10 +22,18 @@ const DashboardPage: React.FC = () => {
     );
   }
 
+  if (!stats) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <p className="text-slate-400 font-medium">Carregando dados...</p>
+      </div>
+    );
+  }
+
   const menuCards = [
     { id: 1, label: 'Reservas', value: stats.reservasPendentes, sublabel: 'pendentes', path: AppRoute.RESERVAS, alert: stats.reservasPendentes > 0, isSplit: true, total: stats.reservasTotal },
-    { id: 2, label: 'Feedbacks', value: stats.feedbacksPendentes, sublabel: 'pendentes', path: AppRoute.FEEDBACKS, alert: stats.feedbacksPendentes > 0 },
-    { id: 3, label: 'Consumação', value: stats.consumacoesPendentes || 0, sublabel: 'pendentes', path: AppRoute.CONSUMACOES, alert: stats.consumacoesPendentes > 0 },
+    { id: 2, label: 'Feedbacks', value: stats.feedbacksDistribucao?.total || 0, sublabel: 'registrados', path: AppRoute.FEEDBACKS, alert: stats.feedbacksPendentes > 0 },
+    { id: 3, label: 'Consumação', value: stats.consumacoesPendentes || 0, sublabel: 'pendentes', path: AppRoute.CONSUMACOES, alert: false },
     { id: 4, label: 'Promocional', value: stats.promocoesAtivas || 0, sublabel: 'campanhas', path: AppRoute.PROMOCIONAL, alert: false },
     { id: 5, label: 'Cupons', value: stats.cuponsAtivos || 0, sublabel: 'ativos', path: AppRoute.CUPONS, alert: false }
   ];
@@ -195,10 +203,10 @@ const DashboardPage: React.FC = () => {
 
             <div className="flex-1 w-full space-y-3.5">
               {[
-                { label: 'Elogios', color: 'bg-emerald-600', val: stats.feedbacksDistribucao.elogios },
-                { label: 'Sugestão', color: 'bg-red-600', val: stats.feedbacksDistribucao.sugestao },
-                { label: 'Denúncia', color: 'bg-amber-600', val: stats.feedbacksDistribucao.denuncia },
-                { label: 'Reclamações', color: 'bg-red-800', val: stats.feedbacksDistribucao.reclamacoes },
+                { label: 'Elogios', color: 'bg-emerald-500', val: stats.feedbacksDistribucao.elogios },
+                { label: 'Sugestão', color: 'bg-amber-500', val: stats.feedbacksDistribucao.sugestao },
+                { label: 'Reclamações', color: 'bg-red-500', val: stats.feedbacksDistribucao.reclamacoes },
+                { label: 'Denúncia', color: 'bg-orange-500', val: stats.feedbacksDistribucao.denuncia },
               ].map((item, i) => {
                 const percentage = (item.val / stats.feedbacksDistribucao.total) * 100;
                 return (

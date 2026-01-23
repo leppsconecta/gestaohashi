@@ -101,3 +101,63 @@ INSERT INTO gestaohashi.promocoes (titulo, ativa) VALUES
 INSERT INTO gestaohashi.cupons (codigo, ativa) VALUES
 ('BEMVINDO10', true),
 ('HASHI2024', true);
+
+-- Webhook Trigger para Feedbacks
+-- Requer extensão pg_net: CREATE EXTENSION IF NOT EXISTS "pg_net";
+
+CREATE OR REPLACE FUNCTION gestaohashi.trigger_webhook_feedback()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Dispara webhook via pg_net (assíncrono)
+    -- Verifica se o schema net existe antes de tentar chamar
+    IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'net') THEN
+        PERFORM net.http_post(
+            url := 'https://webhook.leppsconecta.com.br/webhook/48e6571d-a594-4bac-977e-e29076e725cb',
+            body := jsonb_build_object(
+                'event', 'INSERT',
+                'table', 'feedbacks',
+                'record', row_to_json(NEW),
+                'timestamp', NOW()
+            ),
+            headers := '{"Content-Type": "application/json"}'::jsonb
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS new_feedback_webhook ON gestaohashi.feedbacks;
+
+
+CREATE TRIGGER new_feedback_webhook
+AFTER INSERT ON gestaohashi.feedbacks
+FOR EACH ROW
+EXECUTE FUNCTION gestaohashi.trigger_webhook_feedback();
+
+-- Webhook Trigger para Reservas
+CREATE OR REPLACE FUNCTION gestaohashi.trigger_webhook_reserva()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Dispara webhook via pg_net (assíncrono)
+    IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'net') THEN
+        PERFORM net.http_post(
+            url := 'https://webhook.leppsconecta.com.br/webhook/3e277396-bd3f-445f-873c-b6b70c259272',
+            body := jsonb_build_object(
+                'event', 'INSERT',
+                'table', 'reservas',
+                'record', row_to_json(NEW),
+                'timestamp', NOW()
+            ),
+            headers := '{"Content-Type": "application/json"}'::jsonb
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS new_reserva_webhook ON gestaohashi.reservas;
+
+CREATE TRIGGER new_reserva_webhook
+AFTER INSERT ON gestaohashi.reservas
+FOR EACH ROW
+EXECUTE FUNCTION gestaohashi.trigger_webhook_reserva();

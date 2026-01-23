@@ -162,7 +162,7 @@ const CuponsPage: React.FC = () => {
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Descrição</label>
-              <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 italic">{cupom.descricao}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">{cupom.descricao}</p>
             </div>
           </div>
         )
@@ -247,7 +247,7 @@ const CuponsPage: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-50 dark:border-slate-800 mt-2 space-y-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic h-20 overflow-y-auto pr-1 custom-scrollbar">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed h-20 overflow-y-auto pr-1 custom-scrollbar">
                     {cupom.descricao}
                   </p>
 

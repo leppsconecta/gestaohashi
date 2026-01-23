@@ -220,7 +220,7 @@ const PromocionalPage: React.FC = () => {
             </div>
             <div>
               <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Descrição</label>
-              <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 italic leading-relaxed">
+              <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                 {promo.descricao}
               </div>
             </div>

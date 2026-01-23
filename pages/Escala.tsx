@@ -36,11 +36,11 @@ import { Funcionario, TurnoConfig, ModalType } from '../types';
 
 // Mock de funcionários
 const MOCK_FUNCIONARIOS: Funcionario[] = [
-  { id: '1', codigo: '#2161', dataEntrada: '12/12/2025', tipoContrato: 'CLT (Padrão)', nome: 'Leonardo José da Silva', status: 'Ativo', funcao: 'Sushiman', contato: '11995079167' },
-  { id: '2', codigo: '#3920', dataEntrada: '12/12/2025', tipoContrato: 'CLT (Padrão)', nome: 'Genieide Maria dos Santos', status: 'Ativo', funcao: 'Auxiliar de Cozinha', contato: '1194880-2248' },
-  { id: '3', codigo: '#5161', dataEntrada: '12/12/2025', tipoContrato: 'CLT (Padrão)', nome: 'Dayane Barros Pereira', status: 'Ativo', funcao: 'Garçonete', contato: '11944769197' },
-  { id: '4', codigo: '#5747', dataEntrada: '12/12/2025', tipoContrato: 'CLT (Padrão)', nome: 'Vânia da solidade de Oliveira Vasconcelos', status: 'Ativo', funcao: 'Cozinheiro(a)', contato: '11921940439' },
-  { id: '5', codigo: '#8224', dataEntrada: '12/12/2025', tipoContrato: 'CLT (Padrão)', nome: 'Maria Helena de Oliveira', status: 'Ativo', funcao: 'Auxiliar de Serviços Gerais', contato: '11999776738' },
+  { id: '1', codigo: '#2161', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Leonardo José da Silva', status: 'Ativo', funcao: 'Sushiman', contato: '11995079167' },
+  { id: '2', codigo: '#3920', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Genieide Maria dos Santos', status: 'Ativo', funcao: 'Auxiliar de Cozinha', contato: '1194880-2248' },
+  { id: '3', codigo: '#5161', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Dayane Barros Pereira', status: 'Ativo', funcao: 'Garçonete', contato: '11944769197' },
+  { id: '4', codigo: '#5747', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Vânia da solidade de Oliveira Vasconcelos', status: 'Ativo', funcao: 'Cozinheiro(a)', contato: '11921940439' },
+  { id: '5', codigo: '#8224', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Maria Helena de Oliveira', status: 'Ativo', funcao: 'Auxiliar de Serviços Gerais', contato: '11999776738' },
   { id: '6', codigo: '#9112', dataEntrada: '12/12/2025', tipoContrato: 'Freelancer', nome: 'Lucia Maria de Oliveira', status: 'Ativo', funcao: 'Auxiliar de Cozinha', contato: '11995079167' },
 ];
 

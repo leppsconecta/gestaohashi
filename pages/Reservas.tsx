@@ -239,7 +239,7 @@ const ReservasPage: React.FC = () => {
             </div>
             <div className="pt-5 border-t border-slate-200 dark:border-slate-700">
               <label className="text-xs text-slate-500 mb-2 block">Observação</label>
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 italic text-sm text-slate-900 dark:text-slate-300 leading-relaxed shadow-inner">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-slate-300 leading-relaxed shadow-inner">
                 {item.observacao || "Nenhuma observação informada."}
               </div>
             </div>
