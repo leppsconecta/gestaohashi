@@ -255,7 +255,7 @@ const MenuOnline: React.FC = () => {
   // Get current expanded item details
   const getCurrentExpandedItem = () => {
     if (!expandedItem) return null;
-    const cat = MENU_DATA.find(c => c.id === expandedItem.categoryId);
+    const cat = categorias.find(c => c.id === expandedItem.categoryId);
     if (!cat) return null;
     return cat.itens[expandedItem.itemIndex];
   };
@@ -264,7 +264,7 @@ const MenuOnline: React.FC = () => {
   const navigateExpanded = (direction: 'prev' | 'next') => {
     if (!expandedItem) return;
 
-    const cat = MENU_DATA.find(c => c.id === expandedItem.categoryId);
+    const cat = categorias.find(c => c.id === expandedItem.categoryId);
     if (!cat) return;
 
     setSlideDirection(direction === 'next' ? 'left' : 'right');
@@ -317,7 +317,7 @@ const MenuOnline: React.FC = () => {
 
   const currentItem = getCurrentExpandedItem();
   const canGoPrev = expandedItem ? expandedItem.itemIndex > 0 : false;
-  const canGoNext = expandedItem ? (MENU_DATA.find(c => c.id === expandedItem.categoryId)?.itens.length || 0) > expandedItem.itemIndex + 1 : false;
+  const canGoNext = expandedItem ? (categorias.find(c => c.id === expandedItem.categoryId)?.itens.length || 0) > expandedItem.itemIndex + 1 : false;
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-20 font-sans">

@@ -211,8 +211,22 @@ const CardapioPage: React.FC = () => {
   const heroFileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   // Section expanded states
-  const [productsExpanded, setProductsExpanded] = useState(true); // Products expanded by default
+  const [productsExpanded, setProductsExpanded] = useState(false); // Sections collapsed by default
   const [splashExpanded, setSplashExpanded] = useState(false);
+
+  // Function to focus on one section and collapse others
+  const focusSection = (section: 'hero' | 'products' | 'splash', resetCategory = false) => {
+    setHeroImagesExpanded(section === 'hero');
+    setProductsExpanded(section === 'products');
+    setSplashExpanded(section === 'splash');
+
+    if (resetCategory && categorias.length > 0) {
+      setActiveCatId(categorias[0].id);
+    }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Custom Modals State
   const [deleteCategoryModal, setDeleteCategoryModal] = useState<{ isOpen: boolean, categoryId: string | null }>({ isOpen: false, categoryId: null });
@@ -1037,7 +1051,7 @@ const CardapioPage: React.FC = () => {
       {/* Hero Images - Collapsible Section */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
         <button
-          onClick={() => setHeroImagesExpanded(!heroImagesExpanded)}
+          onClick={() => heroImagesExpanded ? setHeroImagesExpanded(false) : focusSection('hero')}
           className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
         >
           <div className="flex items-center gap-3">
@@ -1179,7 +1193,7 @@ const CardapioPage: React.FC = () => {
       {/* Products Section - Collapsible */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-visible">
         <button
-          onClick={() => setProductsExpanded(!productsExpanded)}
+          onClick={() => productsExpanded ? setProductsExpanded(false) : focusSection('products', true)}
           className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
         >
           <div className="flex items-center gap-3">
@@ -1249,7 +1263,10 @@ const CardapioPage: React.FC = () => {
                     ) : (
                       <div className="relative">
                         <button
-                          onClick={() => setActiveCatId(cat.id)}
+                          onClick={() => {
+                            setActiveCatId(cat.id);
+                            focusSection('products', false);
+                          }}
                           className={`
                       px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2
                       ${activeCatId === cat.id
@@ -1724,7 +1741,7 @@ const CardapioPage: React.FC = () => {
       {/* Splash Section - Collapsible */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
         <button
-          onClick={() => setSplashExpanded(!splashExpanded)}
+          onClick={() => splashExpanded ? setSplashExpanded(false) : focusSection('splash')}
           className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
         >
           <div className="flex items-center gap-3">
