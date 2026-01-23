@@ -73,11 +73,10 @@ const MenuOnline: React.FC = () => {
   const [menuEnabled, setMenuEnabled] = useState(true);
 
   const contactOptions = [
-    { icon: MessageSquare, label: 'Sugestões', color: 'bg-blue-500' },
-    { icon: Users, label: 'Grupo VIP', color: 'bg-purple-500' },
-    { icon: Share2, label: 'Redes Sociais', color: 'bg-pink-500' },
-    { icon: Calendar, label: 'Reservas', color: 'bg-green-500' },
-    { icon: Handshake, label: 'Parcerias', color: 'bg-orange-500' },
+    { icon: MessageSquare, label: 'Sugestões', color: 'bg-blue-500', url: 'https://hashiexpressjundiai.com.br' },
+    { icon: Share2, label: 'Redes Sociais', color: 'bg-pink-500', url: 'https://instagram.com/hashiexpressjundiai' },
+    { icon: Calendar, label: 'Reservas', color: 'bg-green-500', url: 'https://hashiexpressjundiai.com.br' },
+    { icon: Handshake, label: 'Parcerias', color: 'bg-orange-500', url: 'https://hashiexpressjundiai.com.br' },
   ];
 
   const activeCategory = categorias.find(c => c.id === activeCatId);
@@ -704,6 +703,7 @@ const MenuOnline: React.FC = () => {
               {contactOptions.map((option, idx) => (
                 <button
                   key={idx}
+                  onClick={() => window.open(option.url, '_blank')}
                   className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors group"
                 >
                   <div className={`w-12 h-12 ${option.color} rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform`}>
