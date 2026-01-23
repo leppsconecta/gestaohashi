@@ -1,17 +1,17 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-  Users, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
-  Share2, 
-  Settings, 
-  Plus, 
-  ChevronDown, 
-  ChevronRight as ChevronRightIcon, 
-  Image as ImageIcon, 
-  Copy, 
+import {
+  Users,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Share2,
+  Settings,
+  Plus,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon,
+  Image as ImageIcon,
+  Copy,
   ArrowRight,
   GripVertical,
   Clock,
@@ -19,7 +19,7 @@ import {
   Check,
   CheckCircle2,
   MapPin,
-  X, 
+  X,
   Trash2,
   CalendarDays,
   Download,
@@ -78,10 +78,10 @@ const getMonday = (d: Date) => {
   return new Date(date.setHours(0, 0, 0, 0)).setDate(diff);
 };
 
-const SelectTurnoModal: React.FC<{ 
-  turnos: TurnoConfig[], 
+const SelectTurnoModal: React.FC<{
+  turnos: TurnoConfig[],
   onSelect: (turnoId: string) => void,
-  employeeName: string 
+  employeeName: string
 }> = ({ turnos, onSelect, employeeName }) => (
   <div className="space-y-6 py-2">
     <div className="space-y-1">
@@ -108,12 +108,12 @@ const SelectTurnoModal: React.FC<{
   </div>
 );
 
-const MobileEmployeeSelector: React.FC<{ 
+const MobileEmployeeSelector: React.FC<{
   onSelect: (employeeId: string) => void,
   employees: Funcionario[]
 }> = ({ onSelect, employees }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const filtered = useMemo(() => {
     const s = searchTerm.toLowerCase();
     return employees.filter(f => f.nome.toLowerCase().includes(s) || f.funcao.toLowerCase().includes(s));
@@ -123,18 +123,18 @@ const MobileEmployeeSelector: React.FC<{
     <div className="space-y-5">
       <div className="relative group px-1">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={18} />
-        <input 
-          type="text" 
-          placeholder="Buscar por nome ou função..." 
+        <input
+          type="text"
+          placeholder="Buscar por nome ou função..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-bold text-slate-800 dark:text-white placeholder:font-medium shadow-inner"
         />
       </div>
-      
+
       <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
         {filtered.length > 0 ? filtered.map(f => (
-          <button 
+          <button
             key={f.id}
             onClick={() => onSelect(f.id)}
             className="w-full p-4 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-indigo-200 transition-all text-left shadow-sm active:scale-[0.98]"
@@ -177,17 +177,17 @@ const ConfigTurnosForm: React.FC<{ turnos: TurnoConfig[], onChange: (t: TurnoCon
       <div className="space-y-1 ml-1">
         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Horários de Operação</h4>
       </div>
-      
+
       <div className="space-y-3">
         {localTurnos.map((turno) => (
-          <div 
-            key={turno.id} 
+          <div
+            key={turno.id}
             className={`p-5 rounded-[1.5rem] border ${turno.borderClass} ${turno.bgClass} dark:bg-slate-900/40 dark:border-slate-800 transition-all flex flex-col gap-3 shadow-sm`}
           >
             <span className={`text-[11px] font-black uppercase tracking-wider ${turno.colorClass}`}>
               {turno.label}
             </span>
-            
+
             <div className="flex items-center gap-3">
               {turno.id === 't4' ? (
                 <div className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-300 dark:text-slate-600 italic shadow-sm">
@@ -195,15 +195,15 @@ const ConfigTurnosForm: React.FC<{ turnos: TurnoConfig[], onChange: (t: TurnoCon
                 </div>
               ) : (
                 <>
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={turno.inicio}
                     onChange={(e) => updateTurno(turno.id, 'inicio', e.target.value)}
                     className={inputTimeClass}
                   />
                   <ArrowRight size={16} className="text-slate-300 shrink-0" />
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={turno.fim}
                     onChange={(e) => updateTurno(turno.id, 'fim', e.target.value)}
                     className={inputTimeClass}
@@ -239,10 +239,10 @@ const ShareEscalaModal: React.FC<{ onDownload: () => void, onCopyText: () => voi
   </div>
 );
 
-const EditTextModal: React.FC<{ 
-  initialText: string, 
+const EditTextModal: React.FC<{
+  initialText: string,
   onCopy: (txt: string) => void,
-  onReset: () => string 
+  onReset: () => string
 }> = ({ initialText, onCopy, onReset }) => {
   const [text, setText] = useState(initialText);
   const [copied, setCopied] = useState(false);
@@ -267,7 +267,7 @@ const EditTextModal: React.FC<{
       <div className="space-y-2 flex flex-col min-h-0">
         <div className="flex items-center justify-between ml-1 shrink-0">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Conteúdo da Escala</label>
-          <button 
+          <button
             onClick={handleResetAction}
             className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-700 uppercase tracking-widest transition-colors"
             title="Restaurar texto original do sistema"
@@ -275,14 +275,14 @@ const EditTextModal: React.FC<{
             <RotateCcw size={12} strokeWidth={2.5} /> Restaurar
           </button>
         </div>
-        <textarea 
+        <textarea
           className="w-full h-[45vh] sm:h-[55vh] max-h-[550px] p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed text-slate-700 dark:text-slate-300 custom-scrollbar overflow-y-auto shadow-inner"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="A escala aparecerá aqui..."
         />
       </div>
-      
+
       <div className="shrink-0 space-y-3 pt-2">
         {copied && (
           <div className="flex items-center justify-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-[0.2em] animate-in fade-in slide-in-from-bottom-1">
@@ -290,28 +290,27 @@ const EditTextModal: React.FC<{
           </div>
         )}
 
-        <button 
+        <button
           onClick={handleCopyAction}
-          className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg dark:shadow-none ${
-            copied ? 'bg-emerald-500 text-white shadow-emerald-100' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'
-          }`}
+          className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg dark:shadow-none ${copied ? 'bg-emerald-500 text-white shadow-emerald-100' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100'
+            }`}
         >
           {copied ? <Check size={18} strokeWidth={3} /> : <Copy size={18} strokeWidth={3} />}
           {copied ? 'Conteúdo Copiado!' : 'Copiar para o WhatsApp'}
         </button>
-        
+
         <p className="text-[9px] text-slate-400 font-bold text-center italic tracking-tight">Você pode editar o texto acima antes de copiar.</p>
       </div>
     </div>
   );
 };
 
-const ReportTemplate: React.FC<{ 
+const ReportTemplate: React.FC<{
   mode: 'semanal' | 'pontual';
   weekDays: any[];
   pontualDate: Date;
-  turnos: TurnoConfig[]; 
-  escala: Record<string, string[]>; 
+  turnos: TurnoConfig[];
+  escala: Record<string, string[]>;
   reportRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ mode, weekDays, pontualDate, turnos, escala, reportRef }) => {
   const now = new Date();
@@ -335,14 +334,14 @@ const ReportTemplate: React.FC<{
   );
 
   if (mode === 'pontual') {
-    const dayId = pontualDate.setHours(0,0,0,0);
+    const dayId = pontualDate.setHours(0, 0, 0, 0);
     const dateStr = pontualDate.toLocaleDateString('pt-BR');
-    
+
     return (
       <div className="absolute -left-[5000px] top-0">
         <div ref={reportRef} style={{ width: '794px' }} className="bg-white p-12 flex flex-col text-slate-900 font-sans min-h-0">
           {renderHeader('Escala Diária', dateStr)}
-          
+
           <div className="grid grid-cols-2 gap-6 flex-1">
             {turnos.map((t) => {
               const escaladosIds = escala[`${dayId}-${t.id}`] || [];
@@ -380,7 +379,7 @@ const ReportTemplate: React.FC<{
     <div className="absolute -left-[5000px] top-0">
       <div ref={reportRef} style={{ width: '1123px' }} className="bg-white p-10 flex flex-col text-slate-900 font-sans min-h-0">
         {renderHeader('Escala Semanal', `${weekDays[0].dia}/${weekDays[0].fullDate.getMonth() + 1} a ${weekDays[6].dia}/${weekDays[6].fullDate.getMonth() + 1}`)}
-        
+
         <div className="grid grid-cols-7 gap-2 flex-1">
           {weekDays.map(dia => {
             return (
@@ -389,12 +388,12 @@ const ReportTemplate: React.FC<{
                   <h4 className="text-[11px] font-medium tracking-tight leading-none">{dia.label}</h4>
                   <p className="text-[9px] text-slate-400 mt-1">{dia.dia}/{dia.fullDate.getMonth() + 1}</p>
                 </div>
-                
+
                 <div className="flex-1 p-2 space-y-4">
                   {turnos.map(t => {
                     const escaladosIds = escala[`${dia.id}-${t.id}`] || [];
                     if (escaladosIds.length === 0) return null;
-                    
+
                     return (
                       <div key={t.id} className="space-y-2">
                         <div className="border-b border-slate-100 pb-0.5 mb-1">
@@ -433,7 +432,7 @@ const ReportTemplate: React.FC<{
 const EscalaPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'semanal' | 'pontual'>('semanal');
   const [currentWeekMonday, setCurrentWeekMonday] = useState(new Date(getMonday(new Date())));
-  const [pontualDate, setPontualDate] = useState(new Date(new Date().setHours(0,0,0,0)));
+  const [pontualDate, setPontualDate] = useState(new Date(new Date().setHours(0, 0, 0, 0)));
   const [turnosConfigs, setTurnosConfigs] = useState<TurnoConfig[]>(DEFAULT_TURNOS);
   const [tempTurnos, setTempTurnos] = useState<TurnoConfig[]>(DEFAULT_TURNOS);
   const [searchTerm, setSearchTerm] = useState('');
@@ -443,7 +442,7 @@ const EscalaPage: React.FC = () => {
 
   const [textSemanal, setTextSemanal] = useState<string>('');
   const [textPontual, setTextPontual] = useState<string>('');
-  
+
   const reportRef = useRef<HTMLDivElement>(null);
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean, title: string, content: React.ReactNode, type: ModalType, maxWidth?: string, onConfirm?: () => void }>({ isOpen: false, title: '', content: null, type: 'view-content' });
 
@@ -487,7 +486,7 @@ const EscalaPage: React.FC = () => {
   const toggleTurn = (dayId: number, turnoId: string) => { const key = `${dayId}-${turnoId}`; setExpandedTurns(prev => ({ ...prev, [key]: !prev[key] })); };
   const completeAssignment = (dayId: number, turnoId: string, employeeId: string) => { const key = `${dayId}-${turnoId}`; setEscala(prev => { const currentList = prev[key] || []; if (currentList.includes(employeeId)) return prev; return { ...prev, [key]: [...currentList, employeeId] }; }); setExpandedTurns(prev => ({ ...prev, [key]: true })); setDraggedEmployeeId(null); };
   const removeFuncionarioFromEscala = (dayId: number, turnoId: string, employeeId: string) => { const key = `${dayId}-${turnoId}`; setEscala(prev => ({ ...prev, [key]: (prev[key] || []).filter(id => id !== employeeId) })); };
-  
+
   const handleMobileAdd = (dayId: number) => {
     setModalConfig({
       isOpen: true,
@@ -495,33 +494,33 @@ const EscalaPage: React.FC = () => {
       type: 'view-content',
       maxWidth: 'max-w-md',
       content: (
-        <MobileEmployeeSelector 
-          employees={MOCK_FUNCIONARIOS} 
-          onSelect={(employeeId) => handleDropOnDay(dayId, employeeId)} 
+        <MobileEmployeeSelector
+          employees={MOCK_FUNCIONARIOS}
+          onSelect={(employeeId) => handleDropOnDay(dayId, employeeId)}
         />
       )
     });
   };
 
-  const handleDropOnDay = (dayId: number, employeeId: string) => { 
-    const employee = MOCK_FUNCIONARIOS.find(f => f.id === employeeId); 
-    if (!employee) return; 
-    setModalConfig({ 
-      isOpen: true, 
-      title: 'Escalar Funcionário', 
-      type: 'view-content', 
-      maxWidth: 'max-w-md', 
+  const handleDropOnDay = (dayId: number, employeeId: string) => {
+    const employee = MOCK_FUNCIONARIOS.find(f => f.id === employeeId);
+    if (!employee) return;
+    setModalConfig({
+      isOpen: true,
+      title: 'Escalar Funcionário',
+      type: 'view-content',
+      maxWidth: 'max-w-md',
       content: (
-        <SelectTurnoModal 
-          turnos={turnosConfigs} 
-          employeeName={employee.nome} 
-          onSelect={(turnoId) => { 
-            completeAssignment(dayId, turnoId, employeeId); 
-            setModalConfig(prev => ({ ...prev, isOpen: false })); 
-          }} 
+        <SelectTurnoModal
+          turnos={turnosConfigs}
+          employeeName={employee.nome}
+          onSelect={(turnoId) => {
+            completeAssignment(dayId, turnoId, employeeId);
+            setModalConfig(prev => ({ ...prev, isOpen: false }));
+          }}
         />
-      ) 
-    }); 
+      )
+    });
   };
 
   const openEmployeeSelectorForTurn = (dayId: number, turnoId: string) => {
@@ -531,69 +530,69 @@ const EscalaPage: React.FC = () => {
       type: 'view-content',
       maxWidth: 'max-w-md',
       content: (
-        <MobileEmployeeSelector 
-          employees={MOCK_FUNCIONARIOS} 
-          onSelect={(employeeId) => { 
-            completeAssignment(dayId, turnoId, employeeId); 
-            setModalConfig(p => ({...p, isOpen: false})); 
-          }} 
+        <MobileEmployeeSelector
+          employees={MOCK_FUNCIONARIOS}
+          onSelect={(employeeId) => {
+            completeAssignment(dayId, turnoId, employeeId);
+            setModalConfig(p => ({ ...p, isOpen: false }));
+          }}
         />
       )
     });
   };
-  
-  const handleDownloadReport = async () => { 
-    if (!reportRef.current) return; 
-    try { 
+
+  const handleDownloadReport = async () => {
+    if (!reportRef.current) return;
+    try {
       const orientation = activeTab === 'semanal' ? 'landscape' : 'portrait';
       const format = 'a4';
       const pdf = new jsPDF(orientation, 'pt', format);
-      
-      const canvas = await html2canvas(reportRef.current, { 
-        scale: 2, 
-        useCORS: true, 
-        logging: false, 
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
         backgroundColor: '#ffffff'
-      }); 
-      
+      });
+
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = orientation === 'landscape' ? 841.89 : 595.28;
       const pdfHeight = orientation === 'landscape' ? 595.28 : 841.89;
-      
+
       const imgWidth = pdfWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
+
       let heightLeft = imgHeight;
       let position = 0;
-      
+
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
-      
-      while (heightLeft > 100) { 
+
+      while (heightLeft > 100) {
         position = heightLeft - imgHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
       }
-      
-      const fileName = activeTab === 'semanal' 
+
+      const fileName = activeTab === 'semanal'
         ? `escala-semanal-${currentWeekMonday.toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`
         : `escala-pontual-${pontualDate.toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
-      
+
       pdf.save(fileName);
-    } catch (error) { 
-      console.error('Falha ao gerar PDF:', error); 
-    } 
+    } catch (error) {
+      console.error('Falha ao gerar PDF:', error);
+    }
   };
 
   const generateSnapshotText = (mode: 'semanal' | 'pontual') => {
     let textContent = "";
     if (mode === 'pontual') {
-      const dayId = pontualDate.setHours(0,0,0,0);
+      const dayId = pontualDate.setHours(0, 0, 0, 0);
       const dateStr = pontualDate.toLocaleDateString('pt-BR');
       textContent = `Escala do dia *${dateStr}*\n`;
       textContent += `--------------------------------------------\n`;
-      
+
       turnosConfigs.forEach(t => {
         const escaladosIds = escala[`${dayId}-${t.id}`] || [];
         if (escaladosIds.length > 0) {
@@ -613,7 +612,7 @@ const EscalaPage: React.FC = () => {
       weekDays.forEach(dia => {
         const hasEscalados = turnosConfigs.some(t => (escala[`${dia.id}-${t.id}`] || []).length > 0);
         if (!hasEscalados) return;
-        
+
         textContent += `\n📍 *${dia.label} (${dia.dia}/${dia.fullDate.getMonth() + 1})*\n`;
         turnosConfigs.forEach(t => {
           const escaladosIds = escala[`${dia.id}-${t.id}`] || [];
@@ -644,13 +643,13 @@ const EscalaPage: React.FC = () => {
       type: 'view-content',
       maxWidth: 'max-w-2xl',
       content: (
-        <EditTextModal 
-          initialText={initialText} 
+        <EditTextModal
+          initialText={initialText}
           onCopy={(finalText) => {
             navigator.clipboard.writeText(finalText);
             if (activeTab === 'pontual') setTextPontual(finalText);
             else setTextSemanal(finalText);
-          }} 
+          }}
           onReset={() => {
             const freshText = generateSnapshotText(activeTab);
             if (activeTab === 'pontual') setTextPontual(freshText);
@@ -670,16 +669,16 @@ const EscalaPage: React.FC = () => {
   const renderDayCard = (dia: typeof weekDays[0]) => {
     const isToday = dia.fullDate.toDateString() === new Date().toDateString();
     return (
-      <div 
-        key={dia.id} 
-        onDragOver={(e) => e.preventDefault()} 
-        onDrop={(e) => { e.preventDefault(); if (draggedEmployeeId) handleDropOnDay(dia.id, draggedEmployeeId); }} 
+      <div
+        key={dia.id}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); if (draggedEmployeeId) handleDropOnDay(dia.id, draggedEmployeeId); }}
         className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border transition-all duration-300 flex flex-col gap-4 min-h-[320px] shadow-sm p-6 overflow-hidden ${isToday ? 'border-indigo-600 ring-8 ring-indigo-500/10 shadow-md' : 'border-slate-200 dark:border-slate-800'}`}
       >
         <div className="flex items-center justify-between">
           <h3 className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-slate-800 dark:text-white'}`}>{dia.label}</h3>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={() => handleMobileAdd(dia.id)}
               className="lg:hidden p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-95 transition-all shadow-sm"
             >
@@ -690,11 +689,11 @@ const EscalaPage: React.FC = () => {
         </div>
         <div className="h-[1px] bg-slate-100 dark:bg-slate-800 w-full" />
         <div className="space-y-3 flex-1 overflow-y-auto no-scrollbar pr-1">
-          {turnosConfigs.map((turno) => { 
-            const key = `${dia.id}-${turno.id}`; 
-            const isExpanded = expandedTurns[key] || false; 
-            const escalados = escala[key] || []; 
-            if (escalados.length === 0) return null; 
+          {turnosConfigs.map((turno) => {
+            const key = `${dia.id}-${turno.id}`;
+            const isExpanded = expandedTurns[key] || false;
+            const escalados = escala[key] || [];
+            if (escalados.length === 0) return null;
             return (
               <div key={turno.id} className="space-y-2 animate-in fade-in duration-300">
                 <div onClick={() => toggleTurn(dia.id, turno.id)} className={`p-3 rounded-2xl border transition-all flex items-center justify-between cursor-pointer hover:shadow-sm ${turno.bgClass} ${turno.borderClass}`}>
@@ -706,9 +705,9 @@ const EscalaPage: React.FC = () => {
                 </div>
                 {isExpanded && (
                   <div className="space-y-2 pl-1 animate-in slide-in-from-top-1 duration-200">
-                    {escalados.map(fId => { 
-                      const func = MOCK_FUNCIONARIOS.find(f => f.id === fId); 
-                      if (!func) return null; 
+                    {escalados.map(fId => {
+                      const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+                      if (!func) return null;
                       return (
                         <div key={fId} className="bg-white dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3 relative group">
                           <div className={`w-1.5 h-1.5 rounded-full ${turno.colorClass.replace('text', 'bg')} flex-shrink-0`} />
@@ -716,20 +715,20 @@ const EscalaPage: React.FC = () => {
                             <h5 className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate tracking-tight">{formatName(func.nome)}</h5>
                             <p className="text-[9px] font-medium text-slate-400 truncate tracking-wide">{func.funcao}</p>
                           </div>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); removeFuncionarioFromEscala(dia.id, turno.id, fId); }} 
-                            className="p-1.5 text-slate-300 hover:text-red-600 transition-all opacity-100 bg-white dark:bg-slate-900 rounded-lg shadow-sm" 
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFuncionarioFromEscala(dia.id, turno.id, fId); }}
+                            className="p-1.5 text-slate-300 hover:text-red-600 transition-all opacity-100 bg-white dark:bg-slate-900 rounded-lg shadow-sm"
                             title="Remover"
                           >
                             <Trash2 size={14} />
                           </button>
                         </div>
-                      ); 
+                      );
                     })}
                   </div>
                 )}
               </div>
-            ); 
+            );
           })}
           {!turnosConfigs.some(t => escala[`${dia.id}-${t.id}`]?.length > 0) && (
             <div className="flex-1 flex flex-col items-center justify-center py-12 text-center opacity-40">
@@ -743,16 +742,16 @@ const EscalaPage: React.FC = () => {
   };
 
   const renderPontualView = () => {
-    const dayId = pontualDate.setHours(0,0,0,0);
+    const dayId = pontualDate.setHours(0, 0, 0, 0);
 
     return (
       <div className="flex-1 flex flex-col lg:flex-row gap-4 no-scrollbar pb-6 min-h-0 lg:overflow-x-auto overflow-y-auto">
         {turnosConfigs.map((turno) => {
           const key = `${dayId}-${turno.id}`;
           const escalados = escala[key] || [];
-          
+
           return (
-            <div 
+            <div
               key={turno.id}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (draggedEmployeeId) completeAssignment(dayId, turno.id, draggedEmployeeId); }}
@@ -762,7 +761,7 @@ const EscalaPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-1">
                   <h3 className={`text-base font-bold ${turno.colorClass} truncate`}>{turno.label}</h3>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => openEmployeeSelectorForTurn(dayId, turno.id)}
                       className="lg:hidden p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-95 transition-all shadow-sm"
                     >
@@ -797,9 +796,9 @@ const EscalaPage: React.FC = () => {
                             {func.funcao}
                           </p>
                         </div>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); removeFuncionarioFromEscala(dayId, turno.id, fId); }} 
-                          className="p-1 text-slate-300 hover:text-red-600 transition-all opacity-100 shrink-0" 
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeFuncionarioFromEscala(dayId, turno.id, fId); }}
+                          className="p-1 text-slate-300 hover:text-red-600 transition-all opacity-100 shrink-0"
                           title="Remover"
                         >
                           <Trash2 size={14} />
@@ -816,7 +815,7 @@ const EscalaPage: React.FC = () => {
               </div>
 
               <div className="p-3 bg-slate-50/50 dark:bg-slate-800/10 border-t border-slate-50 dark:border-slate-800 lg:hidden">
-                <button 
+                <button
                   onClick={() => openEmployeeSelectorForTurn(dayId, turno.id)}
                   className={`w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-[10px] transition-all active:scale-95 ${turno.colorClass} hover:bg-white dark:hover:bg-slate-900 border border-transparent hover:shadow-sm`}
                 >
@@ -833,26 +832,26 @@ const EscalaPage: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] gap-4 overflow-hidden relative">
       <div className="flex flex-1 gap-6 overflow-hidden">
-        <ReportTemplate 
+        <ReportTemplate
           mode={activeTab}
-          weekDays={weekDays} 
+          weekDays={weekDays}
           pontualDate={pontualDate}
-          turnos={turnosConfigs} 
-          escala={escala} 
-          reportRef={reportRef} 
+          turnos={turnosConfigs}
+          escala={escala}
+          reportRef={reportRef}
         />
-        
+
         <aside className="hidden lg:flex w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] flex flex-col shadow-sm flex-shrink-0 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 flex-shrink-0"><Users size={20} className="text-indigo-600" /><h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Equipe</h2></div>
           <div className="px-6 py-4 shrink-0">
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={16} />
-              <input 
-                type="text" 
-                placeholder="Buscar na equipe..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 tracking-tight shadow-sm" 
+              <input
+                type="text"
+                placeholder="Buscar na equipe..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 tracking-tight shadow-sm"
               />
             </div>
           </div>
@@ -863,29 +862,29 @@ const EscalaPage: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 px-6 py-4 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row items-center justify-between shadow-sm flex-shrink-0 gap-4">
             <div className="flex justify-center lg:justify-start w-full lg:w-auto">
               <div className="flex bg-slate-50/80 dark:bg-slate-800/80 p-1.5 rounded-2xl gap-1 shadow-inner border border-slate-100/50 dark:border-slate-700/50 w-auto">
-                <button 
-                  onClick={() => setActiveTab('semanal')} 
+                <button
+                  onClick={() => setActiveTab('semanal')}
                   className={`px-4 lg:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${activeTab === 'semanal' ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-md ring-1 ring-slate-200/50 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   Semanal
                 </button>
-                <button 
-                  onClick={() => setActiveTab('pontual')} 
+                <button
+                  onClick={() => setActiveTab('pontual')}
                   className={`px-4 lg:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-200 whitespace-nowrap ${activeTab === 'pontual' ? 'bg-white dark:bg-slate-900 text-[#e30613] shadow-md ring-1 ring-slate-200/50 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <MapPin size={12} strokeWidth={3} className={activeTab === 'pontual' ? 'text-[#e30613]' : 'text-slate-300'} /> Pontual
                 </button>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 text-slate-900 dark:text-white justify-center order-first lg:order-none">
-              <button 
-                onClick={() => activeTab === 'semanal' ? changeWeek(-1) : changeDay(-1)} 
+              <button
+                onClick={() => activeTab === 'semanal' ? changeWeek(-1) : changeDay(-1)}
                 className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all active:scale-90 text-slate-400 hover:text-slate-900"
               >
                 <ChevronLeft size={20} strokeWidth={2.5} />
               </button>
-              
+
               <div className="flex items-center gap-2 px-1">
                 <span className="text-sm tracking-tight text-slate-800 dark:text-slate-100 font-medium text-center">
                   {dateText}
@@ -893,33 +892,33 @@ const EscalaPage: React.FC = () => {
                 {activeTab === 'pontual' && <Calendar size={14} className="text-slate-300" />}
               </div>
 
-              <button 
-                onClick={() => activeTab === 'semanal' ? changeWeek(1) : changeDay(1)} 
+              <button
+                onClick={() => activeTab === 'semanal' ? changeWeek(1) : changeDay(1)}
                 className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all active:scale-90 text-slate-400 hover:text-slate-900"
               >
                 <ChevronRight size={20} strokeWidth={2.5} />
               </button>
             </div>
-            
+
             <div className="flex justify-end items-center gap-3 w-full lg:w-auto">
-              <button 
-                onClick={() => setModalConfig({ isOpen: true, title: 'Compartilhar Escala', type: 'view-content', maxWidth: 'max-w-xl', content: <ShareEscalaModal onDownload={handleDownloadReport} onCopyText={handleShareText} /> })} 
+              <button
+                onClick={() => setModalConfig({ isOpen: true, title: 'Compartilhar Escala', type: 'view-content', maxWidth: 'max-w-xl', content: <ShareEscalaModal onDownload={handleDownloadReport} onCopyText={handleShareText} /> })}
                 className="flex-1 lg:flex-none bg-[#e30613] hover:bg-[#c00511] text-white font-black text-[10px] uppercase tracking-widest px-4 lg:px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-red-100 dark:shadow-none active:scale-95"
               >
                 <Share2 size={16} strokeWidth={3} /> <span className="hidden sm:inline">Compartilhar</span>
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setTempTurnos([...turnosConfigs]);
-                  setModalConfig({ 
-                    isOpen: true, 
-                    title: 'Configurar Turnos', 
-                    type: 'confirm-update', 
-                    maxWidth: 'max-w-md', 
+                  setModalConfig({
+                    isOpen: true,
+                    title: 'Configurar Turnos',
+                    type: 'confirm-update',
+                    maxWidth: 'max-w-md',
                     content: <ConfigTurnosForm turnos={turnosConfigs} onChange={setTempTurnos} />,
                     onConfirm: handleSaveTurnos
                   });
-                }} 
+                }}
                 className="flex-1 lg:flex-none px-4 lg:px-6 py-3.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-95"
               >
                 <Settings size={16} strokeWidth={3} /> <span className="hidden sm:inline">Configurar</span>
@@ -944,14 +943,14 @@ const EscalaPage: React.FC = () => {
         </main>
       </div>
 
-      <Modal 
-        isOpen={modalConfig.isOpen} 
-        title={modalConfig.title} 
-        type={modalConfig.type} 
-        maxWidth={modalConfig.maxWidth} 
-        content={modalConfig.content} 
-        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} 
-        onConfirm={modalConfig.onConfirm} 
+      <Modal
+        isOpen={modalConfig.isOpen}
+        title={modalConfig.title}
+        type={modalConfig.type}
+        maxWidth={modalConfig.maxWidth}
+        content={modalConfig.content}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={modalConfig.onConfirm}
       />
     </div>
   );

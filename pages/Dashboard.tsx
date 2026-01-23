@@ -9,19 +9,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: stats, isLoading: loading } = useQuery({
     queryKey: ['dashboardStats'],
-    queryFn: async () => {
-      const data = await DBService.getDashboardStats();
-      return {
-        ...data,
-        feedbacksDistribucao: {
-          elogios: 82,
-          sugestao: 24,
-          denuncia: 6,
-          reclamacoes: 12,
-          total: 124
-        }
-      };
-    },
+    queryFn: DBService.getDashboardStats,
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchInterval: 1000 * 60 * 5, // 5 minutes
   });
@@ -37,17 +25,17 @@ const DashboardPage: React.FC = () => {
   const menuCards = [
     { id: 1, label: 'Reservas', value: stats.reservasPendentes, sublabel: 'pendentes', path: AppRoute.RESERVAS, alert: stats.reservasPendentes > 0, isSplit: true, total: stats.reservasTotal },
     { id: 2, label: 'Feedbacks', value: stats.feedbacksPendentes, sublabel: 'pendentes', path: AppRoute.FEEDBACKS, alert: stats.feedbacksPendentes > 0 },
-    { id: 3, label: 'Consumação', value: 12, sublabel: 'pendentes', path: AppRoute.CONSUMACOES, alert: false },
-    { id: 4, label: 'Promocional', value: 4, sublabel: 'campanhas', path: AppRoute.PROMOCIONAL, alert: false },
-    { id: 5, label: 'Cupons', value: 7, sublabel: 'ativos', path: AppRoute.CUPONS, alert: false }
+    { id: 3, label: 'Consumação', value: stats.consumacoesPendentes || 0, sublabel: 'pendentes', path: AppRoute.CONSUMACOES, alert: stats.consumacoesPendentes > 0 },
+    { id: 4, label: 'Promocional', value: stats.promocoesAtivas || 0, sublabel: 'campanhas', path: AppRoute.PROMOCIONAL, alert: false },
+    { id: 5, label: 'Cupons', value: stats.cuponsAtivos || 0, sublabel: 'ativos', path: AppRoute.CUPONS, alert: false }
   ];
 
-  const weeklyData = [
-    { day: 'Seg', val: 12 }, { day: 'Ter', val: 18 }, { day: 'Qua', val: 15 },
-    { day: 'Qui', val: 25 }, { day: 'Sex', val: 42 }, { day: 'Sáb', val: 56 }, { day: 'Dom', val: 38 },
+  const weeklyData = stats.reservasSemanais || [
+    { day: 'Seg', val: 0 }, { day: 'Ter', val: 0 }, { day: 'Qua', val: 0 },
+    { day: 'Qui', val: 0 }, { day: 'Sex', val: 0 }, { day: 'Sáb', val: 0 }, { day: 'Dom', val: 0 },
   ];
-  const weeklyTotal = weeklyData.reduce((acc, d) => acc + d.val, 0);
-  const maxVal = Math.max(...weeklyData.map(d => d.val)) * 1.1;
+  const weeklyTotal = weeklyData.reduce((acc: number, d: any) => acc + d.val, 0);
+  const maxVal = Math.max(...weeklyData.map((d: any) => d.val)) * 1.1 || 10;
 
   return (
     <div className="space-y-8 pb-12 animate-in fade-in duration-500">
