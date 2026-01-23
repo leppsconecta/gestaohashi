@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-// Mock data - In production, this would come from database/context shared with Cardapio.tsx
 interface ComboProduct {
   id: string;
   nome: string;
@@ -45,69 +44,6 @@ interface MenuCategory {
   itens: MenuItem[];
 }
 
-const MENU_DATA: MenuCategory[] = [
-  {
-    id: 'cat-1',
-    nome: 'Bebidas',
-    itens: [
-      { id: 'item-1', nome: 'Coca-Cola 350ml', descricao: 'Refrigerante gelado', preco: '6,00', foto: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=800' },
-      { id: 'item-2', nome: 'Suco Natural Laranja', descricao: 'Suco de laranja natural 500ml', preco: '12,00', foto: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=800' },
-      { id: 'item-3', nome: 'Água Mineral 500ml', descricao: 'Água mineral sem gás', preco: '4,00', foto: 'https://images.unsplash.com/photo-1559839914-17aae19cec71?w=800' },
-      { id: 'item-4', nome: 'Cerveja Heineken', descricao: 'Long neck 330ml', preco: '14,00', foto: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=800' },
-    ]
-  },
-  {
-    id: 'cat-2',
-    nome: 'Pratos Quentes',
-    itens: [
-      { id: 'item-5', nome: 'Filé à Parmegiana', descricao: 'Filé empanado com molho de tomate e queijo gratinado, arroz e fritas', preco: '58,90', foto: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=800' },
-      { id: 'item-6', nome: 'Risoto de Camarão', descricao: 'Arroz arbóreo cremoso com camarões salteados', preco: '72,00', foto: 'https://images.unsplash.com/photo-1633964913295-ceb43826e7c9?w=800' },
-      { id: 'item-7', nome: 'Lasanha Bolonhesa', descricao: 'Massa fresca, molho bolonhesa e bechamel', preco: '45,00', foto: 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=800' },
-    ]
-  },
-  {
-    id: 'cat-3',
-    nome: 'Pratos Frios',
-    itens: [
-      { id: 'item-8', nome: 'Salada Caesar', descricao: 'Alface romana, croutons, parmesão e molho caesar', preco: '32,00', foto: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=800' },
-      { id: 'item-9', nome: 'Carpaccio', descricao: 'Fatias finas de filé mignon com rúcula e parmesão', preco: '48,00', foto: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800' },
-    ]
-  },
-  {
-    id: 'cat-4',
-    nome: 'Sobremesas',
-    itens: [
-      { id: 'item-10', nome: 'Petit Gateau', descricao: 'Bolo de chocolate com recheio cremoso e sorvete', preco: '28,00', foto: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=800' },
-      { id: 'item-11', nome: 'Pudim de Leite', descricao: 'Pudim tradicional com calda de caramelo', preco: '18,00', foto: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800' },
-      { id: 'item-12', nome: 'Brownie com Sorvete', descricao: 'Brownie de chocolate com sorvete de creme', preco: '24,00', foto: 'https://images.unsplash.com/photo-1564355808539-22fda35bed7e?w=800' },
-    ]
-  },
-  {
-    id: 'cat-5',
-    nome: 'Porções',
-    itens: [
-      { id: 'item-13', nome: 'Batata Frita', descricao: 'Porção de batata frita crocante', preco: '25,00', foto: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800' },
-      { id: 'item-14', nome: 'Onion Rings', descricao: 'Anéis de cebola empanados', preco: '28,00', foto: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=800' },
-      { id: 'item-15', nome: 'Mix de Petiscos', descricao: 'Coxinha, bolinha de queijo e pastéis', preco: '45,00', foto: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f25?w=800' },
-      {
-        id: 'combo-1',
-        nome: 'Combo Happy Hour',
-        descricao: 'Perfeito para compartilhar! Inclui nossas melhores porções e bebidas geladas.',
-        preco: '89,90',
-        foto: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800',
-        isCombo: true,
-        showSavings: true,
-        savingsAmount: '25,00',
-        comboItens: [
-          { id: 'cp-1', nome: 'Batata Frita', descricao: 'Porção de batata frita crocante', quantidade: '1', unidade: 'Porção', foto: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400' },
-          { id: 'cp-2', nome: 'Onion Rings', descricao: 'Anéis de cebola empanados', quantidade: '1', unidade: 'Porção', foto: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=400' },
-          { id: 'cp-3', nome: 'Cerveja Heineken', descricao: 'Long neck 330ml gelada', quantidade: '4', unidade: 'Unid', foto: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400' },
-        ]
-      },
-    ]
-  },
-];
-
 // Hero Image Interface
 interface HeroImage {
   id: string;
@@ -134,6 +70,7 @@ const MenuOnline: React.FC = () => {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [expandedComboItemIndex, setExpandedComboItemIndex] = useState<number | null>(null);
+  const [menuEnabled, setMenuEnabled] = useState(true);
 
   const contactOptions = [
     { icon: MessageSquare, label: 'Sugestões', color: 'bg-blue-500' },
@@ -149,6 +86,22 @@ const MenuOnline: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Fetch Menu Status
+      try {
+        const { data: configData } = await supabase
+          .schema('gestaohashi')
+          .from('config')
+          .select('value')
+          .eq('key', 'menu_online_enabled')
+          .single();
+
+        if (configData) {
+          setMenuEnabled(configData.value === 'true');
+        }
+      } catch (e) {
+        console.warn('Menu config not found');
+      }
+
       // Fetch categories
       const { data: catData, error: catError } = await supabase
         .schema('gestaohashi')
@@ -319,6 +272,28 @@ const MenuOnline: React.FC = () => {
   const canGoPrev = expandedItem ? expandedItem.itemIndex > 0 : false;
   const canGoNext = expandedItem ? (categorias.find(c => c.id === expandedItem.categoryId)?.itens.length || 0) > expandedItem.itemIndex + 1 : false;
 
+  if (!menuEnabled && !isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+          <Package size={48} className="text-indigo-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-2">Menu Indisponível</h1>
+        <p className="text-slate-400 max-w-xs mx-auto mb-8">
+          No momento nosso cardápio online está em manutenção ou temporariamente desativado.
+        </p>
+        <a
+          href="https://hashiexpressjundiai.com.br"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-slate-500 tracking-widest font-semibold hover:text-indigo-400 transition-colors"
+        >
+          hashiexpressjundiai.com.br
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-20 font-sans">
       {/* Hero Carousel */}
@@ -340,12 +315,12 @@ const MenuOnline: React.FC = () => {
               )}
             </div>
           ))
-        ) : (
+        ) : !isLoading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">Hashi Express</h1>
             <p className="text-sm sm:text-base font-medium opacity-80">Sabor e tradição em cada detalhe</p>
           </div>
-        )}
+        ) : null}
 
         {/* Person Icon Button */}
         <button
@@ -675,7 +650,7 @@ const MenuOnline: React.FC = () => {
                       )}
                     </div>
                     <div className="text-xs text-slate-400">
-                      {expandedItem.itemIndex + 1} / {MENU_DATA.find(c => c.id === expandedItem.categoryId)?.itens.length}
+                      {expandedItem.itemIndex + 1} / {categorias.find(c => c.id === expandedItem.categoryId)?.itens.filter(i => i.visivel !== false).length}
                     </div>
                   </div>
                 </>
@@ -689,7 +664,7 @@ const MenuOnline: React.FC = () => {
 
           {/* Swipe indicator */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1">
-            {MENU_DATA.find(c => c.id === expandedItem.categoryId)?.itens.map((_, idx) => (
+            {categorias.find(c => c.id === expandedItem.categoryId)?.itens.filter(i => i.visivel !== false).map((_, idx) => (
               <div
                 key={idx}
                 className={`w-2 h-2 rounded-full transition-all ${idx === expandedItem.itemIndex ? 'bg-red-600 w-6' : 'bg-white/30'}`}

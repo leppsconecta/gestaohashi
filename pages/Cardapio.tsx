@@ -214,6 +214,10 @@ const CardapioPage: React.FC = () => {
   const [productsExpanded, setProductsExpanded] = useState(false); // Sections collapsed by default
   const [splashExpanded, setSplashExpanded] = useState(false);
 
+  // Menu Online state
+  const [menuOnlineEnabled, setMenuOnlineEnabled] = useState(true);
+  const [isUpdatingMenuStatus, setIsUpdatingMenuStatus] = useState(false);
+
   // Function to focus on one section and collapse others
   const focusSection = (section: 'hero' | 'products' | 'splash', resetCategory = false) => {
     setHeroImagesExpanded(section === 'hero');
@@ -398,6 +402,25 @@ const CardapioPage: React.FC = () => {
       }));
 
       setCategorias(formattedCategorias);
+
+      // Fetch Menu Status
+      try {
+        const { data: configData } = await supabase
+          .schema('gestaohashi')
+          .from('config')
+          .select('value')
+          .eq('key', 'menu_online_enabled')
+          .single();
+
+        if (configData) {
+          setMenuOnlineEnabled(configData.value === 'true');
+        } else {
+          // Default to enabled if not found
+          setMenuOnlineEnabled(true);
+        }
+      } catch (e) {
+        console.warn('Menu config not found');
+      }
 
       // Fetch Hero Images
       try {
@@ -1017,6 +1040,25 @@ const CardapioPage: React.FC = () => {
     }
   };
 
+  const toggleMenuOnline = async () => {
+    setIsUpdatingMenuStatus(true);
+    const newState = !menuOnlineEnabled;
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('config')
+        .upsert({ key: 'menu_online_enabled', value: String(newState) }, { onConflict: 'key' });
+
+      if (error) throw error;
+      setMenuOnlineEnabled(newState);
+    } catch (error) {
+      console.error('Error toggling menu status:', error);
+      alert('Erro ao alterar status do menu online.');
+    } finally {
+      setIsUpdatingMenuStatus(false);
+    }
+  };
+
   const formatPrice = (value: string) => {
     let cleaned = value.replace(/[^\d,\.]/g, '');
     cleaned = cleaned.replace('.', ',');
@@ -1038,11 +1080,36 @@ const CardapioPage: React.FC = () => {
           <p className="text-sm text-slate-500">Gerencie os produtos do seu estabelecimento</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Menu Online Toggle */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Menu Online
+            </span>
+            <button
+              onClick={toggleMenuOnline}
+              disabled={isUpdatingMenuStatus}
+              className={`
+                relative w-10 h-5 rounded-full transition-all duration-300 flex items-center
+                ${menuOnlineEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}
+                ${isUpdatingMenuStatus ? 'opacity-50 cursor-wait' : 'cursor-pointer'}
+              `}
+            >
+              <div className={`
+                absolute w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300
+                ${menuOnlineEnabled ? 'left-[22px]' : 'left-0.5'}
+                ${isUpdatingMenuStatus ? 'scale-75' : 'scale-100'}
+              `} />
+            </button>
+            <span className={`text-[10px] font-bold uppercase transition-colors ${menuOnlineEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+              {menuOnlineEnabled ? 'Ativo' : 'Inativo'}
+            </span>
+          </div>
+
           <button
             onClick={() => window.open('/#/public/menu', '_blank')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm group"
           >
-            <ExternalLink size={16} />
+            <ExternalLink size={16} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
             Visualizar
           </button>
         </div>
