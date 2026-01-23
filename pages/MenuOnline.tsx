@@ -558,7 +558,7 @@ const MenuOnline: React.FC = () => {
                             <h4 className="font-bold text-slate-800 mb-1">{currentItem.comboItens[expandedComboItemIndex].nome}</h4>
                             <p className="text-sm text-slate-500 mb-2">{currentItem.comboItens[expandedComboItemIndex].descricao}</p>
                             <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                              {currentItem.comboItens[expandedComboItemIndex].quantidade} {currentItem.comboItens[expandedComboItemIndex].unidade || 'Unid'}
+                              {currentItem.comboItens[expandedComboItemIndex].quantidade} {currentItem.comboItens[expandedComboItemIndex].unidade || 'un'}
                             </span>
                           </div>
 
@@ -605,7 +605,7 @@ const MenuOnline: React.FC = () => {
                                   </div>
                                   {/* Quantity */}
                                   <span className="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    {item.quantidade}x
+                                    {item.quantidade} {item.unidade || 'un'}
                                   </span>
                                   <ChevronRight size={14} className={`text-slate-400 transition-transform flex-shrink-0 ${expandedComboItemIndex === idx ? 'rotate-90' : ''}`} />
                                 </button>
@@ -619,7 +619,7 @@ const MenuOnline: React.FC = () => {
                                   </div>
                                   {/* Quantity */}
                                   <span className="text-xs text-purple-600 font-semibold bg-purple-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    {item.quantidade}x
+                                    {item.quantidade} {item.unidade || 'un'}
                                   </span>
                                 </div>
                               )}
