@@ -10,7 +10,24 @@ import { supabase } from '../lib/supabase';
 // Mock Data Helpers
 const TIPOS_RESERVA = ["Aniver", "Confra", "Evento", "Outro"];
 
-const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
+const ReservaForm: React.FC<{ initialData?: Reserva; onChange: (data: Partial<Reserva>) => void }> = ({ initialData, onChange }) => {
+  const [formData, setFormData] = useState<Partial<Reserva>>(initialData || {
+    nome: '',
+    contato: '',
+    tipo: 'Aniver',
+    data: new Date().toISOString().split('T')[0],
+    hora: '19:00',
+    pax: 2,
+    status: 'Pendente',
+    observacao: ''
+  });
+
+  const handleChange = (field: keyof Reserva, value: any) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+    onChange(newData);
+  };
+
   const inputClass = "w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-inner";
   const labelClass = "text-[11px] text-slate-500 dark:text-slate-400 mb-1.5 block ml-1";
   const iconClass = "absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-600 transition-colors pointer-events-none";
@@ -22,21 +39,37 @@ const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
           <label className={labelClass}>Nome do cliente</label>
           <div className="relative group">
             <User className={iconClass} size={18} />
-            <input type="text" className={inputClass} placeholder="Nome completo" defaultValue={initialData?.nome} />
+            <input
+              type="text"
+              className={inputClass}
+              placeholder="Nome completo"
+              value={formData.nome}
+              onChange={(e) => handleChange('nome', e.target.value)}
+            />
           </div>
         </div>
         <div className="md:col-span-4 space-y-1">
           <label className={labelClass}>Contato</label>
           <div className="relative group">
             <Phone className={iconClass} size={18} />
-            <input type="text" className={inputClass} placeholder="(00) 00000-0000" defaultValue={initialData?.contato} />
+            <input
+              type="text"
+              className={inputClass}
+              placeholder="(00) 00000-0000"
+              value={formData.contato}
+              onChange={(e) => handleChange('contato', e.target.value)}
+            />
           </div>
         </div>
         <div className="md:col-span-3 space-y-1">
           <label className={labelClass}>Tipo de reserva</label>
           <div className="relative group">
             <Bookmark className={iconClass} size={18} />
-            <select className={inputClass} defaultValue={initialData?.tipo || "Aniver"}>
+            <select
+              className={inputClass}
+              value={formData.tipo}
+              onChange={(e) => handleChange('tipo', e.target.value)}
+            >
               {TIPOS_RESERVA.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -48,28 +81,48 @@ const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
           <label className={labelClass}>Data</label>
           <div className="relative group">
             <CalendarIcon className={iconClass} size={18} />
-            <input type="date" className={inputClass} defaultValue={initialData?.data ? initialData.data.split('/').reverse().join('-') : ''} />
+            <input
+              type="date"
+              className={inputClass}
+              value={formData.data?.includes('/') ? formData.data.split('/').reverse().join('-') : formData.data}
+              onChange={(e) => handleChange('data', e.target.value)}
+            />
           </div>
         </div>
         <div className="md:col-span-2 space-y-1">
           <label className={labelClass}>Hora</label>
           <div className="relative group">
             <Clock className={iconClass} size={18} />
-            <input type="time" className={inputClass} defaultValue={initialData?.hora} />
+            <input
+              type="time"
+              className={inputClass}
+              value={formData.hora}
+              onChange={(e) => handleChange('hora', e.target.value)}
+            />
           </div>
         </div>
         <div className="md:col-span-3 space-y-1">
           <label className={labelClass}>Qtd pessoas</label>
           <div className="relative group">
             <Users className={iconClass} size={18} />
-            <input type="number" className={inputClass} min="1" defaultValue={initialData?.pax || 2} />
+            <input
+              type="number"
+              className={inputClass}
+              min="1"
+              value={formData.pax}
+              onChange={(e) => handleChange('pax', parseInt(e.target.value) || 1)}
+            />
           </div>
         </div>
         <div className="md:col-span-4 space-y-1">
           <label className={labelClass}>Status</label>
           <div className="relative group">
             <Activity className={iconClass} size={18} />
-            <select className={inputClass} defaultValue={initialData?.status || "Pendente"}>
+            <select
+              className={inputClass}
+              value={formData.status}
+              onChange={(e) => handleChange('status', e.target.value)}
+            >
               <option value="Pendente">Pendente</option>
               <option value="Confirmado">Confirmado</option>
               <option value="Cancelado">Cancelado</option>
@@ -83,7 +136,12 @@ const ReservaForm: React.FC<{ initialData?: Reserva }> = ({ initialData }) => {
         <label className={labelClass}>Observação</label>
         <div className="relative group">
           <FileText className="absolute left-4 top-5 text-slate-500 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={18} />
-          <textarea className={`${inputClass} h-32 resize-none pt-4 font-normal`} placeholder="Alguma restrição ou pedido especial?" defaultValue={initialData?.observacao} />
+          <textarea
+            className={`${inputClass} h-32 resize-none pt-4 font-normal`}
+            placeholder="Alguma restrição ou pedido especial?"
+            value={formData.observacao}
+            onChange={(e) => handleChange('observacao', e.target.value)}
+          />
         </div>
       </div>
     </div>
@@ -102,6 +160,8 @@ const ReservasPage: React.FC = () => {
     content: '',
     maxWidth: 'max-w-lg'
   });
+
+  const [formState, setFormState] = useState<Partial<Reserva>>({});
 
   const { data: data = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['reservas'],
@@ -161,11 +221,10 @@ const ReservasPage: React.FC = () => {
   const deleteReserva = async (id: string) => {
     try {
       const { error } = await supabase
+        .schema('gestaohashi')
         .from('reservas')
         .delete()
         .eq('id', id);
-
-      if (error) throw error;
 
       if (error) throw error;
 
@@ -173,6 +232,51 @@ const ReservasPage: React.FC = () => {
     } catch (error) {
       console.error('Erro ao excluir:', error);
       alert('Erro ao excluir reserva.');
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      if (!formState.nome || !formState.data || !formState.hora) {
+        alert('Por favor, preencha nome, data e hora.');
+        return;
+      }
+
+      const payload = {
+        customer_name: formState.nome,
+        customer_contact: formState.contato,
+        type: formState.tipo,
+        date: formState.data,
+        time: formState.hora,
+        guests: formState.pax,
+        status: formState.status,
+        notes: formState.observacao,
+        code: formState.codigo || `RES-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+      };
+
+      if (formState.id) {
+        // Update
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('reservas')
+          .update(payload)
+          .eq('id', formState.id);
+        if (error) throw error;
+      } else {
+        // Create
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('reservas')
+          .insert([payload]);
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+      setFormState({});
+    } catch (error) {
+      console.error('Erro ao salvar reserva:', error);
+      alert('Erro ao salvar reserva.');
     }
   };
 
@@ -187,13 +291,14 @@ const ReservasPage: React.FC = () => {
         onConfirm: () => deleteReserva(item.id)
       });
     } else if (type === 'edit') {
+      setFormState(item);
       setModalConfig({
         isOpen: true,
         type: 'confirm-update',
         title: 'Editar reserva',
         maxWidth: 'max-w-4xl',
-        content: <ReservaForm initialData={item} />,
-        onConfirm: () => console.log('Reserva atualizada (Implementar lógica de update se necessário)')
+        content: <ReservaForm initialData={item} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />,
+        onConfirm: handleSave
       });
     } else {
       setModalConfig({
@@ -302,7 +407,18 @@ const ReservasPage: React.FC = () => {
           <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerenciamento completo das reservas do estabelecimento.</p>
         </div>
         <button
-          onClick={() => setModalConfig({ isOpen: true, type: 'confirm-insert', title: 'Nova reserva', maxWidth: 'max-w-4xl', content: <ReservaForm />, onConfirm: () => console.log('Reserva cadastrada') })}
+          onClick={() => {
+            const initialNew = { status: 'Pendente' as ReservaStatus, tipo: 'Aniver', pax: 2, data: new Date().toISOString().split('T')[0], hora: '19:00' };
+            setFormState(initialNew);
+            setModalConfig({
+              isOpen: true,
+              type: 'confirm-insert',
+              title: 'Nova reserva',
+              maxWidth: 'max-w-4xl',
+              content: <ReservaForm initialData={initialNew as any} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />,
+              onConfirm: handleSave
+            });
+          }}
           className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-200 dark:shadow-none tracking-widest text-xs"
         >
           <Plus size={22} strokeWidth={3} />
