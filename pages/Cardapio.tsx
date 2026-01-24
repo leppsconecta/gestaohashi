@@ -285,17 +285,7 @@ const CardapioPage: React.FC = () => {
   const [itemMenuOpen, setItemMenuOpen] = useState<string | null>(null);
   const [itemMenuPosition, setItemMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
 
-  // Destaque Editor State
-  const [destaqueModalOpen, setDestaqueModalOpen] = useState(false);
-  const [editingDestaqueCategory, setEditingDestaqueCategory] = useState<CardapioCategoria | null>(null);
-  const [destaqueFormData, setDestaqueFormData] = useState<{
-    titulo: string;
-    descricao: string;
-    preco: string;
-    midias: { url: string, type: 'image' | 'video', duration?: number }[];
-  }>({ titulo: '', descricao: '', preco: '', midias: [] });
-  const [isDestaqueUploading, setIsDestaqueUploading] = useState(false);
-  const destaqueFileInputRef = useRef<HTMLInputElement>(null);
+
 
   // ... (rest of the code)
 
@@ -588,144 +578,6 @@ const CardapioPage: React.FC = () => {
   }, [categorias]);
 
 
-  // Destaque Handlers
-  const handleDestaqueFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (destaqueFormData.midias.length + files.length > 5) {
-      alert('Máximo de 5 mídias por destaque.');
-      return;
-    }
-
-    setIsDestaqueUploading(true);
-    try {
-      const newMidias = [...destaqueFormData.midias];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const isVideo = file.type.startsWith('video/');
-        const isImage = file.type.startsWith('image/');
-
-        if (!isImage && !isVideo) {
-          alert(`Arquivo ${file.name} ignorado. Formato inválido.`);
-          continue;
-        }
-
-        const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-        if (file.size > maxSize) {
-          alert(`Arquivo ${file.name} muito grande.`);
-          continue;
-        }
-
-        // Validate video duration
-        if (isVideo) {
-          const video = document.createElement('video');
-          video.preload = 'metadata';
-          const durationCheck = new Promise<number>((resolve) => {
-            video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(video.duration); };
-            video.onerror = () => { resolve(0); };
-          });
-          video.src = URL.createObjectURL(file);
-          const duration = await durationCheck;
-          if (duration > 30) {
-            showToast(`Vídeo ${file.name} ignorado. Máximo 30 segundos.`, 'error');
-            continue;
-          }
-        }
-
-        const fileExt = file.name.split('.').pop();
-        const fileName = `destaques/${Math.random()}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('cardapio').upload(fileName, file);
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('cardapio').getPublicUrl(fileName);
-        newMidias.push({ url: publicUrl, type: isVideo ? 'video' : 'image', duration: isVideo ? undefined : 4 });
-      }
-
-      setDestaqueFormData(prev => ({ ...prev, midias: newMidias }));
-    } catch (error: any) {
-      console.error('Error uploading destaque media:', error);
-      alert('Erro ao fazer upload: ' + (error.message || 'Erro desconhecido.'));
-    } finally {
-      setIsDestaqueUploading(false);
-      if (destaqueFileInputRef.current) destaqueFileInputRef.current.value = '';
-    }
-  };
-
-  const openDestaqueEditor = (cat: CardapioCategoria) => {
-    setEditingDestaqueCategory(cat);
-    if (cat.destaque) {
-      setDestaqueFormData({
-        titulo: cat.destaque.titulo || '',
-        descricao: cat.destaque.descricao || '',
-        preco: cat.destaque.preco || '',
-        midias: cat.destaque.midias || []
-      });
-    } else {
-      setDestaqueFormData({ titulo: '', descricao: '', preco: '', midias: [] });
-    }
-    setDestaqueModalOpen(true);
-  };
-
-  const handleSaveDestaque = async () => {
-    if (!editingDestaqueCategory) return;
-    if (!destaqueFormData.titulo.trim()) {
-      showToast('O título é obrigatório.', 'error');
-      return;
-    }
-    if (destaqueFormData.midias.length === 0) {
-      showToast('Adicione pelo menos uma imagem ou vídeo.', 'error');
-      return;
-    }
-
-    try {
-      const payload = {
-        categoria_id: editingDestaqueCategory.id,
-        titulo: destaqueFormData.titulo,
-        descricao: destaqueFormData.descricao,
-        preco: destaqueFormData.preco ? parseFloat(String(destaqueFormData.preco).replace(',', '.')) : null,
-        midias: destaqueFormData.midias,
-        ativo: true
-      };
-
-      // Check if entry exists to determine update or insert (upsert logic via delete/insert or just upsert if unique constraint)
-      // Since we have ON CONFLICT (categoria_id) DO UPDATE in standard SQL, but Supabase JS .upsert works well
-      const { data, error } = await supabase
-        .schema('gestaohashi')
-        .from('destaques_conteudo')
-        .upsert(payload, { onConflict: 'categoria_id' })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update local state
-      setCategorias(prev => prev.map(c => {
-        if (c.id === editingDestaqueCategory.id) {
-          return {
-            ...c,
-            destaque: {
-              id: data.id,
-              categoriaId: data.categoria_id,
-              titulo: data.titulo,
-              descricao: data.descricao,
-              preco: data.preco?.toString().replace('.', ','),
-              midias: data.midias,
-              ativo: data.ativo
-            }
-          };
-        }
-        return c;
-      }));
-
-      setDestaqueModalOpen(false);
-      showToast('Conteúdo especial salvo com sucesso!', 'success');
-    } catch (error: any) {
-      console.error('Error saving destaque:', error);
-      showToast('Erro ao salvar destaque: ' + error.message, 'error');
-    }
-  };
 
   const toggleDestaqueStatus = async (category: CardapioCategoria) => {
     if (!category.destaque) return;
@@ -775,6 +627,48 @@ const CardapioPage: React.FC = () => {
   const handleConfirmDeleteCategoria = async () => {
     if (deleteCategoryModal.categoryId) {
       try {
+        const categoryToDelete = categorias.find(c => c.id === deleteCategoryModal.categoryId);
+
+        // 1. Delete associated Storage files
+        if (categoryToDelete) {
+          const filesToDelete: string[] = [];
+
+          // Collect Product Images
+          categoryToDelete.itens.forEach(item => {
+            if (item.foto) {
+              const fileName = item.foto.split('/').pop();
+              if (fileName) filesToDelete.push(`produtos/${fileName}`);
+            }
+          });
+
+          // Collect Destaque Media
+          if (categoryToDelete.destaque && categoryToDelete.destaque.midias) {
+            categoryToDelete.destaque.midias.forEach(midia => {
+              if (midia.url) {
+                const fileName = midia.url.split('/').pop();
+                // We need to know if it's in 'destaques/' folder.
+                // Assuming upload logic uses 'destaques/' prefix.
+                // The current upload logic uses `destaques/${fileName}`.
+                if (fileName) filesToDelete.push(`destaques/${fileName}`);
+              }
+            });
+          }
+
+          // Execute Batch Delete if files exist
+          if (filesToDelete.length > 0) {
+            const { error: storageError } = await supabase.storage
+              .from('cardapio')
+              .remove(filesToDelete);
+
+            if (storageError) {
+              console.error('Error deleting files from storage:', storageError);
+              // We continue to delete from DB even if specific files fail, 
+              // or we could stop. Usually better to clean up DB even if artifacts remain.
+            }
+          }
+        }
+
+        // 2. Delete from Database
         const { error } = await supabase
           .schema('gestaohashi')
           .from('categorias')
@@ -783,6 +677,7 @@ const CardapioPage: React.FC = () => {
 
         if (error) throw error;
 
+        // 3. Update Local State
         setCategorias(categorias.filter(c => c.id !== deleteCategoryModal.categoryId));
         if (activeCatId === deleteCategoryModal.categoryId && categorias.length > 1) {
           const remaining = categorias.filter(c => c.id !== deleteCategoryModal.categoryId);
@@ -791,6 +686,8 @@ const CardapioPage: React.FC = () => {
           }
         }
         setDeleteCategoryModal({ isOpen: false, categoryId: null });
+        showToast('Categoria e dados associados excluídos com sucesso!', 'success');
+
       } catch (error) {
         console.error('Error deleting category:', error);
         alert('Erro ao excluir categoria do banco de dados.');
@@ -1379,6 +1276,180 @@ const CardapioPage: React.FC = () => {
     }
   };
 
+
+
+  const updateDestaqueField = (catId: string, field: 'titulo' | 'descricao' | 'preco', value: string) => {
+    setCategorias(prev => prev.map(cat => {
+      if (cat.id === catId && cat.destaque) {
+        return {
+          ...cat,
+          destaque: { ...cat.destaque, [field]: value }
+        };
+      }
+      return cat;
+    }));
+  };
+
+  const handleSaveDestaque = async (catId: string) => {
+    const cat = categorias.find(c => c.id === catId);
+    if (!cat || !cat.destaque) return;
+
+    try {
+      const payload = {
+        categoria_id: catId,
+        titulo: cat.destaque.titulo,
+        descricao: cat.destaque.descricao,
+        preco: cat.destaque.preco ? parseFloat(String(cat.destaque.preco).replace(',', '.')) : null,
+        midias: cat.destaque.midias,
+        ativo: true // Assuming active if we are saving it
+      };
+
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .upsert(payload, { onConflict: 'categoria_id' });
+
+      if (error) throw error;
+      showToast('Alterações salvas com sucesso!', 'success');
+    } catch (error: any) {
+      console.error('Error saving destaque:', error);
+      showToast('Erro ao salvar alterações: ' + error.message, 'error');
+    }
+  };
+
+  const handleDestaqueImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, catId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      showToast('Formato de arquivo inválido.', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('O arquivo deve ter no máximo 10MB.', 'error');
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `destaque-${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `destaques/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cardapio')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('cardapio')
+        .getPublicUrl(filePath);
+
+      const type = file.type.startsWith('image/') ? 'image' : 'video';
+      const newMedia = { type, url: publicUrl } as const;
+
+      setCategorias(prev => prev.map(cat => {
+        if (cat.id === catId && cat.destaque) {
+          const currentMedias = cat.destaque.midias || [];
+          return {
+            ...cat,
+            destaque: { ...cat.destaque, midias: [...currentMedias, newMedia] }
+          };
+        }
+        return cat;
+      }));
+
+      // Auto-save after upload to persist the new image list
+      // We must save to the 'destaques_conteudo' table
+      const cat = categorias.find(c => c.id === catId);
+      if (cat) {
+        // We use the NEW list 'currentMedias + newMedia' which we constructed above
+        const currentMedias = cat.destaque?.midias || [];
+        const newMidiasList = [...currentMedias, newMedia];
+
+        // Prepare the payload for destaques_conteudo
+        const payload = {
+          titulo: cat.destaque?.titulo || '',
+          descricao: cat.destaque?.descricao || '',
+          preco: cat.destaque?.preco ? parseFloat(String(cat.destaque.preco).replace(',', '.')) : null,
+          midias: newMidiasList,
+          ativo: cat.destaque?.ativo ?? true,
+          categoria_id: catId
+        };
+
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('destaques_conteudo')
+          .upsert(payload, { onConflict: 'categoria_id' });
+
+        if (error) throw error;
+        showToast('Mídia adicionada com sucesso!', 'success');
+      }
+
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      showToast('Erro ao fazer upload da mídia.', 'error');
+    }
+  };
+
+  const handleRemoveDestaqueImage = async (catId: string, mediaUrl: string) => {
+    setCategorias(prev => prev.map(cat => {
+      if (cat.id === catId && cat.destaque) {
+        const currentMedias = cat.destaque.midias || [];
+        return {
+          ...cat,
+          destaque: { ...cat.destaque, midias: currentMedias.filter(m => m.url !== mediaUrl) }
+        };
+      }
+      return cat;
+    }));
+
+    // Auto-save removal
+    const cat = categorias.find(c => c.id === catId);
+    if (cat && cat.destaque) {
+      const currentMedias = cat.destaque.midias || [];
+      const newMidiasList = currentMedias.filter(m => m.url !== mediaUrl);
+
+      // Prepare payload for destaques_conteudo
+      const payload = {
+        titulo: cat.destaque.titulo || '',
+        descricao: cat.destaque.descricao || '',
+        preco: cat.destaque.preco ? parseFloat(String(cat.destaque.preco).replace(',', '.')) : null,
+        midias: newMidiasList,
+        ativo: cat.destaque.ativo ?? true,
+        categoria_id: catId
+      };
+
+      try {
+        // 1. Delete from Storage
+        const fileName = mediaUrl.split('/').pop();
+        if (fileName) {
+          const { error: storageError } = await supabase.storage
+            .from('cardapio')
+            .remove([`destaques/${fileName}`]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          }
+        }
+
+        // 2. Update DB
+        const { error } = await supabase
+          .schema('gestaohashi')
+          .from('destaques_conteudo')
+          .upsert(payload, { onConflict: 'categoria_id' });
+
+        if (error) throw error;
+        showToast("Mídia removida com sucesso", "success");
+
+      } catch (error) {
+        console.error("Error removing media from DB", error);
+        showToast("Erro ao salvar alteração de mídia", "error");
+      }
+    }
+  };
+
   const toggleMenuOnline = async () => {
     setIsUpdatingMenuStatus(true);
     const newState = !menuOnlineEnabled;
@@ -1724,9 +1795,11 @@ const CardapioPage: React.FC = () => {
                               <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
                             )}
                             {cat.nome}
-                            <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
-                              ({cat.itens.length})
-                            </span>
+                            {cat.tipo !== 'especial' && (
+                              <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                ({cat.itens.length})
+                              </span>
+                            )}
                             {cat.tipo === 'especial' && activeCatId === cat.id && (
                               <Star size={10} className="text-amber-300 fill-amber-300 animate-pulse absolute -top-1 -right-1" />
                             )}
@@ -1944,7 +2017,7 @@ const CardapioPage: React.FC = () => {
                   <div className="flex flex-col md:flex-row h-full">
                     {/* Left Column: Details */}
                     <div className="p-5 md:w-1/2 flex flex-col justify-between space-y-4 relative">
-                      <div className="space-y-3">
+                      <div className="space-y-3 h-full flex flex-col">
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold tracking-wider uppercase">
                             Destaque Especial
@@ -1963,56 +2036,92 @@ const CardapioPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div>
-                          <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-2">
-                            {activeCategory.destaque.titulo}
-                          </h2>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
-                            {activeCategory.destaque.descricao}
-                          </p>
+                        <div className="flex-1 flex flex-col gap-3">
+                          {/* Title Input */}
+                          <input
+                            type="text"
+                            value={activeCategory.destaque.titulo}
+                            onChange={(e) => updateDestaqueField(activeCategory.id, 'titulo', e.target.value)}
+                            placeholder="Título do destaque"
+                            className="text-2xl font-black text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none transition-all w-full placeholder:text-slate-300"
+                          />
+
+                          {/* Description Textarea */}
+                          <textarea
+                            value={activeCategory.destaque.descricao}
+                            onChange={(e) => updateDestaqueField(activeCategory.id, 'descricao', e.target.value)}
+                            placeholder="Descrição detalhada..."
+                            className="text-sm text-slate-600 dark:text-slate-400 bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded-lg p-2 outline-none w-full resize-none flex-1 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
+                          />
                         </div>
                       </div>
 
                       <div className="space-y-4 pt-2">
-                        {activeCategory.destaque.preco && (
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">A partir de</span>
-                            <span className="text-2xl font-light text-emerald-600 dark:text-emerald-400">
-                              R$ {activeCategory.destaque.preco}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">A partir de R$</span>
+                          <input
+                            type="text"
+                            value={activeCategory.destaque.preco || ''}
+                            onChange={(e) => updateDestaqueField(activeCategory.id, 'preco', formatPrice(e.target.value))}
+                            placeholder="0,00"
+                            className="text-2xl font-light text-emerald-600 dark:text-emerald-400 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none w-32"
+                          />
+                        </div>
 
                         <button
-                          onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
-                          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-medium text-sm transition-colors w-fit"
+                          onClick={() => handleSaveDestaque(activeCategory.id)}
+                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-colors w-fit shadow-md"
                         >
-                          <Edit3 size={16} />
-                          Editar Conteúdo
+                          <Save size={16} />
+                          Salvar Alterações
                         </button>
                       </div>
                     </div>
 
                     {/* Right Column: Media */}
-                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px]">
-                      {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
-                        <div className="absolute inset-0 flex gap-1 p-1">
-                          {activeCategory.destaque.midias.slice(0, 3).map((media, idx) => (
-                            <div key={idx} className="relative flex-1 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900">
+                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px] p-2 flex flex-col gap-2">
+                      {/* Media List */}
+                      <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+                        {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
+                          activeCategory.destaque.midias.map((media, idx) => (
+                            <div key={idx} className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 group border border-slate-200 dark:border-slate-700">
                               {media.type === 'video' ? (
                                 <video src={media.url} className="w-full h-full object-contain" muted />
                               ) : (
                                 <img src={media.url} alt="" className="w-full h-full object-contain" />
                               )}
+
+                              <button
+                                onClick={() => handleRemoveDestaqueImage(activeCategory.id, media.url)}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                                title="Remover imagem"
+                              >
+                                <X size={14} />
+                              </button>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                          <ImageIcon size={32} className="mb-2 opacity-50" />
-                          <p className="text-xs">Sem mídia</p>
-                        </div>
-                      )}
+                          ))
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                            <ImageIcon size={32} className="mb-2 opacity-50" />
+                            <p className="text-xs">Sem mídia</p>
+                          </div>
+                        )}
+
+                        {/* Add Media Button (Always visible at the end or if empty?) - Let's put it at the start or a dedicated button? 
+                            Let's add a "New" card at the end if there are images, or simpler: a dedicated upload area below/above.
+                            Actually, the request was "Adicione uma imagem ao lado da outra".
+                        */}
+                        <label className="w-24 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-indigo-400 transition-all text-slate-400 hover:text-indigo-500">
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*,video/*"
+                            onChange={(e) => handleDestaqueImageUpload(e, activeCategory.id)}
+                          />
+                          <Plus size={24} />
+                          <span className="text-[10px] font-bold mt-1">NOVA</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2022,7 +2131,16 @@ const CardapioPage: React.FC = () => {
                   <h3 className="text-lg font-medium text-slate-900 dark:text-white">Conteúdo Especial</h3>
                   <p className="text-slate-500 mb-6 text-center max-w-xs">Esta categoria ainda não possui conteúdo configurado.</p>
                   <button
-                    onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
+                    onClick={() => {
+                      // Initialize with default empty values
+                      const newDestaque = { titulo: activeCategory.nome, descricao: '', preco: '', midias: [], ativo: true };
+                      // We can manually trigger an update or use a helper. 
+                      // Since logic is complex, let's just update local state and let user edit, 
+                      // or save immediately? better to just set state so UI switches to editor.
+                      setCategorias(prev => prev.map(c =>
+                        c.id === activeCategory.id ? { ...c, destaque: newDestaque } : c
+                      ));
+                    }}
                     className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-md"
                   >
                     <Edit3 size={20} />
@@ -2863,126 +2981,7 @@ const CardapioPage: React.FC = () => {
         onClose={() => setAddCategoryModal({ isOpen: false, name: '', type: 'padrao' })}
       />
 
-      {/* Destaque Content Editor Modal */}
-      <Modal
-        isOpen={destaqueModalOpen}
-        type="view-content"
-        title="Editar Conteúdo Especial"
-        maxWidth="max-w-2xl"
-        content={
-          <div className="space-y-6">
-            {/* Media Upload */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mídias (Fotos/Vídeos)</label>
-                <span className="text-[10px] text-slate-400">{destaqueFormData.midias.length}/5 adicionados</span>
-              </div>
 
-              {/* Media List */}
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {destaqueFormData.midias.map((midia, idx) => (
-                  <div key={idx} className="aspect-[4/5] bg-slate-100 dark:bg-slate-800 rounded-lg relative overflow-hidden group border border-slate-200 dark:border-slate-700">
-                    {midia.type === 'video' ? (
-                      <video src={midia.url} className="w-full h-full object-cover" />
-                    ) : (
-                      <img src={midia.url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                      <button
-                        onClick={() => {
-                          const newM = [...destaqueFormData.midias];
-                          newM.splice(idx, 1);
-                          setDestaqueFormData(prev => ({ ...prev, midias: newM }));
-                        }}
-                        className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      {midia.type === 'video' && <Video size={14} className="text-white" />}
-                    </div>
-                    {/* Index Badge */}
-                    <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/50 text-white text-[9px] font-bold rounded">
-                      {idx + 1}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Upload Button */}
-                {destaqueFormData.midias.length < 5 && (
-                  <div
-                    onClick={() => !isDestaqueUploading && destaqueFileInputRef.current?.click()}
-                    className="aspect-[4/5] bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-slate-400 hover:text-purple-500"
-                  >
-                    {isDestaqueUploading ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : (
-                      <>
-                        <Plus size={24} className="mb-1" />
-                        <span className="text-[9px] font-bold uppercase">Adicionar</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              <input
-                ref={destaqueFileInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*"
-                onChange={handleDestaqueFileUpload}
-                className="hidden"
-              />
-              <p className="text-[10px] text-slate-400">
-                Imagens (4s) ou Vídeos (máx 30s). Formato vertical (9:16 ou 4:5) recomendado.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Título do Destaque</label>
-                <input
-                  type="text"
-                  value={destaqueFormData.titulo}
-                  onChange={(e) => setDestaqueFormData(prev => ({ ...prev, titulo: e.target.value }))}
-                  placeholder="Ex: Festival de Inverno"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preço (Opcional)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
-                  <input
-                    type="text"
-                    value={destaqueFormData.preco}
-                    onChange={(e) => setDestaqueFormData(prev => ({ ...prev, preco: formatPrice(e.target.value) }))}
-                    placeholder="0,00"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Descrição (Conteúdo)</label>
-              <textarea
-                value={destaqueFormData.descricao}
-                onChange={(e) => setDestaqueFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                placeholder="Descreva os detalhes desta categoria especial..."
-                rows={4}
-                maxLength={500}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 resize-none text-slate-900 dark:text-white"
-              />
-              <div className="text-right text-[10px] text-slate-400 mt-1">
-                {destaqueFormData.descricao.length}/500
-              </div>
-            </div>
-          </div>
-        }
-        onConfirm={handleSaveDestaque}
-        confirmText="Salvar Conteúdo"
-        onClose={() => setDestaqueModalOpen(false)}
-      />
 
       {/* Delete Category Modal */}
       <Modal
