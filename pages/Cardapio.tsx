@@ -255,7 +255,7 @@ const CardapioPage: React.FC = () => {
   const heroFileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   // Section expanded states
-  const [productsExpanded, setProductsExpanded] = useState(false); // Sections collapsed by default
+  const [productsExpanded, setProductsExpanded] = useState(true); // Default expanded
   const [splashExpanded, setSplashExpanded] = useState(false);
 
   // Menu Online state
@@ -1454,6 +1454,8 @@ const CardapioPage: React.FC = () => {
         </div>
       </div>
 
+
+
       {/* Hero Images - Collapsible Section */}
       {(!productsExpanded && !splashExpanded) && (
         <div id="hero-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
@@ -1646,8 +1648,8 @@ const CardapioPage: React.FC = () => {
 
           {productsExpanded && (
             <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800 space-y-4 pt-4">
-              {/* Category Tabs - Horizontal Scrollable */}
-              <div className="relative bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-2 overflow-visible">
+              {/* Category Tabs - Moved Here */}
+              <div className="relative bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-2 shadow-sm">
                 {canScrollLeft && (
                   <button
                     onClick={() => scrollTabs('left')}
@@ -1704,12 +1706,12 @@ const CardapioPage: React.FC = () => {
                             onDrop={() => handleDropCat(cat.id)}
                             onDragEnd={handleDragEndCat}
                             className={`
-                          px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative cursor-grab active:cursor-grabbing
+                          px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative cursor-grab active:cursor-grabbing border
                           ${activeCatId === cat.id
                                 ? cat.tipo === 'especial'
-                                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-none'
-                                  : 'bg-indigo-600 text-white shadow-md'
-                                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-md'
+                                  : 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                               }
                           ${dragOverCatId === cat.id ? 'ring-2 ring-indigo-400 scale-105' : ''}
                           ${draggedCatId === cat.id ? 'opacity-50' : 'opacity-100'}
@@ -1795,6 +1797,7 @@ const CardapioPage: React.FC = () => {
                   </button>
                 )}
               </div>
+              {/* Category Tabs removed from here */}
 
               {/* Category Header with Actions */}
               {activeCategory && (
@@ -1935,84 +1938,85 @@ const CardapioPage: React.FC = () => {
                 </div>
               )}
 
-              {/* SPECIAL CATEGORY VIEW */}
+              {/* SPECIAL CATEGORY VIEW - Compact */}
               {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
-                  <div className="flex flex-col md:flex-row">
+                  <div className="flex flex-col md:flex-row h-full">
                     {/* Left Column: Details */}
-                    <div className="p-8 md:w-1/2 flex flex-col justify-center space-y-6 relative">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold tracking-wider uppercase">
+                    <div className="p-5 md:w-1/2 flex flex-col justify-between space-y-4 relative">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold tracking-wider uppercase">
                             Destaque Especial
                           </span>
 
-                          {/* Toggle Switch */}
-                          <div className="flex items-center gap-2 ml-2">
-                            <button
-                              onClick={() => toggleDestaqueStatus(activeCategory)}
-                              className={`relative w-10 h-5 rounded-full transition-colors ${activeCategory.destaque.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
-                            >
-                              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${activeCategory.destaque.ativo ? 'translate-x-5' : ''}`} />
-                            </button>
-                            <span className={`text-xs font-bold uppercase transition-colors ${activeCategory.destaque.ativo ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          <div className="flex items-center gap-2 ml-auto">
+                            <span className={`text-[10px] font-bold uppercase transition-colors ${activeCategory.destaque.ativo ? 'text-emerald-600' : 'text-slate-400'}`}>
                               {activeCategory.destaque.ativo ? 'Visível' : 'Oculto'}
                             </span>
+                            <button
+                              onClick={() => toggleDestaqueStatus(activeCategory)}
+                              className={`relative w-8 h-4 rounded-full transition-colors ${activeCategory.destaque.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            >
+                              <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${activeCategory.destaque.ativo ? 'translate-x-4' : ''}`} />
+                            </button>
                           </div>
                         </div>
 
-                        <h2 className="text-4xl font-black text-slate-900 dark:text-white leading-tight">
-                          {activeCategory.destaque.titulo}
-                        </h2>
-                        <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
-                          {activeCategory.destaque.descricao}
-                        </p>
-                      </div>
-
-                      {activeCategory.destaque.preco && (
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                          <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-1">A partir de</p>
-                          <p className="text-3xl font-light text-emerald-600 dark:text-emerald-400">
-                            R$ {activeCategory.destaque.preco}
+                        <div>
+                          <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-2">
+                            {activeCategory.destaque.titulo}
+                          </h2>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-4">
+                            {activeCategory.destaque.descricao}
                           </p>
                         </div>
-                      )}
+                      </div>
 
-                      <div className="pt-6">
+                      <div className="space-y-4 pt-2">
+                        {activeCategory.destaque.preco && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">A partir de</span>
+                            <span className="text-2xl font-light text-emerald-600 dark:text-emerald-400">
+                              R$ {activeCategory.destaque.preco}
+                            </span>
+                          </div>
+                        )}
+
                         <button
                           onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-medium text-sm transition-colors w-fit"
                         >
-                          <Edit3 size={18} />
+                          <Edit3 size={16} />
                           Editar Conteúdo
                         </button>
                       </div>
                     </div>
 
                     {/* Right Column: Media */}
-                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[400px]">
+                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px]">
                       {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
-                        <div className="absolute inset-0 grid grid-cols-2 gap-1 p-2">
+                        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-1 p-1">
                           {activeCategory.destaque.midias.slice(0, 4).map((media, idx) => (
-                            <div key={idx} className={`relative overflow-hidden rounded-lg ${activeCategory.destaque?.midias.length === 1 ? 'col-span-2 row-span-2' : ''}`}>
+                            <div key={idx} className={`relative overflow-hidden rounded-lg group ${activeCategory.destaque!.midias.length === 1 ? 'col-span-2 row-span-2' : ''}`}>
                               {media.type === 'video' ? (
                                 <video src={media.url} className="w-full h-full object-cover" muted />
                               ) : (
-                                <img src={media.url} alt="" className="w-full h-full object-cover" />
+                                <img src={media.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                               )}
-                              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                             </div>
                           ))}
                           {activeCategory.destaque.midias.length > 4 && (
-                            <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
-                              +{activeCategory.destaque.midias.length - 4} mídias
+                            <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm">
+                              +{activeCategory.destaque.midias.length - 4}
                             </div>
                           )}
                         </div>
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                          <ImageIcon size={48} className="mb-2 opacity-50" />
-                          <p className="text-sm">Sem mídia cadastrada</p>
+                          <ImageIcon size={32} className="mb-2 opacity-50" />
+                          <p className="text-xs">Sem mídia</p>
                         </div>
                       )}
                     </div>
