@@ -89,7 +89,7 @@ const ReservaForm: React.FC<{ initialData?: Reserva; onChange: (data: Partial<Re
             />
           </div>
         </div>
-        <div className="md:col-span-2 space-y-1">
+        <div className="md:col-span-4 space-y-1">
           <label className={labelClass}>Hora</label>
           <div className="relative group">
             <Clock className={iconClass} size={18} />
@@ -101,13 +101,13 @@ const ReservaForm: React.FC<{ initialData?: Reserva; onChange: (data: Partial<Re
             />
           </div>
         </div>
-        <div className="md:col-span-3 space-y-1">
-          <label className={labelClass}>Qtd pessoas</label>
+        <div className="md:col-span-1 space-y-1">
+          <label className={labelClass}>Pax</label>
           <div className="relative group">
             <Users className={iconClass} size={18} />
             <input
               type="number"
-              className={inputClass}
+              className={`${inputClass} !pl-10 !pr-2`}
               min="1"
               value={formData.pax}
               onChange={(e) => handleChange('pax', parseInt(e.target.value) || 1)}
@@ -162,6 +162,11 @@ const ReservasPage: React.FC = () => {
   });
 
   const [formState, setFormState] = useState<Partial<Reserva>>({});
+  const formStateRef = React.useRef<Partial<Reserva>>({});
+
+  useEffect(() => {
+    formStateRef.current = formState;
+  }, [formState]);
 
   const { data: data = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['reservas'],
@@ -236,31 +241,44 @@ const ReservasPage: React.FC = () => {
   };
 
   const handleSave = async () => {
+    const currentData = formStateRef.current;
+    console.log('Tentando salvar reserva (Ref):', currentData);
+
     try {
-      if (!formState.nome || !formState.data || !formState.hora) {
+      if (!currentData.nome || !currentData.data || !currentData.hora) {
+        console.warn('Validação falhou (Ref):', {
+          nome: currentData.nome,
+          data: currentData.data,
+          hora: currentData.hora
+        });
         alert('Por favor, preencha nome, data e hora.');
         return;
       }
 
+      // Converte data de DD/MM/YYYY para YYYY-MM-DD se necessário
+      const formattedDate = currentData.data.includes('/')
+        ? currentData.data.split('/').reverse().join('-')
+        : currentData.data;
+
       const payload = {
-        customer_name: formState.nome,
-        customer_contact: formState.contato,
-        type: formState.tipo,
-        date: formState.data,
-        time: formState.hora,
-        guests: formState.pax,
-        status: formState.status,
-        notes: formState.observacao,
-        code: formState.codigo || `RES-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+        customer_name: currentData.nome,
+        customer_contact: currentData.contato,
+        type: currentData.tipo,
+        date: formattedDate,
+        time: currentData.hora,
+        guests: currentData.pax,
+        status: currentData.status,
+        notes: currentData.observacao,
+        code: currentData.codigo || `RES-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
       };
 
-      if (formState.id) {
+      if (currentData.id) {
         // Update
         const { error } = await supabase
           .schema('gestaohashi')
           .from('reservas')
           .update(payload)
-          .eq('id', formState.id);
+          .eq('id', currentData.id);
         if (error) throw error;
       } else {
         // Create
@@ -277,6 +295,14 @@ const ReservasPage: React.FC = () => {
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);
       alert('Erro ao salvar reserva.');
+    }
+  };
+
+  const handleConfirm = () => {
+    if (modalConfig.type === 'confirm-delete') {
+      modalConfig.onConfirm?.();
+    } else if (modalConfig.type === 'confirm-insert' || modalConfig.type === 'confirm-update') {
+      handleSave();
     }
   };
 
@@ -297,8 +323,7 @@ const ReservasPage: React.FC = () => {
         type: 'confirm-update',
         title: 'Editar reserva',
         maxWidth: 'max-w-4xl',
-        content: <ReservaForm initialData={item} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />,
-        onConfirm: handleSave
+        content: <ReservaForm initialData={item} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />
       });
     } else {
       setModalConfig({
@@ -415,8 +440,7 @@ const ReservasPage: React.FC = () => {
               type: 'confirm-insert',
               title: 'Nova reserva',
               maxWidth: 'max-w-4xl',
-              content: <ReservaForm initialData={initialNew as any} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />,
-              onConfirm: handleSave
+              content: <ReservaForm initialData={initialNew as any} onChange={(newData) => setFormState(prev => ({ ...prev, ...newData }))} />
             });
           }}
           className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-200 dark:shadow-none tracking-widest text-xs"
@@ -484,7 +508,15 @@ const ReservasPage: React.FC = () => {
 
       <Table columns={columns} data={filteredData} searchPlaceholder="Buscar por código, cliente ou tipo..." />
 
-      <Modal isOpen={modalConfig.isOpen} type={modalConfig.type} title={modalConfig.title} content={modalConfig.content} maxWidth={modalConfig.maxWidth} onConfirm={modalConfig.onConfirm} onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} />
+      <Modal
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        content={modalConfig.content}
+        maxWidth={modalConfig.maxWidth}
+        onConfirm={handleConfirm}
+        onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
