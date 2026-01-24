@@ -89,7 +89,7 @@ const ReservaForm: React.FC<{ initialData?: Reserva; onChange: (data: Partial<Re
             />
           </div>
         </div>
-        <div className="md:col-span-4 space-y-1">
+        <div className="md:col-span-3 space-y-1">
           <label className={labelClass}>Hora</label>
           <div className="relative group">
             <Clock className={iconClass} size={18} />
@@ -101,20 +101,20 @@ const ReservaForm: React.FC<{ initialData?: Reserva; onChange: (data: Partial<Re
             />
           </div>
         </div>
-        <div className="md:col-span-1 space-y-1">
-          <label className={labelClass}>Pax</label>
+        <div className="md:col-span-3 space-y-1">
+          <label className={labelClass}>Pessoas</label>
           <div className="relative group">
             <Users className={iconClass} size={18} />
             <input
               type="number"
-              className={`${inputClass} !pl-10 !pr-2`}
+              className={inputClass}
               min="1"
               value={formData.pax}
               onChange={(e) => handleChange('pax', parseInt(e.target.value) || 1)}
             />
           </div>
         </div>
-        <div className="md:col-span-4 space-y-1">
+        <div className="md:col-span-3 space-y-1">
           <label className={labelClass}>Status</label>
           <div className="relative group">
             <Activity className={iconClass} size={18} />
@@ -269,7 +269,7 @@ const ReservasPage: React.FC = () => {
         guests: currentData.pax,
         status: currentData.status,
         notes: currentData.observacao,
-        code: currentData.codigo || `RES-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+        code: currentData.codigo || Math.floor(1000 + Math.random() * 9000).toString()
       };
 
       if (currentData.id) {
@@ -386,13 +386,42 @@ const ReservasPage: React.FC = () => {
   const tabs = ['Pendente', 'Confirmado', 'Finalizado', 'Cancelado'];
   const filteredData = data.filter(item => item.status === activeTab);
 
+  const generateWhatsAppLink = (item: Reserva) => {
+    const firstName = item.nome.split(' ')[0];
+    const phone = item.contato.replace(/\D/g, '');
+
+    // Converte DD/MM/YYYY para Objeto Date para pegar o dia da semana
+    const [day, month, year] = item.data.split('/');
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const dayOfWeek = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+
+    const message = `Olá ${firstName} tudo bem? Passando aqui só pra confirmar sua reserva ☺️\nJá vou avisar o pessoal para deixar tudo no jeito pra você❤️\n\nPosso confirmar?\n* *Data/H:* ${day}/${month} às ${item.hora.replace(':00', '')}h ( ${capitalizedDay} )\n* Nosso tempo de tolerância é de 10 minutinhos, ta bom😉`;
+
+    return `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+  };
+
   const columns = [
     { header: '#', accessor: (_: any, index: number) => <span className="text-slate-500">{index + 1}</span>, className: 'w-12 text-center' },
     { header: 'Código', accessor: (item: Reserva) => <span className="font-bold text-indigo-700 dark:text-indigo-400 tracking-widest">{item.codigo}</span>, className: 'w-24' },
     { header: 'Data/Hora', accessor: (item: Reserva) => (<div className="flex flex-col"><span className="text-slate-900 dark:text-slate-100">{item.data}</span><span className="text-[10px] text-slate-500">{item.hora}</span></div>), className: 'w-28' },
     { header: 'Tipo', accessor: (item: Reserva) => (<span className="text-[10px] px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 font-medium">{item.tipo}</span>), className: 'w-32' },
     { header: 'Cliente', accessor: (item: Reserva) => (<div className="flex flex-col"><span className="font-bold text-slate-900 dark:text-white text-sm">{item.nome}</span><span className="text-[10px] text-indigo-600 dark:text-indigo-400">{item.pax} {item.pax > 1 ? 'pessoas' : 'pessoa'}</span></div>), className: 'w-56' },
-    { header: 'Contato', accessor: 'contato', className: 'w-36 text-slate-700' },
+    {
+      header: 'Contato',
+      accessor: (item: Reserva) => (
+        <a
+          href={generateWhatsAppLink(item)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-700 dark:text-indigo-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {item.contato}
+        </a>
+      ),
+      className: 'w-36'
+    },
     {
       header: 'Status',
       accessor: (item: Reserva) => (
@@ -420,7 +449,7 @@ const ReservasPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
