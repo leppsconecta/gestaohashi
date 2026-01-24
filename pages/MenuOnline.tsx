@@ -71,6 +71,10 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
   const [progress, setProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+
+
+
+
   useEffect(() => {
     setCurrentMedia(0);
   }, [destaque.id]);
@@ -230,6 +234,25 @@ const MenuOnline: React.FC = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [expandedComboItemIndex, setExpandedComboItemIndex] = useState<number | null>(null);
   const [menuEnabled, setMenuEnabled] = useState(true);
+
+  const categoriesRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll categories
+  useEffect(() => {
+    if (categoriesRef.current && activeCatId) {
+      const activeBtn = document.getElementById(`cat-btn-${activeCatId}`);
+      if (activeBtn) {
+        // Calculate center position
+        const container = categoriesRef.current;
+        const scrollLeft = activeBtn.offsetLeft - (container.offsetWidth / 2) + (activeBtn.offsetWidth / 2);
+
+        container.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeCatId]);
 
   const contactOptions = [
     { icon: MessageSquare, label: 'Sugestões', color: 'bg-blue-500', url: 'https://hashiexpressjundiai.com.br' },
@@ -507,23 +530,27 @@ const MenuOnline: React.FC = () => {
             <Loader2 size={24} className="text-red-600 animate-spin" />
           </div>
         ) : (
-          <div className="flex gap-1 p-2 overflow-x-auto scrollbar-hide justify-center md:justify-center">
+          <div
+            ref={categoriesRef}
+            className="flex gap-1 p-2 overflow-x-auto scrollbar-hide justify-start md:justify-center px-4"
+          >
             {categorias.map(cat => (
               <button
                 key={cat.id}
+                id={`cat-btn-${cat.id}`}
                 onClick={() => setActiveCatId(cat.id)}
                 className={`
-                  flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-2 relative
+                  flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-2 relative snap-center
                   ${activeCatId === cat.id
                     ? cat.tipo === 'especial'
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-200'
                       : 'bg-red-600 text-white shadow-md'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }
                 `}
               >
                 {cat.tipo === 'especial' && (
-                  <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
+                  <Sparkles size={14} className={activeCatId === cat.id ? 'text-white' : 'text-amber-500'} />
                 )}
                 {cat.nome}
                 {cat.tipo === 'especial' && activeCatId === cat.id && (
