@@ -78,9 +78,28 @@ export interface CardapioItem {
   visivel?: boolean;
 }
 
+
+export interface DestaqueMidia {
+  url: string;
+  type: 'image' | 'video';
+  duration?: number; // Duration in seconds (video length or slide duration)
+}
+
+export interface DestaqueConteudo {
+  id: string;
+  categoriaId: string;
+  titulo: string;
+  descricao: string;
+  preco?: string;
+  midias: DestaqueMidia[];
+  ativo: boolean;
+}
+
 export interface CardapioCategoria {
   id: string;
   nome: string;
+  tipo?: 'padrao' | 'especial';
+  destaque?: DestaqueConteudo;
   itens: CardapioItem[];
 }
 

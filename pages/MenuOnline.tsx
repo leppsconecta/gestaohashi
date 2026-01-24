@@ -12,7 +12,8 @@ import {
   Layers,
   Package,
   Sparkles,
-  Loader2
+  Loader2,
+  Star
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -23,6 +24,24 @@ interface ComboProduct {
   quantidade: string;
   unidade?: string;
   foto?: string;
+}
+
+
+// Destaque Types
+interface DestaqueMidia {
+  url: string;
+  type: 'image' | 'video';
+  duration?: number;
+}
+
+interface DestaqueConteudo {
+  id: string;
+  categoriaId: string;
+  titulo: string;
+  descricao: string;
+  preco?: string;
+  midias: DestaqueMidia[];
+  ativo: boolean;
 }
 
 interface MenuItem {
@@ -41,8 +60,139 @@ interface MenuItem {
 interface MenuCategory {
   id: string;
   nome: string;
+  tipo?: 'padrao' | 'especial';
+  destaque?: DestaqueConteudo;
   itens: MenuItem[];
 }
+
+// Special Category View Component
+const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaque }) => {
+  const [currentMedia, setCurrentMedia] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Reset progress on slide change
+    setProgress(0);
+    const media = destaque.midias[currentMedia];
+
+    let timer: NodeJS.Timeout;
+
+    if (media.type === 'image') {
+      const duration = (media.duration || 15) * 1000;
+      const interval = 100; // Update every 100ms
+      const step = 100 / (duration / interval);
+
+      timer = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(timer);
+            setCurrentMedia(c => (c + 1) % destaque.midias.length);
+            return 0;
+          }
+          return prev + step;
+        });
+      }, interval);
+    } else if (media.type === 'video') {
+      // Video handles its own progress via onTimeUpdate and onEnded
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(() => { });
+      }
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [currentMedia, destaque.midias]);
+
+  const handleVideoEnded = () => {
+    setCurrentMedia(c => (c + 1) % destaque.midias.length);
+  };
+
+  const handleVideoProgress = () => {
+    if (videoRef.current && videoRef.current.duration) {
+      setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+    }
+  };
+
+  return (
+    <div className="bg-black rounded-3xl overflow-hidden shadow-2xl relative w-full max-w-sm mx-auto border border-zinc-900 flex flex-col">
+      {/* Media Layer - Aspect Ratio 9:16 */}
+      <div className="relative w-full aspect-[9/16] bg-black overflow-hidden shrink-0">
+        {destaque.midias.map((media, idx) => (
+          <div
+            key={idx}
+            className={`absolute inset-0 transition-opacity duration-300 flex items-center justify-center ${idx === currentMedia ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+          >
+            {media.type === 'video' ? (
+              <video
+                ref={idx === currentMedia ? videoRef : null}
+                src={media.url}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+                autoPlay
+                onEnded={handleVideoEnded}
+                onTimeUpdate={handleVideoProgress}
+              />
+            ) : (
+              <img src={media.url} alt="" className="w-full h-full object-cover" />
+            )}
+            {/* Gradient only at top for visibility of progress bar */}
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/60 to-transparent" />
+          </div>
+        ))}
+
+        {/* Progress Bar */}
+        <div className="absolute top-0 left-0 right-0 z-30 p-2 flex gap-1">
+          {destaque.midias.map((_, idx) => (
+            <div key={idx} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+              <div
+                className={`h-full bg-white transition-all duration-100 ease-linear ${idx < currentMedia ? 'w-full' : idx === currentMedia ? '' : 'w-0'}`}
+                style={{ width: idx === currentMedia ? `${progress}%` : undefined }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation Touch Zones */}
+        <div className="absolute inset-0 z-20 flex">
+          <div
+            className="w-[30%] h-full outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentMedia(c => (c - 1 + destaque.midias.length) % destaque.midias.length);
+            }}
+          />
+          <div
+            className="w-[70%] h-full outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentMedia(c => (c + 1) % destaque.midias.length);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Content Section - Flowing Below Image */}
+      <div className="p-5 bg-black text-white relative z-30 border-t border-zinc-900">
+        <h2 className="text-2xl font-black mb-3 leading-tight">{destaque.titulo}</h2>
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-zinc-300 leading-relaxed">{destaque.descricao}</p>
+          {destaque.preco && (
+            <div className="flex items-center justify-between pt-4 border-t border-zinc-900">
+              <span className="text-xs uppercase tracking-wider opacity-60 font-bold">A partir de</span>
+              <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-amber-400">
+                R$ {destaque.preco}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Hero Image Interface
 interface HeroImage {
@@ -128,10 +278,20 @@ const MenuOnline: React.FC = () => {
 
       if (comboItemError) throw comboItemError;
 
+      // Fetch special content (destaques)
+      const { data: destaquesData, error: destaquesError } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .select('*');
+
+      if (destaquesError && destaquesError.code !== '42P01') console.error('Error fetching destaques:', destaquesError);
+
       // Format data
       const formattedCategorias: MenuCategory[] = catData.map(cat => ({
         id: cat.id,
         nome: cat.nome,
+        tipo: cat.tipo || 'padrao',
+        destaque: destaquesData?.find(d => d.categoria_id === cat.id && d.ativo),
         itens: prodData
           .filter(p => p.categoria_id === cat.id)
           .map(p => ({
@@ -344,14 +504,22 @@ const MenuOnline: React.FC = () => {
                 key={cat.id}
                 onClick={() => setActiveCatId(cat.id)}
                 className={`
-                  flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap
+                  flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-2 relative
                   ${activeCatId === cat.id
-                    ? 'bg-red-600 text-white shadow-md'
+                    ? cat.tipo === 'especial'
+                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                      : 'bg-red-600 text-white shadow-md'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }
                 `}
               >
+                {cat.tipo === 'especial' && (
+                  <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
+                )}
                 {cat.nome}
+                {cat.tipo === 'especial' && activeCatId === cat.id && (
+                  <Star size={10} className="text-amber-300 fill-amber-300 animate-pulse absolute -top-1 -right-1" />
+                )}
               </button>
             ))}
           </div>
@@ -360,69 +528,76 @@ const MenuOnline: React.FC = () => {
 
       {/* Products Grid */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">{activeCategory?.nome}</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          {activeCategory?.nome}
+          {activeCategory?.tipo === 'especial' && <Sparkles size={20} className="text-purple-500" />}
+        </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {activeCategory?.itens.filter(item => item.visivel !== false).map((item, idx) => (
-            <div
-              key={item.id}
-              onClick={() => openExpanded(activeCatId, idx)}
-              className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group relative ${item.isCombo ? 'border-purple-200 ring-1 ring-purple-100' : 'border-slate-100'}`}
-            >
-              {/* Combo and Savings Badges - Stacked vertically on mobile */}
-              {item.isCombo && (
-                <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-                  {/* Combo Badge */}
-                  <div className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
-                    <Layers size={10} />
-                    COMBO
+        {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
+          <SpecialCategoryView destaque={activeCategory.destaque} />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {activeCategory?.itens.filter(item => item.visivel !== false).map((item, idx) => (
+              <div
+                key={item.id}
+                onClick={() => openExpanded(activeCatId, idx)}
+                className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group relative ${item.isCombo ? 'border-purple-200 ring-1 ring-purple-100' : 'border-slate-100'}`}
+              >
+                {/* Combo and Savings Badges - Stacked vertically on mobile */}
+                {item.isCombo && (
+                  <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                    {/* Combo Badge */}
+                    <div className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
+                      <Layers size={10} />
+                      COMBO
+                    </div>
+
+                    {/* Savings Badge */}
+                    {item.showSavings && item.savingsAmount && (
+                      <div className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
+                        <Sparkles size={10} />
+                        -R${item.savingsAmount}
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  {/* Savings Badge */}
-                  {item.showSavings && item.savingsAmount && (
-                    <div className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-lg w-fit">
-                      <Sparkles size={10} />
-                      -R${item.savingsAmount}
+                {/* Image */}
+                <div className="aspect-square bg-slate-100 overflow-hidden relative">
+                  {item.foto ? (
+                    <img
+                      src={item.foto}
+                      alt={item.nome}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      Sem foto
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Image */}
-              <div className="aspect-square bg-slate-100 overflow-hidden relative">
-                {item.foto ? (
-                  <img
-                    src={item.foto}
-                    alt={item.nome}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-300">
-                    Sem foto
-                  </div>
-                )}
-                {/* Combo gradient overlay */}
-                {item.isCombo && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent pointer-events-none" />
-                )}
-              </div>
-
-              {/* Info */}
-              <div className={`p-3 ${item.isCombo ? 'bg-gradient-to-b from-white to-purple-50' : ''}`}>
-                <h3 className="font-bold text-slate-800 text-sm truncate mb-1">{item.nome}</h3>
-                <p className="text-xs text-slate-500 line-clamp-2 mb-2 min-h-[32px]">{item.descricao}</p>
-                <div className="flex items-center justify-between">
-                  <span className={`text-lg font-black ${item.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {item.preco}</span>
-                  {item.isCombo && item.comboItens && (
-                    <span className="text-[10px] text-purple-500 bg-purple-100 px-2 py-0.5 rounded-full font-medium">
-                      {item.comboItens.length} itens
-                    </span>
+                  {/* Combo gradient overlay */}
+                  {item.isCombo && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent pointer-events-none" />
                   )}
                 </div>
+
+                {/* Info */}
+                <div className={`p-3 ${item.isCombo ? 'bg-gradient-to-b from-white to-purple-50' : ''}`}>
+                  <h3 className="font-bold text-slate-800 text-sm truncate mb-1">{item.nome}</h3>
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-2 min-h-[32px]">{item.descricao}</p>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-lg font-black ${item.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {item.preco}</span>
+                    {item.isCombo && item.comboItens && (
+                      <span className="text-[10px] text-purple-500 bg-purple-100 px-2 py-0.5 rounded-full font-medium">
+                        {item.comboItens.length} itens
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Expanded Product Modal */}
@@ -495,7 +670,38 @@ const MenuOnline: React.FC = () => {
 
               {currentItem.preco ? (
                 <>
-                  <p className="text-slate-500 leading-relaxed mb-4">{currentItem.descricao}</p>
+                  <p className="text-slate-500 leading-relaxed mb-6">{currentItem.descricao}</p>
+
+                  {/* Feedbacks Carousel Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <MessageSquare size={16} className="text-purple-500" />
+                      O que estão falando deste produto
+                    </h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6">
+                      {[
+                        { name: 'Ana Silva', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d', rating: 5, text: 'Simplesmente delicioso! O sabor é incomparável.' },
+                        { name: 'João Souza', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d', rating: 5, text: 'Melhor pedido que fiz na semana. Chegou super rápido!' },
+                        { name: 'Mariana Costa', avatar: 'https://i.pravatar.cc/150?u=a04258114e29026302d', rating: 4, text: 'Muito bom, mas a porção poderia ser um pouco maior.' },
+                        { name: 'Pedro Alves', avatar: 'https://i.pravatar.cc/150?u=a048581f4e29026704d', rating: 5, text: 'Sabor autêntico e fresco. Recomendo demais!' }
+                      ].map((fb, idx) => (
+                        <div key={idx} className="flex-shrink-0 w-64 bg-slate-50 rounded-xl p-3 border border-slate-100 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <img src={fb.avatar} alt={fb.name} className="w-8 h-8 rounded-full" />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{fb.name}</p>
+                              <div className="flex">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} size={10} className={i < fb.rating ? "text-amber-400 fill-amber-400" : "text-slate-300"} />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-3 italic">"{fb.text}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Combo products list - Expandable with carousel */}
                   {currentItem.isCombo && currentItem.comboItens && currentItem.comboItens.length > 0 && (

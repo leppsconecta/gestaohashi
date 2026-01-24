@@ -23,7 +23,9 @@ import {
   Layers,
   MoreVertical,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles,
+  Star
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import { ModalType } from '../types';
@@ -56,9 +58,27 @@ interface CardapioItem {
   visivel?: boolean; // New property for visibility
 }
 
+interface DestaqueMidia {
+  url: string;
+  type: 'image' | 'video';
+  duration?: number;
+}
+
+interface DestaqueConteudo {
+  id: string;
+  categoriaId: string;
+  titulo: string;
+  descricao: string;
+  preco?: string;
+  midias: DestaqueMidia[];
+  ativo: boolean;
+}
+
 interface CardapioCategoria {
   id: string;
   nome: string;
+  tipo?: 'padrao' | 'especial';
+  destaque?: DestaqueConteudo;
   itens: CardapioItem[];
 }
 
@@ -237,9 +257,68 @@ const CardapioPage: React.FC = () => {
   // Custom Modals State
   const [deleteCategoryModal, setDeleteCategoryModal] = useState<{ isOpen: boolean, categoryId: string | null }>({ isOpen: false, categoryId: null });
   const [deleteItemModal, setDeleteItemModal] = useState<{ isOpen: boolean, itemId: string | null }>({ isOpen: false, itemId: null });
-  const [addCategoryModal, setAddCategoryModal] = useState<{ isOpen: boolean, name: string }>({ isOpen: false, name: '' });
+  const [addCategoryModal, setAddCategoryModal] = useState<{ isOpen: boolean, name: string, type: 'padrao' | 'especial' }>({ isOpen: false, name: '', type: 'padrao' });
   const [itemMenuOpen, setItemMenuOpen] = useState<string | null>(null);
   const [itemMenuPosition, setItemMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
+
+  // Destaque Editor State
+  const [destaqueModalOpen, setDestaqueModalOpen] = useState(false);
+  const [editingDestaqueCategory, setEditingDestaqueCategory] = useState<CardapioCategoria | null>(null);
+  const [destaqueFormData, setDestaqueFormData] = useState<{
+    titulo: string;
+    descricao: string;
+    preco: string;
+    midias: { url: string, type: 'image' | 'video', duration?: number }[];
+  }>({ titulo: '', descricao: '', preco: '', midias: [] });
+  const [isDestaqueUploading, setIsDestaqueUploading] = useState(false);
+  const destaqueFileInputRef = useRef<HTMLInputElement>(null);
+
+  // ... (rest of the code)
+
+  const handleAddCategoria = () => {
+    setAddCategoryModal({ isOpen: true, name: '', type: 'padrao' });
+  };
+
+  const handleConfirmAddCategoria = async () => {
+    if (addCategoryModal.name.trim()) {
+      try {
+        const { data, error } = await supabase
+          .schema('gestaohashi')
+          .from('categorias')
+          .insert({
+            nome: addCategoryModal.name.trim(),
+            ordem: categorias.length,
+            tipo: addCategoryModal.type
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // If special, create empty destaque entry
+        if (addCategoryModal.type === 'especial') {
+          await supabase
+            .schema('gestaohashi')
+            .from('destaques_conteudo')
+            .insert({ categoria_id: data.id, midias: [] });
+        }
+
+        const newCat: CardapioCategoria = {
+          id: data.id,
+          nome: data.nome,
+          tipo: data.tipo as 'padrao' | 'especial',
+          destaque: addCategoryModal.type === 'especial' ? { id: 'temp', categoriaId: data.id, titulo: '', descricao: '', midias: [], ativo: true } : undefined,
+          itens: []
+        };
+        setCategorias([...categorias, newCat]);
+        setActiveCatId(newCat.id);
+        setAddCategoryModal({ isOpen: false, name: '', type: 'padrao' });
+      } catch (error: any) {
+        console.error('Error adding category:', error);
+        alert('Erro ao adicionar categoria: ' + (error.message || 'Erro desconhecido.'));
+      }
+    }
+  };
 
   // Get all products from all categories for autocomplete
   const allProducts = categorias.flatMap(cat =>
@@ -354,6 +433,14 @@ const CardapioPage: React.FC = () => {
 
       if (catError) throw catError;
 
+      // Fetch special content (destaques)
+      const { data: destaquesData, error: destaquesError } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .select('*');
+
+      if (destaquesError && destaquesError.code !== '42P01') console.error('Error fetching destaques:', destaquesError);
+
       // Fetch products for these categories
       const { data: prodData, error: prodError } = await supabase
         .schema('gestaohashi')
@@ -375,6 +462,8 @@ const CardapioPage: React.FC = () => {
       const formattedCategorias: CardapioCategoria[] = catData.map(cat => ({
         id: cat.id,
         nome: cat.nome,
+        tipo: cat.tipo || 'padrao',
+        destaque: destaquesData?.find(d => d.categoria_id === cat.id),
         itens: prodData
           .filter(p => p.categoria_id === cat.id)
           .map(p => ({
@@ -470,6 +559,146 @@ const CardapioPage: React.FC = () => {
     return () => window.removeEventListener('resize', checkScroll);
   }, [categorias]);
 
+
+  // Destaque Handlers
+  const handleDestaqueFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (destaqueFormData.midias.length + files.length > 5) {
+      alert('Máximo de 5 mídias por destaque.');
+      return;
+    }
+
+    setIsDestaqueUploading(true);
+    try {
+      const newMidias = [...destaqueFormData.midias];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
+
+        if (!isImage && !isVideo) {
+          alert(`Arquivo ${file.name} ignorado. Formato inválido.`);
+          continue;
+        }
+
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+          alert(`Arquivo ${file.name} muito grande.`);
+          continue;
+        }
+
+        // Validate video duration
+        if (isVideo) {
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          const durationCheck = new Promise<number>((resolve) => {
+            video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(video.duration); };
+            video.onerror = () => { resolve(0); };
+          });
+          video.src = URL.createObjectURL(file);
+          const duration = await durationCheck;
+          if (duration > 30) {
+            alert(`Vídeo ${file.name} ignorado. Máximo 30 segundos.`);
+            continue;
+          }
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `destaques/${Math.random()}-${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('cardapio').upload(fileName, file);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('cardapio').getPublicUrl(fileName);
+        newMidias.push({ url: publicUrl, type: isVideo ? 'video' : 'image', duration: isVideo ? undefined : 4 });
+      }
+
+      setDestaqueFormData(prev => ({ ...prev, midias: newMidias }));
+    } catch (error: any) {
+      console.error('Error uploading destaque media:', error);
+      alert('Erro ao fazer upload: ' + (error.message || 'Erro desconhecido.'));
+    } finally {
+      setIsDestaqueUploading(false);
+      if (destaqueFileInputRef.current) destaqueFileInputRef.current.value = '';
+    }
+  };
+
+  const openDestaqueEditor = (cat: CardapioCategoria) => {
+    setEditingDestaqueCategory(cat);
+    if (cat.destaque) {
+      setDestaqueFormData({
+        titulo: cat.destaque.titulo || '',
+        descricao: cat.destaque.descricao || '',
+        preco: cat.destaque.preco || '',
+        midias: cat.destaque.midias || []
+      });
+    } else {
+      setDestaqueFormData({ titulo: '', descricao: '', preco: '', midias: [] });
+    }
+    setDestaqueModalOpen(true);
+  };
+
+  const handleSaveDestaque = async () => {
+    if (!editingDestaqueCategory) return;
+    if (!destaqueFormData.titulo.trim()) {
+      alert('O título é obrigatório.');
+      return;
+    }
+    if (destaqueFormData.midias.length === 0) {
+      alert('Adicione pelo menos uma imagem ou vídeo.');
+      return;
+    }
+
+    try {
+      const payload = {
+        categoria_id: editingDestaqueCategory.id,
+        titulo: destaqueFormData.titulo,
+        descricao: destaqueFormData.descricao,
+        preco: destaqueFormData.preco ? parseFloat(destaqueFormData.preco.replace(',', '.')) : null,
+        midias: destaqueFormData.midias,
+        ativo: true
+      };
+
+      // Check if entry exists to determine update or insert (upsert logic via delete/insert or just upsert if unique constraint)
+      // Since we have ON CONFLICT (categoria_id) DO UPDATE in standard SQL, but Supabase JS .upsert works well
+      const { data, error } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .upsert(payload, { onConflict: 'categoria_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setCategorias(prev => prev.map(c => {
+        if (c.id === editingDestaqueCategory.id) {
+          return {
+            ...c,
+            destaque: {
+              id: data.id,
+              categoriaId: data.categoria_id,
+              titulo: data.titulo,
+              descricao: data.descricao,
+              preco: data.preco?.toString().replace('.', ','),
+              midias: data.midias,
+              ativo: data.ativo
+            }
+          };
+        }
+        return c;
+      }));
+
+      setDestaqueModalOpen(false);
+      alert('Conteúdo especial salvo com sucesso!');
+    } catch (error: any) {
+      console.error('Error saving destaque:', error);
+      alert('Erro ao salvar destaque: ' + error.message);
+    }
+  };
+
   const scrollTabs = (direction: 'left' | 'right') => {
     const container = tabsContainerRef.current;
     if (container) {
@@ -482,35 +711,7 @@ const CardapioPage: React.FC = () => {
     }
   };
 
-  const handleAddCategoria = () => {
-    setAddCategoryModal({ isOpen: true, name: '' });
-  };
 
-  const handleConfirmAddCategoria = async () => {
-    if (addCategoryModal.name.trim()) {
-      try {
-        const { data, error } = await supabase
-          .schema('gestaohashi')
-          .from('categorias')
-          .insert({
-            nome: addCategoryModal.name.trim(),
-            ordem: categorias.length
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const newCat = { id: data.id, nome: data.nome, itens: [] };
-        setCategorias([...categorias, newCat]);
-        setActiveCatId(newCat.id);
-        setAddCategoryModal({ isOpen: false, name: '' });
-      } catch (error: any) {
-        console.error('Error adding category:', error);
-        alert('Erro ao adicionar categoria: ' + (error.message || 'Erro desconhecido.'));
-      }
-    }
-  };
 
   const handleDeleteCategoria = (id: string) => {
     setDeleteCategoryModal({ isOpen: true, categoryId: id });
@@ -1359,20 +1560,28 @@ const CardapioPage: React.FC = () => {
                           <button
                             onClick={() => {
                               setActiveCatId(cat.id);
-                              // We don't call focusSection here to avoid scrolling to top
                             }}
+                            id={`cat-btn-${cat.id}`}
                             className={`
-                      px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2
-                      ${activeCatId === cat.id
-                                ? 'bg-indigo-600 text-white shadow-md'
+                          px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative
+                          ${activeCatId === cat.id
+                                ? cat.tipo === 'especial'
+                                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-none'
+                                  : 'bg-indigo-600 text-white shadow-md'
                                 : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                               }
-                    `}
+                        `}
                           >
+                            {cat.tipo === 'especial' && (
+                              <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
+                            )}
                             {cat.nome}
                             <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
                               ({cat.itens.length})
                             </span>
+                            {cat.tipo === 'especial' && activeCatId === cat.id && (
+                              <Star size={10} className="text-amber-300 fill-amber-300 animate-pulse absolute -top-1 -right-1" />
+                            )}
                             <span
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1491,65 +1700,81 @@ const CardapioPage: React.FC = () => {
                       <Plus size={16} />
                       Nova Categoria
                     </button>
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowAddDropdown(!showAddDropdown)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
-                      >
-                        <Plus size={16} />
-                        Adicionar
-                      </button>
 
-                      {showAddDropdown && (
-                        <>
-                          {/* Backdrop */}
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setShowAddDropdown(false)}
-                          />
-                          {/* Dropdown Menu */}
-                          <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
-                            <button
-                              onClick={() => {
-                                openItemModal();
-                                setShowAddDropdown(false);
-                              }}
-                              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all whitespace-nowrap"
-                            >
-                              <ImageIcon size={18} className="text-emerald-500 flex-shrink-0" />
-                              Adicionar Produto
-                            </button>
-                            <button
-                              onClick={() => {
-                                openComboModal();
-                                setShowAddDropdown(false);
-                              }}
-                              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all whitespace-nowrap"
-                            >
-                              <Grid3X3 size={18} className="text-amber-500 flex-shrink-0" />
-                              Adicionar Combo
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {/* View Toggle */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 ml-2">
+                    {/* Standard Category Controls */}
+                    {activeCategory?.tipo !== 'especial' && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowAddDropdown(!showAddDropdown)}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
+                        >
+                          <Plus size={16} />
+                          Adicionar
+                        </button>
+
+                        {showAddDropdown && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setShowAddDropdown(false)}
+                            />
+                            <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
+                              <button
+                                onClick={() => {
+                                  openItemModal();
+                                  setShowAddDropdown(false);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all whitespace-nowrap"
+                              >
+                                <ImageIcon size={18} className="text-emerald-500 flex-shrink-0" />
+                                Adicionar Produto
+                              </button>
+                              <button
+                                onClick={() => {
+                                  openComboModal();
+                                  setShowAddDropdown(false);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all whitespace-nowrap"
+                              >
+                                <Grid3X3 size={18} className="text-amber-500 flex-shrink-0" />
+                                Adicionar Combo
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Special Category Controls */}
+                    {activeCategory?.tipo === 'especial' && (
                       <button
-                        onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                        title="Visualização em grade"
+                        onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-sm transition-all ml-2 shadow-sm animate-pulse"
                       >
-                        <Grid3X3 size={18} />
+                        <Edit3 size={16} />
+                        Editar Conteúdo Especial
                       </button>
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                        title="Visualização em lista"
-                      >
-                        <List size={18} />
-                      </button>
-                    </div>
+                    )}
+
+                    {/* View Toggle - Hide for special categories */}
+                    {activeCategory?.tipo !== 'especial' && (
+                      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 ml-2">
+                        <button
+                          onClick={() => setViewMode('grid')}
+                          className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                          title="Visualização em grade"
+                        >
+                          <Grid3X3 size={18} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('list')}
+                          className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
+                          title="Visualização em lista"
+                        >
+                          <List size={18} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2337,16 +2562,162 @@ const CardapioPage: React.FC = () => {
                 value={addCategoryModal.name}
                 onChange={(e) => setAddCategoryModal({ ...addCategoryModal, name: e.target.value })}
                 onKeyDown={(e) => e.key === 'Enter' && handleConfirmAddCategoria()}
-                autoFocus
                 placeholder="Ex: Lanches, Bebidas..."
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-sm"
               />
+            </div>
+
+            {/* Type Selector */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Tipo de Categoria</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setAddCategoryModal({ ...addCategoryModal, type: 'padrao' })}
+                  className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${addCategoryModal.type === 'padrao' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                  <Grid3X3 size={20} />
+                  <span className="text-xs font-bold">Padrão</span>
+                  <span className="text-[9px] opacity-70">Lista de produtos</span>
+                </button>
+                <button
+                  onClick={() => setAddCategoryModal({ ...addCategoryModal, type: 'especial' })}
+                  className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${addCategoryModal.type === 'especial' ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                  <div className="relative">
+                    <Sparkles size={20} />
+                    <Star size={8} className="absolute -top-1 -right-1 text-amber-400 fill-amber-400" />
+                  </div>
+                  <span className="text-xs font-bold">Especial (Destaque)</span>
+                  <span className="text-[9px] opacity-70">Stories & Multimídia</span>
+                </button>
+              </div>
             </div>
           </div>
         }
         onConfirm={handleConfirmAddCategoria}
         confirmText="Criar Categoria"
-        onClose={() => setAddCategoryModal({ isOpen: false, name: '' })}
+        onClose={() => setAddCategoryModal({ isOpen: false, name: '', type: 'padrao' })}
+      />
+
+      {/* Destaque Content Editor Modal */}
+      <Modal
+        isOpen={destaqueModalOpen}
+        type="view-content"
+        title="Editar Conteúdo Especial"
+        maxWidth="max-w-2xl"
+        content={
+          <div className="space-y-6">
+            {/* Media Upload */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mídias (Fotos/Vídeos)</label>
+                <span className="text-[10px] text-slate-400">{destaqueFormData.midias.length}/5 adicionados</span>
+              </div>
+
+              {/* Media List */}
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {destaqueFormData.midias.map((midia, idx) => (
+                  <div key={idx} className="aspect-[4/5] bg-slate-100 dark:bg-slate-800 rounded-lg relative overflow-hidden group border border-slate-200 dark:border-slate-700">
+                    {midia.type === 'video' ? (
+                      <video src={midia.url} className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={midia.url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newM = [...destaqueFormData.midias];
+                          newM.splice(idx, 1);
+                          setDestaqueFormData(prev => ({ ...prev, midias: newM }));
+                        }}
+                        className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      {midia.type === 'video' && <Video size={14} className="text-white" />}
+                    </div>
+                    {/* Index Badge */}
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/50 text-white text-[9px] font-bold rounded">
+                      {idx + 1}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Upload Button */}
+                {destaqueFormData.midias.length < 5 && (
+                  <div
+                    onClick={() => !isDestaqueUploading && destaqueFileInputRef.current?.click()}
+                    className="aspect-[4/5] bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-slate-400 hover:text-purple-500"
+                  >
+                    {isDestaqueUploading ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <>
+                        <Plus size={24} className="mb-1" />
+                        <span className="text-[9px] font-bold uppercase">Adicionar</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <input
+                ref={destaqueFileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                onChange={handleDestaqueFileUpload}
+                className="hidden"
+              />
+              <p className="text-[10px] text-slate-400">
+                Imagens (4s) ou Vídeos (máx 30s). Formato vertical (9:16 ou 4:5) recomendado.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Título do Destaque</label>
+                <input
+                  type="text"
+                  value={destaqueFormData.titulo}
+                  onChange={(e) => setDestaqueFormData(prev => ({ ...prev, titulo: e.target.value }))}
+                  placeholder="Ex: Festival de Inverno"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preço (Opcional)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                  <input
+                    type="text"
+                    value={destaqueFormData.preco}
+                    onChange={(e) => setDestaqueFormData(prev => ({ ...prev, preco: formatPrice(e.target.value) }))}
+                    placeholder="0,00"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Descrição (Conteúdo)</label>
+              <textarea
+                value={destaqueFormData.descricao}
+                onChange={(e) => setDestaqueFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                placeholder="Descreva os detalhes desta categoria especial..."
+                rows={4}
+                maxLength={500}
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 resize-none text-slate-900 dark:text-white"
+              />
+              <div className="text-right text-[10px] text-slate-400 mt-1">
+                {destaqueFormData.descricao.length}/500
+              </div>
+            </div>
+          </div>
+        }
+        onConfirm={handleSaveDestaque}
+        confirmText="Salvar Conteúdo"
+        onClose={() => setDestaqueModalOpen(false)}
       />
 
       {/* Delete Category Modal */}
@@ -2376,7 +2747,7 @@ const CardapioPage: React.FC = () => {
           display: none;
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 

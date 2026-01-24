@@ -160,4 +160,23 @@ DROP TRIGGER IF EXISTS new_reserva_webhook ON gestaohashi.reservas;
 CREATE TRIGGER new_reserva_webhook
 AFTER INSERT ON gestaohashi.reservas
 FOR EACH ROW
-EXECUTE FUNCTION gestaohashi.trigger_webhook_reserva();
+
+-- Categoria Especial Updates
+ALTER TABLE gestaohashi.categorias ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'padrao' CHECK (tipo IN ('padrao', 'especial'));
+
+CREATE TABLE IF NOT EXISTS gestaohashi.destaques_conteudo (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    categoria_id UUID REFERENCES gestaohashi.categorias(id) ON DELETE CASCADE,
+    titulo TEXT,
+    descricao TEXT, -- Max 500 chars limit enforced in UI
+    preco DECIMAL(10,2),
+    midias JSONB DEFAULT '[]'::jsonb, -- Array of { url, type, duration }
+    ativo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(categoria_id)
+);
+
+-- Policies for destaques (Open access for now matching others)
+ALTER TABLE gestaohashi.destaques_conteudo ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Acesso total publico destaques" ON gestaohashi.destaques_conteudo FOR ALL USING (true) WITH CHECK (true);
