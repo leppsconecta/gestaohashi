@@ -72,32 +72,41 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    setCurrentMedia(0);
+  }, [destaque.id]);
+
+  useEffect(() => {
     // Reset progress on slide change
     setProgress(0);
+
+    if (!destaque.midias || destaque.midias.length === 0) return;
+
     const media = destaque.midias[currentMedia];
+    if (!media) return;
 
     let timer: NodeJS.Timeout;
 
     if (media.type === 'image') {
-      const duration = (media.duration || 15) * 1000;
-      const interval = 100; // Update every 100ms
-      const step = 100 / (duration / interval);
+      const duration = 10000; // Fixed 10s duration per user request
+      const interval = 50; // Smoother 50ms updates
+      const totalSteps = duration / interval;
+      let currentStep = 0;
 
       timer = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(timer);
-            setCurrentMedia(c => (c + 1) % destaque.midias.length);
-            return 0;
-          }
-          return prev + step;
-        });
+        currentStep++;
+        const newProgress = (currentStep / totalSteps) * 100;
+
+        setProgress(newProgress);
+
+        if (currentStep >= totalSteps) {
+          clearInterval(timer);
+          setCurrentMedia(c => (c + 1) % destaque.midias.length);
+        }
       }, interval);
     } else if (media.type === 'video') {
-      // Video handles its own progress via onTimeUpdate and onEnded
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(() => { });
+        videoRef.current.play().catch(e => console.log('Auto-play blocked:', e));
       }
     }
 
@@ -117,9 +126,9 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
   };
 
   return (
-    <div className="bg-black rounded-3xl overflow-hidden shadow-2xl relative w-full max-w-sm mx-auto border border-zinc-900 flex flex-col">
+    <div className="bg-white rounded-3xl overflow-hidden shadow-xl relative w-full max-w-sm mx-auto border border-slate-100 flex flex-col">
       {/* Media Layer - Aspect Ratio 9:16 */}
-      <div className="relative w-full aspect-[9/16] bg-black overflow-hidden shrink-0">
+      <div className="relative w-full aspect-[9/16] bg-slate-900 overflow-hidden shrink-0">
         {destaque.midias.map((media, idx) => (
           <div
             key={idx}
@@ -176,14 +185,14 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
       </div>
 
       {/* Content Section - Flowing Below Image */}
-      <div className="p-5 bg-black text-white relative z-30 border-t border-zinc-900">
-        <h2 className="text-2xl font-black mb-3 leading-tight">{destaque.titulo}</h2>
+      <div className="p-5 bg-white text-slate-800 relative z-30 border-t border-slate-100">
+        <h2 className="text-2xl font-black mb-3 leading-tight text-amber-500 uppercase drop-shadow-sm">{destaque.titulo}</h2>
         <div className="space-y-4">
-          <p className="text-sm font-medium text-zinc-300 leading-relaxed">{destaque.descricao}</p>
+          <p className="text-sm font-medium text-slate-500 leading-relaxed">{destaque.descricao}</p>
           {destaque.preco && (
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-900">
-              <span className="text-xs uppercase tracking-wider opacity-60 font-bold">A partir de</span>
-              <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-amber-400">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">A partir de</span>
+              <span className="text-2xl font-light text-amber-500">
                 R$ {destaque.preco}
               </span>
             </div>
