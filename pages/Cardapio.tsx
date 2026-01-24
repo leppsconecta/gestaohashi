@@ -2116,6 +2116,7 @@ const CardapioPage: React.FC = () => {
                             type="file"
                             className="hidden"
                             accept="image/*,video/*"
+                            multiple
                             onChange={(e) => handleDestaqueImageUpload(e, activeCategory.id)}
                           />
                           <Plus size={24} />
