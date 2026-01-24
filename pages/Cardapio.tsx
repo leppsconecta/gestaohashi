@@ -1967,7 +1967,7 @@ const CardapioPage: React.FC = () => {
                           <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-2">
                             {activeCategory.destaque.titulo}
                           </h2>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-4">
+                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
                             {activeCategory.destaque.descricao}
                           </p>
                         </div>
@@ -1996,22 +1996,16 @@ const CardapioPage: React.FC = () => {
                     {/* Right Column: Media */}
                     <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px]">
                       {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
-                        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-1 p-1">
-                          {activeCategory.destaque.midias.slice(0, 4).map((media, idx) => (
-                            <div key={idx} className={`relative overflow-hidden rounded-lg group ${activeCategory.destaque!.midias.length === 1 ? 'col-span-2 row-span-2' : ''}`}>
+                        <div className="absolute inset-0 flex gap-1 p-1">
+                          {activeCategory.destaque.midias.slice(0, 3).map((media, idx) => (
+                            <div key={idx} className="relative flex-1 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900">
                               {media.type === 'video' ? (
-                                <video src={media.url} className="w-full h-full object-cover" muted />
+                                <video src={media.url} className="w-full h-full object-contain" muted />
                               ) : (
-                                <img src={media.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                <img src={media.url} alt="" className="w-full h-full object-contain" />
                               )}
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                             </div>
                           ))}
-                          {activeCategory.destaque.midias.length > 4 && (
-                            <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm">
-                              +{activeCategory.destaque.midias.length - 4}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
