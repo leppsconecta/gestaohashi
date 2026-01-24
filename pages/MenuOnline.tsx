@@ -349,9 +349,14 @@ const MenuOnline: React.FC = () => {
           }))
       }));
 
-      setCategorias(formattedCategorias);
-      if (formattedCategorias.length > 0) {
-        setActiveCatId(formattedCategorias[0].id);
+      // Filter out inactive special categories
+      const filteredCategorias = formattedCategorias.filter(cat =>
+        cat.tipo !== 'especial' || (cat.destaque && cat.destaque.ativo)
+      );
+
+      setCategorias(filteredCategorias);
+      if (filteredCategorias.length > 0) {
+        setActiveCatId(filteredCategorias[0].id);
       }
 
       // Fetch Hero Images

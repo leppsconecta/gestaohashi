@@ -165,6 +165,9 @@ const CardapioPage: React.FC = () => {
     foto: '',
     visivel: true
   });
+  const [tempId, setTempId] = useState<string | null>(null);
+
+  // Category name editing
 
   // Category name editing
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -175,6 +178,10 @@ const CardapioPage: React.FC = () => {
   // Drag and drop state
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+
+  // Category Drag and drop state
+  const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
+  const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
 
   // File upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -381,12 +388,16 @@ const CardapioPage: React.FC = () => {
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      // Use existing ID, temp ID, or generate new temp ID
+      const fileId = editingItem?.id || tempId || crypto.randomUUID();
+      if (!editingItem && !tempId) setTempId(fileId);
+
+      const fileName = `${fileId}.${fileExt}`;
       const filePath = `produtos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('cardapio')
-        .upload(filePath, file);
+        .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -656,7 +667,7 @@ const CardapioPage: React.FC = () => {
         categoria_id: editingDestaqueCategory.id,
         titulo: destaqueFormData.titulo,
         descricao: destaqueFormData.descricao,
-        preco: destaqueFormData.preco ? parseFloat(destaqueFormData.preco.replace(',', '.')) : null,
+        preco: destaqueFormData.preco ? parseFloat(String(destaqueFormData.preco).replace(',', '.')) : null,
         midias: destaqueFormData.midias,
         ativo: true
       };
@@ -696,6 +707,33 @@ const CardapioPage: React.FC = () => {
     } catch (error: any) {
       console.error('Error saving destaque:', error);
       alert('Erro ao salvar destaque: ' + error.message);
+    }
+  };
+
+  const toggleDestaqueStatus = async (category: CardapioCategoria) => {
+    if (!category.destaque) return;
+
+    const newStatus = !category.destaque.ativo;
+
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .update({ ativo: newStatus })
+        .eq('id', category.destaque.id);
+
+      if (error) throw error;
+
+      setCategorias(prev => prev.map(c => {
+        if (c.id === category.id && c.destaque) {
+          return { ...c, destaque: { ...c.destaque, ativo: newStatus } };
+        }
+        return c;
+      }));
+
+    } catch (error) {
+      console.error('Error toggling destaque status:', error);
+      alert('Erro ao alterar status.');
     }
   };
 
@@ -813,6 +851,72 @@ const CardapioPage: React.FC = () => {
   const handleDragEnd = () => {
     setDraggedItemId(null);
     setDragOverItemId(null);
+  };
+
+  // Category Drag & Drop Handlers
+  const handleDragStartCat = (catId: string) => {
+    setDraggedCatId(catId);
+  };
+
+  const handleDragOverCat = (e: React.DragEvent, catId: string) => {
+    e.preventDefault();
+    if (catId !== draggedCatId) {
+      setDragOverCatId(catId);
+    }
+  };
+
+  const handleDropCat = async (targetCatId: string) => {
+    if (!draggedCatId || draggedCatId === targetCatId) {
+      setDraggedCatId(null);
+      setDragOverCatId(null);
+      return;
+    }
+
+    const draggedIdx = categorias.findIndex(c => c.id === draggedCatId);
+    const targetIdx = categorias.findIndex(c => c.id === targetCatId);
+
+    if (draggedIdx !== -1 && targetIdx !== -1) {
+      const newCategorias = [...categorias];
+      const [movedCat] = newCategorias.splice(draggedIdx, 1);
+      newCategorias.splice(targetIdx, 0, movedCat);
+
+      setCategorias(newCategorias);
+
+      // Persist new order to Supabase
+      try {
+        const updates = newCategorias.map((cat, index) => ({
+          id: cat.id,
+          ordem: index
+        }));
+
+        // We need to update each one. 
+        // For efficiency in a real app might use a stored proc, but here we'll loop or standard update.
+        // Supabase upsert with id match works well.
+
+        // Let's do a batch upsert if possible, but we need all fields required by table? 
+        // Usually update is better per row if we don't have all data.
+        // Or cleaner: iterate.
+
+        for (const update of updates) {
+          await supabase
+            .schema('gestaohashi')
+            .from('categorias')
+            .update({ ordem: update.ordem })
+            .eq('id', update.id);
+        }
+
+      } catch (error) {
+        console.error('Error updating category order:', error);
+      }
+    }
+
+    setDraggedCatId(null);
+    setDragOverCatId(null);
+  };
+
+  const handleDragEndCat = () => {
+    setDraggedCatId(null);
+    setDragOverCatId(null);
   };
 
   // Combo functions
@@ -1110,6 +1214,7 @@ const CardapioPage: React.FC = () => {
       foto: item?.foto || '',
       visivel: item?.visivel ?? true
     });
+    setTempId(null);
     setModalConfig({
       isOpen: true,
       type: 'confirm-insert',
@@ -1147,7 +1252,10 @@ const CardapioPage: React.FC = () => {
         const { error } = await supabase
           .schema('gestaohashi')
           .from('produtos')
-          .insert(payload);
+          .insert({
+            ...payload,
+            id: tempId || undefined // Use tempId if we uploaded a file for a new item
+          });
         if (error) throw error;
       }
 
@@ -1173,6 +1281,17 @@ const CardapioPage: React.FC = () => {
           .eq('id', deleteItemModal.itemId);
 
         if (error) throw error;
+
+        // Try to delete image from storage (best effort)
+        // We don't know the extension, but we can try to guess or just leave it if complex.
+        // Actually we can get the item first to see the URL.
+        const itemToDelete = categorias.flatMap(c => c.itens).find(i => i.id === deleteItemModal.itemId);
+        if (itemToDelete?.foto) {
+          const path = itemToDelete.foto.split('/').pop(); // "id.ext"
+          if (path) {
+            await supabase.storage.from('cardapio').remove([`produtos/${path}`]);
+          }
+        }
 
         await fetchData();
         setDeleteItemModal({ isOpen: false, itemId: null });
@@ -1562,16 +1681,26 @@ const CardapioPage: React.FC = () => {
                               setActiveCatId(cat.id);
                             }}
                             id={`cat-btn-${cat.id}`}
+                            draggable
+                            onDragStart={() => handleDragStartCat(cat.id)}
+                            onDragOver={(e) => handleDragOverCat(e, cat.id)}
+                            onDrop={() => handleDropCat(cat.id)}
+                            onDragEnd={handleDragEndCat}
                             className={`
-                          px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative
+                          px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative cursor-grab active:cursor-grabbing
                           ${activeCatId === cat.id
                                 ? cat.tipo === 'especial'
                                   ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-none'
                                   : 'bg-indigo-600 text-white shadow-md'
                                 : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                               }
+                          ${dragOverCatId === cat.id ? 'ring-2 ring-indigo-400 scale-105' : ''}
+                          ${draggedCatId === cat.id ? 'opacity-50' : 'opacity-100'}
                         `}
                           >
+                            <div className="mr-1 opacity-50 cursor-grab">
+                              <GripVertical size={14} />
+                            </div>
                             {cat.tipo === 'especial' && (
                               <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
                             )}
@@ -1654,10 +1783,14 @@ const CardapioPage: React.FC = () => {
               {activeCategory && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
-                    <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                      {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
-                    </span>
+                    {activeCategory.tipo !== 'especial' && (
+                      <>
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
+                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                          {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
 
@@ -1745,16 +1878,7 @@ const CardapioPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Special Category Controls */}
-                    {activeCategory?.tipo === 'especial' && (
-                      <button
-                        onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
-                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-sm transition-all ml-2 shadow-sm animate-pulse"
-                      >
-                        <Edit3 size={16} />
-                        Editar Conteúdo Especial
-                      </button>
-                    )}
+
 
                     {/* View Toggle - Hide for special categories */}
                     {activeCategory?.tipo !== 'especial' && (
@@ -1794,8 +1918,106 @@ const CardapioPage: React.FC = () => {
                 </div>
               )}
 
+              {/* SPECIAL CATEGORY VIEW */}
+              {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+                  <div className="flex flex-col md:flex-row">
+                    {/* Left Column: Details */}
+                    <div className="p-8 md:w-1/2 flex flex-col justify-center space-y-6 relative">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold tracking-wider uppercase">
+                            Destaque Especial
+                          </span>
+
+                          {/* Toggle Switch */}
+                          <div className="flex items-center gap-2 ml-2">
+                            <button
+                              onClick={() => toggleDestaqueStatus(activeCategory)}
+                              className={`relative w-10 h-5 rounded-full transition-colors ${activeCategory.destaque.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            >
+                              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${activeCategory.destaque.ativo ? 'translate-x-5' : ''}`} />
+                            </button>
+                            <span className={`text-xs font-bold uppercase transition-colors ${activeCategory.destaque.ativo ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {activeCategory.destaque.ativo ? 'Visível' : 'Oculto'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <h2 className="text-4xl font-black text-slate-900 dark:text-white leading-tight">
+                          {activeCategory.destaque.titulo}
+                        </h2>
+                        <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
+                          {activeCategory.destaque.descricao}
+                        </p>
+                      </div>
+
+                      {activeCategory.destaque.preco && (
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                          <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-1">A partir de</p>
+                          <p className="text-3xl font-light text-emerald-600 dark:text-emerald-400">
+                            R$ {activeCategory.destaque.preco}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="pt-6">
+                        <button
+                          onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium transition-colors"
+                        >
+                          <Edit3 size={18} />
+                          Editar Conteúdo
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Media */}
+                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[400px]">
+                      {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
+                        <div className="absolute inset-0 grid grid-cols-2 gap-1 p-2">
+                          {activeCategory.destaque.midias.slice(0, 4).map((media, idx) => (
+                            <div key={idx} className={`relative overflow-hidden rounded-lg ${activeCategory.destaque?.midias.length === 1 ? 'col-span-2 row-span-2' : ''}`}>
+                              {media.type === 'video' ? (
+                                <video src={media.url} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <img src={media.url} alt="" className="w-full h-full object-cover" />
+                              )}
+                              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
+                            </div>
+                          ))}
+                          {activeCategory.destaque.midias.length > 4 && (
+                            <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
+                              +{activeCategory.destaque.midias.length - 4} mídias
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                          <ImageIcon size={48} className="mb-2 opacity-50" />
+                          <p className="text-sm">Sem mídia cadastrada</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : activeCategory?.tipo === 'especial' ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                  <Sparkles size={48} className="text-purple-300 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white">Conteúdo Especial</h3>
+                  <p className="text-slate-500 mb-6 text-center max-w-xs">Esta categoria ainda não possui conteúdo configurado.</p>
+                  <button
+                    onClick={() => activeCategory && openDestaqueEditor(activeCategory)}
+                    className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-md"
+                  >
+                    <Edit3 size={20} />
+                    Configurar Conteúdo
+                  </button>
+                </div>
+              ) : null}
+
               {/* GRID VIEW */}
-              {viewMode === 'grid' && (
+              {activeCategory?.tipo !== 'especial' && viewMode === 'grid' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                   {activeCategory?.itens
                     .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
@@ -1941,7 +2163,7 @@ const CardapioPage: React.FC = () => {
               )}
 
               {/* LIST VIEW */}
-              {viewMode === 'list' && (
+              {activeCategory?.tipo !== 'especial' && viewMode === 'list' && (
                 <div className="space-y-2">
                   {activeCategory?.itens
                     .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
@@ -1962,29 +2184,6 @@ const CardapioPage: React.FC = () => {
                         {/* Drag Handle */}
                         <div className="flex-shrink-0 text-slate-300 dark:text-slate-600">
                           <GripVertical size={20} />
-                        </div>
-
-                        {/* Image Thumbnail with Combo Badge */}
-                        <div className="relative flex-shrink-0">
-                          <div
-                            onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                            className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all group"
-                            title="Clique para editar"
-                          >
-                            {item.foto ? (
-                              <img src={item.foto} alt={item.nome} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
-                              </div>
-                            )}
-                          </div>
-                          {/* Combo Badge */}
-                          {item.isCombo && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <Layers size={10} className="text-white" />
-                            </div>
-                          )}
                         </div>
 
                         {/* Editable Fields - 20% nome, 65% descrição, 15% preço */}
@@ -2034,13 +2233,37 @@ const CardapioPage: React.FC = () => {
                             </button>
                           </div>
                         </div>
+
+                        {/* Image Thumbnail with Combo Badge - Moved to Right */}
+                        <div className="relative flex-shrink-0">
+                          <div
+                            onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
+                            className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all group"
+                            title="Clique para editar"
+                          >
+                            {item.foto ? (
+                              <img src={item.foto} alt={item.nome} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Combo Badge */}
+                          {item.isCombo && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                              <Layers size={10} className="text-white" />
+                            </div>
+                          )}
+                        </div>
+
                       </div>
                     ))}
                 </div>
               )}
 
               {/* Empty State */}
-              {activeCategory?.itens.length === 0 && (
+              {activeCategory?.tipo !== 'especial' && activeCategory?.itens.length === 0 && (
                 <div className="text-center py-12">
                   <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
                   <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
