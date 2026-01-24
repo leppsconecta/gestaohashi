@@ -25,7 +25,10 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  Star
+  Star,
+  AlertTriangle,
+  CheckCircle,
+  Info
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import { ModalType } from '../types';
@@ -166,6 +169,20 @@ const CardapioPage: React.FC = () => {
     visivel: true
   });
   const [tempId, setTempId] = useState<string | null>(null);
+
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; visible: boolean }>({
+    message: '',
+    type: 'info',
+    visible: false
+  });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type, visible: true });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
 
   // Category name editing
 
@@ -322,7 +339,7 @@ const CardapioPage: React.FC = () => {
         setAddCategoryModal({ isOpen: false, name: '', type: 'padrao' });
       } catch (error: any) {
         console.error('Error adding category:', error);
-        alert('Erro ao adicionar categoria: ' + (error.message || 'Erro desconhecido.'));
+        showToast('Erro ao adicionar categoria: ' + (error.message || 'Erro desconhecido.'), 'error');
       }
     }
   };
@@ -348,14 +365,14 @@ const CardapioPage: React.FC = () => {
     const isImage = file.type.startsWith('image/');
 
     if (!isImage && !isVideo) {
-      alert('Formato não suportado. Use imagens (JPG, PNG, GIF, WebP) ou vídeos (MP4, WebM).');
+      showToast('Formato não suportado. Use imagens ou vídeos.', 'error');
       return;
     }
 
     // Size validation: 5MB for images, 50MB for videos
     const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert(`Arquivo muito grande. Limite: ${isVideo ? '50MB' : '5MB'}`);
+      showToast(`Arquivo muito grande. Limite: ${isVideo ? '50MB' : '5MB'}`, 'error');
       return;
     }
 
@@ -409,7 +426,7 @@ const CardapioPage: React.FC = () => {
       setMediaType(isVideo ? 'video' : 'image');
     } catch (error: any) {
       console.error('Error uploading file:', error);
-      alert('Erro ao fazer upload da imagem: ' + (error.message || 'Erro desconhecido.'));
+      showToast('Erro ao fazer upload: ' + error.message, 'error');
     } finally {
       setIsUploading(false);
     }
@@ -553,7 +570,7 @@ const CardapioPage: React.FC = () => {
       console.error('Error fetching cardapio data:', error);
       // Only alert if it's not a common "table not found" during setup
       if (error.code !== 'PGRST116' && error.code !== '42P01') {
-        alert('Erro ao carregar dados: ' + (error.message || 'Verifique sua conexão.'));
+        showToast('Erro ao carregar dados: ' + error.message, 'error');
       }
     } finally {
       setIsLoading(false);
@@ -612,7 +629,7 @@ const CardapioPage: React.FC = () => {
           video.src = URL.createObjectURL(file);
           const duration = await durationCheck;
           if (duration > 30) {
-            alert(`Vídeo ${file.name} ignorado. Máximo 30 segundos.`);
+            showToast(`Vídeo ${file.name} ignorado. Máximo 30 segundos.`, 'error');
             continue;
           }
         }
@@ -654,11 +671,11 @@ const CardapioPage: React.FC = () => {
   const handleSaveDestaque = async () => {
     if (!editingDestaqueCategory) return;
     if (!destaqueFormData.titulo.trim()) {
-      alert('O título é obrigatório.');
+      showToast('O título é obrigatório.', 'error');
       return;
     }
     if (destaqueFormData.midias.length === 0) {
-      alert('Adicione pelo menos uma imagem ou vídeo.');
+      showToast('Adicione pelo menos uma imagem ou vídeo.', 'error');
       return;
     }
 
@@ -703,10 +720,10 @@ const CardapioPage: React.FC = () => {
       }));
 
       setDestaqueModalOpen(false);
-      alert('Conteúdo especial salvo com sucesso!');
+      showToast('Conteúdo especial salvo com sucesso!', 'success');
     } catch (error: any) {
       console.error('Error saving destaque:', error);
-      alert('Erro ao salvar destaque: ' + error.message);
+      showToast('Erro ao salvar destaque: ' + error.message, 'error');
     }
   };
 
@@ -943,13 +960,13 @@ const CardapioPage: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Apenas imagens são permitidas para combos.');
+      showToast('Apenas imagens são permitidas para combos.', 'error');
       return;
     }
 
     // Size validation: 5MB for images
     if (file.size > 5 * 1024 * 1024) {
-      alert('Imagem muito grande. Limite: 5MB');
+      showToast('Imagem muito grande. Limite: 5MB', 'error');
       return;
     }
 
@@ -972,7 +989,7 @@ const CardapioPage: React.FC = () => {
       setComboFormData(prev => ({ ...prev, foto: publicUrl }));
     } catch (error: any) {
       console.error('Error uploading combo image:', error);
-      alert('Erro ao fazer upload da imagem do combo: ' + (error.message || 'Erro desconhecido.'));
+      showToast('Erro ao fazer upload da imagem.', 'error');
     } finally {
       setIsComboUploading(false);
     }
@@ -2441,6 +2458,32 @@ const CardapioPage: React.FC = () => {
         confirmText={editingItem ? 'Salvar Alterações' : 'Adicionar Produto'}
         onClose={() => setModalConfig({ isOpen: false })}
       />
+
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-[150] animate-in slide-in-from-bottom-5 duration-300">
+          <div className={`
+            flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border
+            ${toast.type === 'success' ? 'bg-white dark:bg-slate-800 border-emerald-500 text-emerald-600' : ''}
+            ${toast.type === 'error' ? 'bg-white dark:bg-slate-800 border-red-500 text-red-600' : ''}
+            ${toast.type === 'info' ? 'bg-white dark:bg-slate-800 border-blue-500 text-blue-600' : ''}
+          `}>
+            {toast.type === 'success' && <CheckCircle size={24} className="fill-current" />}
+            {toast.type === 'error' && <AlertTriangle size={24} className="fill-current" />}
+            {toast.type === 'info' && <Info size={24} className="fill-current" />}
+            <div>
+              <p className="font-bold text-sm text-slate-900 dark:text-white">{toast.type === 'success' ? 'Sucesso' : toast.type === 'error' ? 'Erro' : 'Informação'}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+              className="ml-4 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
+            >
+              <X size={16} className="text-slate-400" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Combo Modal - Two Column Layout */}
       {comboModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
