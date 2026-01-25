@@ -72,10 +72,19 @@ const CuponsPage: React.FC = () => {
     content: ''
   });
 
-  const { data: cupons = [], isLoading } = useQuery({
+  const { data: cupons, isLoading, error } = useQuery({
     queryKey: ['cupons'],
-    queryFn: DBService.cupons.getAll,
+    queryFn: async () => {
+      try {
+        return await DBService.cupons.getAll();
+      } catch (err) {
+        console.error("Erro ao carregar cupons:", err);
+        return [];
+      }
+    },
   });
+
+  const cuponsData = cupons || [];
 
   const createMutation = useMutation({
     mutationFn: DBService.cupons.create,
@@ -106,7 +115,7 @@ const CuponsPage: React.FC = () => {
   };
 
   const handleCopy = (link: string) => {
-    navigator.clipboard.writeText(link);
+    if (link) navigator.clipboard.writeText(link);
   };
 
   const handleNovoCupom = () => {
@@ -116,9 +125,6 @@ const CuponsPage: React.FC = () => {
       title: 'Novo Cupom',
       content: <CupomForm onSubmit={(data) => createMutation.mutate(data)} />,
       onConfirm: () => {
-        // Trigger generic submit button if needed, or handle inside form
-        // For simplicity, we can rely on the form submit or make the modal 'Confirm' button trigger form submission.
-        // But since our Modal component structure might expect checking 'confirm' click:
         const form = document.getElementById('cupom-form') as HTMLFormElement;
         if (form) form.requestSubmit();
       }
@@ -131,7 +137,7 @@ const CuponsPage: React.FC = () => {
         isOpen: true,
         type: 'confirm-delete',
         title: 'Excluir Cupom',
-        content: `Deseja realmente excluir o cupom "${cupom.titulo}"?`,
+        content: `Deseja realmente excluir o cupom "${cupom.titulo || 'sem título'}"?`,
         onConfirm: () => deleteMutation.mutate(cupom.id)
       });
     } else if (type === 'edit') {
@@ -154,15 +160,15 @@ const CuponsPage: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Título</label>
-              <p className="text-slate-800 dark:text-white font-semibold">{cupom.titulo}</p>
+              <p className="text-slate-800 dark:text-white font-semibold">{cupom.titulo || 'Sem título'}</p>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Link</label>
-              <p className="text-sm text-indigo-600 dark:text-indigo-400 break-all">{cupom.link}</p>
+              <p className="text-sm text-indigo-600 dark:text-indigo-400 break-all">{cupom.link || '-'}</p>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Descrição</label>
-              <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">{cupom.descricao}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">{cupom.descricao || 'Sem descrição'}</p>
             </div>
           </div>
         )
@@ -170,15 +176,36 @@ const CuponsPage: React.FC = () => {
     }
   };
 
-  const filteredCupons = cupons.filter(c =>
-    c.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.descricao.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCupons = cuponsData.filter(c => {
+    const search = searchTerm.toLowerCase();
+    const titulo = (c.titulo || '').toLowerCase();
+    const descricao = (c.descricao || '').toLowerCase();
+    return titulo.includes(search) || descricao.includes(search);
+  });
 
   if (isLoading) {
     return (
-      <div className="h-[60vh] flex items-center justify-center">
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
         <RefreshCw size={40} className="text-red-600 animate-spin opacity-50" />
+        <p className="text-sm text-slate-500 font-medium animate-pulse">Carregando cupons...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-center p-6">
+        <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center text-red-600 mb-2">
+          <Ticket size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Ops! Erro ao carregar</h2>
+        <p className="text-slate-500 dark:text-slate-400 max-w-sm">Não foi possível carregar os dados dos cupons. Por favor, tente novamente.</p>
+        <button
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['cupons'] })}
+          className="mt-2 px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all"
+        >
+          Tentar Novamente
+        </button>
       </div>
     );
   }
