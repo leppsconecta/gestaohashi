@@ -285,6 +285,11 @@ const CardapioPage: React.FC = () => {
   const [itemMenuOpen, setItemMenuOpen] = useState<string | null>(null);
   const [itemMenuPosition, setItemMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
 
+  // Description Modal State
+  const [descModalOpen, setDescModalOpen] = useState(false);
+  const [editingCatIdForDesc, setEditingCatIdForDesc] = useState<string | null>(null);
+  const [tempDesc, setTempDesc] = useState('');
+
 
 
   // ... (rest of the code)
@@ -1375,6 +1380,40 @@ const CardapioPage: React.FC = () => {
     }
   };
 
+
+
+  const openDescModal = (cat: CardapioCategoria) => {
+    if (!cat.destaque) return;
+    setEditingCatIdForDesc(cat.id);
+    setTempDesc(cat.destaque.descricao);
+    setDescModalOpen(true);
+  };
+
+  const handleConfirmDesc = async () => {
+    if (!editingCatIdForDesc) return;
+
+    // Update local state
+    updateDestaqueField(editingCatIdForDesc, 'descricao', tempDesc);
+
+    // Persist to DB
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('destaques_conteudo')
+        .update({ descricao: tempDesc })
+        .eq('categoria_id', editingCatIdForDesc);
+
+      if (error) throw error;
+      showToast('Descrição atualizada!', 'success');
+    } catch (err: any) {
+      console.error('Error saving description:', err);
+      showToast('Erro ao salvar descrição.', 'error');
+    }
+
+    setDescModalOpen(false);
+    setEditingCatIdForDesc(null);
+  };
+
   const handleDestaqueImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, catId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2121,13 +2160,19 @@ const CardapioPage: React.FC = () => {
                             className="text-2xl font-black text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none transition-all w-full placeholder:text-slate-300"
                           />
 
-                          {/* Description Textarea */}
-                          <textarea
-                            value={activeCategory.destaque.descricao}
-                            onChange={(e) => updateDestaqueField(activeCategory.id, 'descricao', e.target.value)}
-                            placeholder="Descrição detalhada..."
-                            className="text-sm text-slate-600 dark:text-slate-400 bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded-lg p-2 outline-none w-full resize-none flex-1 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
-                          />
+                          {/* Description Preview & Edit Trigger */}
+                          <div
+                            onClick={() => openDescModal(activeCategory)}
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 cursor-pointer hover:border-indigo-500 hover:shadow-sm transition-all group flex-1"
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descrição</span>
+                              <Edit3 size={12} className="text-slate-400 group-hover:text-indigo-500" />
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-4">
+                              {activeCategory.destaque.descricao || <span className="text-slate-400 italic">Clique para adicionar uma descrição...</span>}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
@@ -3079,6 +3124,31 @@ const CardapioPage: React.FC = () => {
         onConfirm={handleConfirmDeleteItem}
         confirmText="Sim, Remover"
         onClose={() => setDeleteItemModal({ isOpen: false, itemId: null })}
+      />
+
+      {/* Description Edit Modal */}
+      <Modal
+        isOpen={descModalOpen}
+        type="confirm-update"
+        title="Editar Descrição"
+        maxWidth="max-w-2xl"
+        content={
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Edite a descrição detalhada para este destaque especial.
+            </p>
+            <textarea
+              value={tempDesc}
+              onChange={(e) => setTempDesc(e.target.value)}
+              placeholder="Digite a descrição aqui..."
+              className="w-full h-48 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm resize-none"
+              autoFocus
+            />
+          </div>
+        }
+        onConfirm={handleConfirmDesc}
+        confirmText="Salvar Descrição"
+        onClose={() => setDescModalOpen(false)}
       />
 
       <style>{`
