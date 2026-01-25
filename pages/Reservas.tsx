@@ -204,6 +204,28 @@ const ReservasPage: React.FC = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  // Configuração Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel('reservas_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'gestaohashi',
+          table: 'reservas'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
   const handleStatusChange = async (id: string, newStatus: ReservaStatus) => {
     try {
       const { error } = await supabase

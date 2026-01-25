@@ -19,8 +19,14 @@ const FeedbacksPage: React.FC = () => {
     maxWidth: 'max-w-lg'
   });
 
-  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'Elogio');
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'elogio');
   const queryClient = useQueryClient();
+
+  // Helper para normalizar status (caso venha diferente do banco legado)
+  const getNormalizedStatus = (status: string) => {
+    if (status === 'Pending') return 'Pendente';
+    return status;
+  };
 
   const { data: data = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['feedbacks'],
@@ -29,23 +35,59 @@ const FeedbacksPage: React.FC = () => {
         .schema('gestaohashi')
         .from('feedbacks')
         .select('*')
-        .order('data', { ascending: false });
+        .order('data', { ascending: true }); // Antigos primeiro (padrão solicitado)
 
       if (error) throw error;
 
       if (result) {
-        return result.map(item => ({
+        // Ordenação manual: Pendente primeiro
+        const sortedResult = [...result].sort((a, b) => {
+          const statusA = getNormalizedStatus(a.status);
+          const statusB = getNormalizedStatus(b.status);
+
+          if (statusA === 'Pendente' && statusB !== 'Pendente') return -1;
+          if (statusA !== 'Pendente' && statusB === 'Pendente') return 1;
+
+          // Se ambos forem Pendente ou ambos não forem Pendente, 
+          // a ordenação do Supabase (data ASC) já prevalece, 
+          // mas garantimos aqui por segurança se necessário.
+          return 0;
+        });
+
+        return sortedResult.map(item => ({
           ...item,
+          data_original: item.data,
           data: item.data ? new Date(item.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
-          tipo: item.tipo === 'Reclamação' ? 'Reclamacao' : item.tipo,
+          tipo: item.tipo ? item.tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : 'elogio',
           descricao: item.descricao || ''
         }));
       }
       return [];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 60 * 5,
   });
+
+  // Configuração Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel('feedbacks_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'gestaohashi',
+          table: 'feedbacks'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
@@ -98,22 +140,22 @@ const FeedbacksPage: React.FC = () => {
 
 
 
-  // Helper para normalizar status (caso venha diferente do banco legado)
-  const getNormalizedStatus = (status: string) => {
-    if (status === 'Pending') return 'Pendente';
-    return status;
-  };
 
   // Counts for alert badges
   const getUnresolvedCount = (type: string) => {
     return data.filter(item => item.tipo === type && getNormalizedStatus(item.status) !== 'Resolvido').length;
   };
 
-  const tabs = ['Elogio', 'Reclamacao', 'Sugestão', 'Denúncia'];
+  const tabs = ['elogio', 'reclamacao', 'sugestao', 'denuncia'];
 
   const getTabLabel = (tab: string) => {
-    if (tab === 'Reclamacao') return 'Reclamação';
-    return tab;
+    const labels: Record<string, string> = {
+      elogio: 'Elogio',
+      reclamacao: 'Reclamação',
+      sugestao: 'Sugestão',
+      denuncia: 'Denúncia'
+    };
+    return labels[tab] || tab;
   };
 
   const filteredData = data.filter(item => item.tipo === activeTab);
@@ -121,17 +163,17 @@ const FeedbacksPage: React.FC = () => {
   // Calcula contadores para os insights
   const stats = {
     total: data.length,
-    elogio: data.filter(i => i.tipo === 'Elogio').length,
-    reclamacao: data.filter(i => i.tipo === 'Reclamacao').length,
-    sugestao: data.filter(i => i.tipo === 'Sugestão').length,
-    denuncia: data.filter(i => i.tipo === 'Denúncia').length
+    elogio: data.filter(i => i.tipo === 'elogio').length,
+    reclamacao: data.filter(i => i.tipo === 'reclamacao').length,
+    sugestao: data.filter(i => i.tipo === 'sugestao').length,
+    denuncia: data.filter(i => i.tipo === 'denuncia').length
   };
 
   const columns = [
     { header: '#', accessor: (_: any, index: number) => <span className="text-slate-500">{index + 1}</span>, className: 'w-12 text-center' },
     { header: 'Data', accessor: 'data', className: 'w-28 text-slate-700 dark:text-slate-300' },
     { header: 'Cód', accessor: (item: Feedback) => <span className="font-bold text-indigo-700 dark:text-indigo-400">{item.codigo}</span>, className: 'w-20' },
-    { header: 'Tipo', accessor: (item: Feedback) => <span className="text-xs font-bold text-slate-500 uppercase">{item.tipo === 'Reclamacao' ? 'Reclamação' : item.tipo}</span>, className: 'w-24' },
+    { header: 'Tipo', accessor: (item: Feedback) => <span className="text-xs font-bold text-slate-500 uppercase">{getTabLabel(item.tipo)}</span>, className: 'w-24' },
     {
       header: 'Status',
       accessor: (item: Feedback) => (
@@ -179,9 +221,6 @@ const FeedbacksPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Feedbacks</h1>
-            <button onClick={() => refetch()} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
           </div>
           <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Acompanhe a satisfação dos clientes e resolva pendências.</p>
         </div>
@@ -217,22 +256,22 @@ const FeedbacksPage: React.FC = () => {
           let badgeClass = '';
 
           switch (tab) {
-            case 'Elogio':
+            case 'elogio':
               activeClass = 'bg-emerald-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-emerald-600';
               inactiveClass = 'bg-emerald-600 text-white border-transparent opacity-50 hover:opacity-80';
               badgeClass = 'bg-white text-emerald-700 shadow-sm';
               break;
-            case 'Reclamacao':
+            case 'reclamacao':
               activeClass = 'bg-red-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-red-600';
               inactiveClass = 'bg-red-600 text-white border-transparent opacity-50 hover:opacity-80';
               badgeClass = 'bg-white text-red-700 shadow-sm';
               break;
-            case 'Sugestão':
+            case 'sugestao':
               activeClass = 'bg-amber-500 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-amber-500';
               inactiveClass = 'bg-amber-500 text-white border-transparent opacity-50 hover:opacity-80';
               badgeClass = 'bg-white text-amber-600 shadow-sm';
               break;
-            case 'Denúncia':
+            case 'denuncia':
               activeClass = 'bg-orange-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-orange-600';
               inactiveClass = 'bg-orange-600 text-white border-transparent opacity-50 hover:opacity-80';
               badgeClass = 'bg-white text-orange-700 shadow-sm';

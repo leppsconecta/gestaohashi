@@ -42,6 +42,28 @@ const CurriculosPage: React.FC = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  // Configuração Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel('curriculos_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'curriculos'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
 
   const handleObsClick = (e: React.MouseEvent, item: Curriculo) => {
     e.stopPropagation();
