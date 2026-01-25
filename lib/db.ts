@@ -313,19 +313,28 @@ export const DBService = {
       };
 
       // Process weekly reservations
+      // Process weekly reservations (Current Week: Mon-Sun)
       const weekReservations = reservasWeek.data || [];
-      const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+      const currentDay = todayObj.getDay(); // 0 (Sun) to 6 (Sat)
+      const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay; // If Sun (0), back 6 days. Else back to 1 (Mon).
+
+      const mondayObj = new Date(todayObj);
+      mondayObj.setDate(todayObj.getDate() + diffToMonday);
+
+      const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
       const weeklyData = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(todayObj.getDate() - i);
-        const yyyymmdd = d.toISOString().split('T')[0];
-        const dayLabel = diasSemana[d.getDay()];
 
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(mondayObj);
+        d.setDate(mondayObj.getDate() + i);
+        const yyyymmdd = d.toISOString().split('T')[0];
+
+        // Count exact matches for this date
         const count = weekReservations.filter((r: any) => r.data === yyyymmdd).length;
 
-        weeklyData.push({ day: dayLabel, val: count });
+        // We know i=0 is Mon, i=1 is Tue, etc.
+        weeklyData.push({ day: diasSemana[i], val: count });
       }
 
       return {
