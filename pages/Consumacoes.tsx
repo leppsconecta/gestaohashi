@@ -18,15 +18,9 @@ const formatDateToISO = (dateStr?: string) => {
   return '';
 };
 
-const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (data: Partial<Consumacao>) => void }> = ({ initialData, onChange }) => {
-  const [formData, setFormData] = useState<Partial<Consumacao>>(initialData || { status: 'Pendente', tipo: 'Cortesia' });
-
-  useEffect(() => {
-    onChange(formData);
-  }, [formData, onChange]);
-
+const ConsumacaoForm: React.FC<{ data: Partial<Consumacao>; onChange: (data: Partial<Consumacao>) => void }> = ({ data, onChange }) => {
   const handleChange = (field: keyof Consumacao, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    onChange({ ...data, [field]: value });
   };
 
   const inputClass = "w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400";
@@ -44,7 +38,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
               type="text"
               className={inputClass}
               placeholder="Nome completo"
-              value={formData.nome || ''}
+              value={data.nome || ''}
               onChange={e => handleChange('nome', e.target.value)}
             />
           </div>
@@ -57,8 +51,9 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
               type="text"
               className={inputClass}
               placeholder="Ex: 55D6"
-              value={formData.codigo || ''}
+              value={data.codigo || ''}
               onChange={e => handleChange('codigo', e.target.value)}
+            // Desabilitar edição de código em update se desejar manter integridade ou permitir
             />
           </div>
         </div>
@@ -68,7 +63,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
             <Type className={iconClass} size={18} />
             <select
               className={inputClass}
-              value={formData.tipo || 'Cortesia'}
+              value={data.tipo || 'Cortesia'}
               onChange={e => handleChange('tipo', e.target.value)}
             >
               <option value="Sorteio" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Sorteio</option>
@@ -88,7 +83,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
               type="text"
               className={inputClass}
               placeholder="Ex: Dia dos Pais"
-              value={formData.evento || ''}
+              value={data.evento || ''}
               onChange={e => handleChange('evento', e.target.value)}
             />
           </div>
@@ -99,7 +94,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
             <Activity className={iconClass} size={18} />
             <select
               className={inputClass}
-              value={formData.status || 'Pendente'}
+              value={data.status || 'Pendente'}
               onChange={e => handleChange('status', e.target.value)}
             >
               <option value="Pendente" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Pendente</option>
@@ -117,7 +112,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
             <input
               type="date"
               className={inputClass}
-              value={formatDateToISO(formData.validade)}
+              value={formatDateToISO(data.validade)}
               onChange={e => handleChange('validade', e.target.value)}
             />
           </div>
@@ -131,7 +126,7 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
           <textarea
             className={`${inputClass} h-28 resize-none pt-3`}
             placeholder="Regras ou detalhes da consumação..."
-            value={formData.descricao || ''}
+            value={data.descricao || ''}
             onChange={e => handleChange('descricao', e.target.value)}
           />
         </div>
@@ -140,13 +135,23 @@ const ConsumacaoForm: React.FC<{ initialData?: Partial<Consumacao>; onChange: (d
   );
 };
 
+// ... ConsumacoesPage component remains, verify renderModalContent update below ...
+
+
 const ConsumacoesPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; type: ModalType; title: string; content: React.ReactNode; onConfirm?: () => void; maxWidth?: string }>({
+
+  // Refactored state: store only minimal data needed to derive the modal content
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: ModalType | 'create' | 'edit' | 'delete' | 'view'; // Adjusted type definition as per usage
+    title: string;
+    maxWidth?: string;
+    selectedItem?: Consumacao;
+  }>({
     isOpen: false,
-    type: 'view-content',
+    type: 'view', // default
     title: '',
-    content: '',
     maxWidth: 'max-w-lg'
   });
 
@@ -156,16 +161,32 @@ const ConsumacoesPage: React.FC = () => {
   const { data = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['consumacoes'],
     queryFn: async () => {
-      const { data: result, error } = await supabase
-        .from('view_consumacoes_gestao')
-        .select('*')
-        .order('data', { ascending: false });
+      // Alterado de view_consumacoes_gestao para gestaohashi.consumacoes
+      // Como estamos acessando um schema diferente de public, precisamos garantir que o cliente supabase esteja configurado ou usar a notação correta se a lib suportar schema.
+      // Assumindo que a lib supabase já foi instanciada corretamente, acessamos a tabela.
+      // NOTA: O cliente supabase padrão acessa 'public'. Para acessar outro schema, normalmente definimos ao criar o cliente ou usamos schema('gestaohashi').
+      // Mas o supabase-js geralmente infere 'public'. Se não houver setup de schema, o acesso direto a 'gestaohashi.consumacoes' via string de tabela pode falhar se não usarmos .schema().
+      // Vamos tentar acessar via schema().
 
-      if (error) throw error;
+      const { data: result, error } = await supabase
+        .schema('gestaohashi')
+        .from('consumacoes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar consumações:', error);
+        throw error;
+      };
 
       if (result) {
         return result.map(item => ({
           ...item,
+          // 'data' field is mapped to created_at in DB but UI usually expects a formatted date string for display, 
+          // but we are removing the 'data' (created_at) column from display as requested.
+          // Keeping 'data' property just in case it's used elsewhere, but mapped from 'created_at' if 'data' column doesn't exist (it seemed to exist in previous code).
+          // Based on schema analysis: columns are id, created_at, data, nome, codigo, tipo, evento, status, validade, descricao.
+          // So 'data' column EXISTS in the table. We will map it for internal use if needed, but not display it.
           data: new Date(item.data).toLocaleDateString('pt-BR'),
           validade: item.validade ? new Date(item.validade).toLocaleDateString('pt-BR') : ''
         }));
@@ -179,7 +200,8 @@ const ConsumacoesPage: React.FC = () => {
   const handleStatusChange = async (id: string, newStatus: ConsumacaoStatus) => {
     try {
       const { error } = await supabase
-        .from('view_consumacoes_gestao')
+        .schema('gestaohashi')
+        .from('consumacoes')
         .update({ status: newStatus })
         .eq('id', id);
 
@@ -193,137 +215,248 @@ const ConsumacoesPage: React.FC = () => {
     }
   };
 
-  const handleSave = async (isUpdate: boolean, id?: string) => {
+  const cleanDataForSave = (data: Partial<Consumacao>) => {
+    // Clona o objeto para não mutar o original
+    const payload: any = { ...data };
+
+    // Remove campos que não devem ser enviados ou são derivados
+    delete payload.data; // Campo de data de criação geralmente é auto-managed ou 'data' específico
+    delete payload.id;   // ID é gerado no insert, usado no where no update
+    // Remove created_at if present (from select)
+    delete payload.created_at;
+
+    // Tratamento de validade
+    if (payload.validade) {
+      // Se for formato local DD/MM/YYYY, converte
+      if (payload.validade.includes('/')) {
+        const parts = payload.validade.split('/');
+        // Ensure parts exist
+        if (parts.length === 3) {
+          payload.validade = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+    } else {
+      payload.validade = null;
+    }
+
+    return payload;
+  }
+
+  const handleSave = async () => {
+    // Determine if update or create based on modalState/selectedItem
+    const isUpdate = modalState.type === 'edit';
+    const id = modalState.selectedItem?.id;
+
     try {
-      // Preparar dados para o banco (converter data se necessário)
-      // O input date retorna YYYY-MM-DD, que o Supabase aceita bem
-      const payload = {
-        ...formTempData,
-        // Garantir que validade está no formato correto se foi alterada
-        validade: formTempData.validade ? formTempData.validade : null
-      };
+      if (!formTempData.codigo || !formTempData.nome) {
+        alert('Nome e Código são obrigatórios.');
+        return;
+      }
+
+      const payload = cleanDataForSave(formTempData);
+
+      // Validação de Duplicidade (pelo código)
+      const query = supabase
+        .schema('gestaohashi')
+        .from('consumacoes')
+        .select('id')
+        .eq('codigo', payload.codigo);
+
+      // Se for update, excluímos o próprio ID da busca de duplicidade
+      if (isUpdate && id) {
+        query.neq('id', id);
+      }
+
+      const { data: existing, error: checkError } = await query;
+
+      if (checkError) throw checkError;
+
+      if (existing && existing.length > 0) {
+        alert(`O código "${payload.codigo}" já está em uso por outra consumação.`);
+        return; // Interrompe o salvamento
+      }
+
+      // Se for insert, precisamos garantir que o campo 'data' (obrigatório) seja preenchido.
+      if (!isUpdate && !payload.data) {
+        payload.data = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      }
 
       if (isUpdate && id) {
         const { error } = await supabase
-          .from('view_consumacoes_gestao')
+          .schema('gestaohashi')
+          .from('consumacoes')
           .update(payload)
           .eq('id', id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('view_consumacoes_gestao')
+          .schema('gestaohashi')
+          .from('consumacoes')
           .insert([payload]);
 
         if (error) throw error;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
+      setModalState(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert('Erro ao salvar registro.');
-      throw error; // Propagar erro para não fechar modal se falhar (se o modal tratasse isso, mas aqui fecha no onConfirm wrapper)
     }
   };
 
-  const handleAction = (type: 'view' | 'edit' | 'delete', item?: Consumacao) => {
+  const handleDelete = async () => {
+    const item = modalState.selectedItem;
+    if (!item) return;
+
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('consumacoes')
+        .delete()
+        .eq('id', item.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
+      setModalState(prev => ({ ...prev, isOpen: false }));
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir.');
+    }
+  };
+
+  const handleAction = (type: 'view' | 'edit' | 'delete' | 'create', item?: Consumacao) => {
     setFormTempData({}); // Resetar temp data
 
-    if (type === 'delete' && item) {
-      setModalConfig({
+    if (type === 'create') {
+      const emptyData = { status: 'Pendente' as ConsumacaoStatus, tipo: 'Cortesia' as ConsumacaoTipo };
+      setFormTempData(emptyData); // Init for Create
+      setModalState({
         isOpen: true,
-        type: 'confirm-delete',
+        type: 'create',
+        title: 'Nova Consumação',
+        maxWidth: 'max-w-4xl',
+        selectedItem: undefined
+      });
+    } else if (type === 'delete' && item) {
+      setModalState({
+        isOpen: true,
+        type: 'delete',
         title: 'Excluir Consumação',
-        content: `Deseja realmente excluir a consumação de ${item.nome} (${item.codigo})?`,
-        onConfirm: async () => {
-          try {
-            const { error } = await supabase
-              .from('view_consumacoes_gestao')
-              .delete()
-              .eq('id', item.id);
-            if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['consumacoes'] });
-          } catch (e) {
-            console.error(e);
-            alert('Erro ao excluir.');
-          }
-        }
+        selectedItem: item
       });
     } else if (type === 'edit' && item) {
-      setFormTempData(item); // Inicializar com dados existentes
-      setModalConfig({
+      setFormTempData({ ...item }); // Init for Edit
+      setModalState({
         isOpen: true,
-        type: 'confirm-update',
+        type: 'edit',
         title: 'Editar Consumação',
         maxWidth: 'max-w-4xl',
-        content: <ConsumacaoForm initialData={item} onChange={setFormTempData} />,
-        onConfirm: () => handleSave(true, item.id)
+        selectedItem: item
       });
     } else if (type === 'view' && item) {
-      setModalConfig({
+      setModalState({
         isOpen: true,
-        type: 'view-content',
+        type: 'view',
         title: 'Detalhes da Consumação',
         maxWidth: 'max-w-2xl',
-        content: (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Cliente</label>
-                <p className="font-bold text-slate-800 dark:text-white">{item.nome}</p>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Código</label>
-                <p className="font-bold text-indigo-600">{item.codigo}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Tipo</label>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{item.tipo}</p>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Evento</label>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{item.evento}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Validade</label>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{item.validade}</p>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 uppercase font-bold">Status</label>
-                <p className="text-sm font-bold text-indigo-500">{item.status}</p>
-              </div>
-            </div>
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-              <label className="text-xs text-slate-400 uppercase font-bold">Descrição</label>
-              <div className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed max-h-40 overflow-y-auto">
-                {item.descricao}
-              </div>
-            </div>
-          </div>
-        )
+        selectedItem: item
       });
     }
   };
 
-  const handleNew = () => {
-    setFormTempData({ status: 'Pendente', tipo: 'Cortesia' });
-    setModalConfig({
-      isOpen: true,
-      type: 'confirm-insert',
-      title: 'Nova Consumação',
-      maxWidth: 'max-w-4xl',
-      content: <ConsumacaoForm onChange={setFormTempData} />,
-      onConfirm: () => handleSave(false)
-    });
+  // Render modal content dynamically based on current state
+  const renderModalContent = () => {
+    const { type, selectedItem } = modalState;
+
+    if (type === 'delete' && selectedItem) {
+      return (
+        <p>Deseja realmente excluir a consumação de <strong>{selectedItem.nome}</strong> ({selectedItem.codigo})?</p>
+      );
+    }
+
+    if ((type === 'edit' || type === 'create')) {
+      // For edit and create, we now use formTempData as the controlled state.
+      // initialData is no longer needed on the form, as we set formTempData in handleAction.
+      return (
+        <ConsumacaoForm
+          key={selectedItem?.id || 'new'}
+          data={formTempData} // Send the controlled state
+          onChange={setFormTempData}
+        />
+      );
+    }
+
+    if (type === 'view' && selectedItem) {
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Cliente</label>
+              <p className="font-bold text-slate-800 dark:text-white">{selectedItem.nome}</p>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Código</label>
+              <p className="font-bold text-indigo-600">{selectedItem.codigo}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Tipo</label>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{selectedItem.tipo}</p>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Evento</label>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{selectedItem.evento}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Validade</label>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{selectedItem.validade}</p>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 uppercase font-bold">Status</label>
+              <p className="text-sm font-bold text-indigo-500">{selectedItem.status}</p>
+            </div>
+          </div>
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+            <label className="text-xs text-slate-400 uppercase font-bold">Descrição</label>
+            <div className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 leading-relaxed max-h-40 overflow-y-auto">
+              {selectedItem.descricao}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // Determine confirm action based on type
+  const getConfirmAction = () => {
+    if (modalState.type === 'delete') return handleDelete;
+    if (modalState.type === 'edit' || modalState.type === 'create') return handleSave;
+    return undefined; // View doesn't have confirm
+  };
+
+  // Need to map our custom type string to ModalType expected by the component if strictly typed
+  // Assuming ModalType is a union of strings. If it's restricted, we might need a cast or adjust props.
+  // Looking at usage: type: 'confirm-delete' | 'confirm-update' | 'confirm-insert' | 'view-content'
+  const getModalTypeProp = (): ModalType => {
+    switch (modalState.type) {
+      case 'delete': return 'confirm-delete';
+      case 'edit': return 'confirm-update';
+      case 'create': return 'confirm-insert';
+      case 'view': return 'view-content';
+      default: return 'view-content';
+    }
   };
 
   const columns = [
     { header: '#', accessor: (_: any, index: number) => <span className="text-slate-400">{index + 1}</span>, className: 'w-12 text-center' },
-    { header: 'Data', accessor: 'data', className: 'w-28' },
+    // Removed 'Data' column as requested
     { header: 'Nome', accessor: (item: Consumacao) => <span className="font-bold text-slate-900 dark:text-white">{item.nome}</span>, className: 'w-40' },
     { header: 'Cod/Contato', accessor: (item: Consumacao) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{item.codigo}</span>, className: 'w-28 text-center' },
     {
@@ -397,7 +530,7 @@ const ConsumacoesPage: React.FC = () => {
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
           <button
-            onClick={handleNew}
+            onClick={() => handleAction('create')}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none"
           >
             <Plus size={20} strokeWidth={3} />
@@ -408,7 +541,15 @@ const ConsumacoesPage: React.FC = () => {
 
       <Table columns={columns} data={data} searchPlaceholder="Buscar por nome, código ou evento..." />
 
-      <Modal isOpen={modalConfig.isOpen} type={modalConfig.type} title={modalConfig.title} content={modalConfig.content} maxWidth={modalConfig.maxWidth} onConfirm={modalConfig.onConfirm} onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} />
+      <Modal
+        isOpen={modalState.isOpen}
+        type={getModalTypeProp()}
+        title={modalState.title}
+        content={renderModalContent()}
+        maxWidth={modalState.maxWidth}
+        onConfirm={getConfirmAction()}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
