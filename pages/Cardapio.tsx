@@ -359,10 +359,10 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
-    // Size validation: 5MB for images, 50MB for videos
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Size validation: 10MB for images, 90MB for videos
+    const maxSize = isVideo ? 90 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      showToast(`Arquivo muito grande. Limite: ${isVideo ? '50MB' : '5MB'}`, 'error');
+      showToast(`Arquivo muito grande. Limite: ${isVideo ? '90MB' : '10MB'}`, 'error');
       return;
     }
 
@@ -861,9 +861,9 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
-    // Size validation: 5MB for images
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Imagem muito grande. Limite: 5MB', 'error');
+    // Size validation: 10MB for images
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Imagem muito grande. Limite: 10MB', 'error');
       return;
     }
 
@@ -896,6 +896,19 @@ const CardapioPage: React.FC = () => {
     }
   };
 
+  // Helper to extract storage path from public URL
+  const extractPathFromUrl = (url: string) => {
+    if (!url) return null;
+    try {
+      // Expected format: .../storage/v1/object/public/cardapio/hero/filename.ext
+      const parts = url.split('/cardapio/');
+      if (parts.length > 1) return parts[1];
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Hero image upload handler
   const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
@@ -918,6 +931,14 @@ const CardapioPage: React.FC = () => {
       const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
       const filePath = `hero/${fileName}`;
 
+      // 1. Delete old image if exists
+      const oldPath = extractPathFromUrl(heroImages[index].foto);
+      if (oldPath) {
+        await supabase.storage
+          .from('cardapio')
+          .remove([oldPath]);
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('cardapio')
         .upload(filePath, file);
@@ -928,9 +949,14 @@ const CardapioPage: React.FC = () => {
         .from('cardapio')
         .getPublicUrl(filePath);
 
-      setHeroImages(prev => prev.map((img, idx) =>
-        idx === index ? { ...img, foto: publicUrl } : img
-      ));
+      setHeroImages(prev => {
+        const next = prev.map((img, idx) =>
+          idx === index ? { ...img, foto: publicUrl } : img
+        );
+        // Auto-save after state update
+        persistHeroItem(index, next[index]);
+        return next;
+      });
     } catch (error: any) {
       console.error('Error uploading hero image:', error);
       alert('Erro ao fazer upload da imagem de capa: ' + (error.message || 'Erro desconhecido.'));
@@ -943,49 +969,81 @@ const CardapioPage: React.FC = () => {
     }
   };
 
-  const handleSaveHero = async () => {
+  // Helper function to persist a single hero item to DB
+  const persistHeroItem = async (index: number, updatedItem?: HeroImage) => {
+    const hero = updatedItem || heroImages[index];
+    if (!hero) return;
+
+    const payload = {
+      foto_url: hero.foto,
+      titulo: hero.titulo,
+      subtitulo: hero.subtitulo,
+      show_description: hero.showDescription,
+      ordem: index
+    };
+
     try {
-      const promises = heroImages.map((hero, idx) => {
-        const payload = {
-          foto_url: hero.foto,
-          titulo: hero.titulo,
-          subtitulo: hero.subtitulo,
-          show_description: hero.showDescription,
-          ordem: idx
-        };
+      if (hero.id && !hero.id.startsWith('hero-')) {
+        await supabase
+          .schema('gestaohashi')
+          .from('hero_images')
+          .update(payload)
+          .eq('id', hero.id);
+      } else {
+        const { data, error } = await supabase
+          .schema('gestaohashi')
+          .from('hero_images')
+          .insert(payload)
+          .select()
+          .single();
 
-        if (hero.id && !hero.id.startsWith('hero-')) {
-          return supabase
-            .schema('gestaohashi')
-            .from('hero_images')
-            .update(payload)
-            .eq('id', hero.id);
-        } else {
-          return supabase
-            .schema('gestaohashi')
-            .from('hero_images')
-            .insert(payload);
+        if (!error && data) {
+          // Update local ID to avoid duplicates on next save
+          setHeroImages(prev => prev.map((img, idx) =>
+            idx === index ? { ...img, id: data.id } : img
+          ));
         }
-      });
+      }
+    } catch (error) {
+      console.error('Error persisting hero item:', error);
+    }
+  };
 
+  const handleSaveHero = async () => {
+    // This function is still here for bulk save if needed, but the button is gone
+    try {
+      const promises = heroImages.map((_, idx) => persistHeroItem(idx));
       await Promise.all(promises);
-      alert('Imagens de capa salvas com sucesso!');
-      await fetchData();
+      showToast('Imagens salvas!', 'success');
     } catch (error) {
       console.error('Error saving hero images:', error);
-      alert('Erro ao salvar imagens de capa.');
     }
   };
 
   // Update hero image field
   const updateHeroImageField = (index: number, field: 'titulo' | 'subtitulo' | 'showDescription', value: string | boolean) => {
-    setHeroImages(prev => prev.map((img, idx) =>
-      idx === index ? { ...img, [field]: value } : img
-    ));
+    setHeroImages(prev => {
+      const next = prev.map((img, idx) =>
+        idx === index ? { ...img, [field]: value } : img
+      );
+      // Auto-save
+      persistHeroItem(index, next[index]);
+      return next;
+    });
   };
 
   // Remove hero image
-  const removeHeroImage = (index: number) => {
+  const removeHeroImage = async (index: number) => {
+    const hero = heroImages[index];
+    if (hero.foto) {
+      const path = extractPathFromUrl(hero.foto);
+      if (path) {
+        await supabase.storage
+          .from('cardapio')
+          .remove([path]);
+      }
+    }
+
     setHeroImages(prev => prev.map((img, idx) =>
       idx === index ? { ...img, foto: '', titulo: '', subtitulo: '', showDescription: false } : img
     ));
@@ -1326,9 +1384,38 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('O arquivo deve ter no máximo 10MB.', 'error');
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    const maxSize = isVideo ? 90 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showToast(`Arquivo muito grande. Limite: ${isVideo ? '90MB' : '10MB'}`, 'error');
       return;
+    }
+
+    if (isVideo) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+
+      const durationCheck = new Promise<boolean>((resolve) => {
+        video.onloadedmetadata = () => {
+          URL.revokeObjectURL(video.src);
+          if (video.duration > 30) {
+            alert('Vídeo muito longo. Limite: 30 segundos.');
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        };
+        video.onerror = () => {
+          alert('Erro ao processar o vídeo.');
+          resolve(false);
+        };
+      });
+
+      video.src = URL.createObjectURL(file);
+      const isValid = await durationCheck;
+      if (!isValid) return;
     }
 
     try {
@@ -1555,18 +1642,6 @@ const CardapioPage: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {heroImagesExpanded && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSaveHero();
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
-                >
-                  <Save size={14} />
-                  Salvar Alterações
-                </button>
-              )}
               <ChevronRight size={20} className={`text-slate-400 transition-transform ${heroImagesExpanded ? 'rotate-90' : ''}`} />
             </div>
           </button>
@@ -2086,7 +2161,7 @@ const CardapioPage: React.FC = () => {
                           activeCategory.destaque.midias.map((media, idx) => (
                             <div key={idx} className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 group border border-slate-200 dark:border-slate-700">
                               {media.type === 'video' ? (
-                                <video src={media.url} className="w-full h-full object-contain" muted />
+                                <video src={media.url} className="w-full h-full object-contain" />
                               ) : (
                                 <img src={media.url} alt="" className="w-full h-full object-contain" />
                               )}

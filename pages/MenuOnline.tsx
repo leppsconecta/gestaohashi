@@ -143,7 +143,6 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
                 ref={idx === currentMedia ? videoRef : null}
                 src={media.url}
                 className="w-full h-full object-cover"
-                muted
                 playsInline
                 autoPlay
                 onEnded={handleVideoEnded}
@@ -367,14 +366,16 @@ const MenuOnline: React.FC = () => {
           .select('*')
           .order('ordem', { ascending: true });
 
-        if (!heroError && heroData && heroData.length > 0) {
-          const formattedHeroes = heroData.map(h => ({
-            id: h.id,
-            foto: h.foto_url,
-            titulo: h.titulo || '',
-            subtitulo: h.subtitulo || '',
-            showDescription: h.show_description ?? false
-          }));
+        if (!heroError && heroData) {
+          const formattedHeroes = heroData
+            .filter(h => h.foto_url) // Only show images with a URL
+            .map(h => ({
+              id: h.id,
+              foto: h.foto_url,
+              titulo: h.titulo || '',
+              subtitulo: h.subtitulo || '',
+              showDescription: h.show_description ?? false
+            }));
           setHeroImages(formattedHeroes);
         }
       } catch (e) {
@@ -503,10 +504,12 @@ const MenuOnline: React.FC = () => {
               <img src={hero.foto} alt={hero.titulo} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
 
-              {hero.showDescription && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6 animate-fadeIn">
-                  <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2">{hero.titulo}</h1>
-                  <p className="text-sm sm:text-base font-medium opacity-80">{hero.subtitulo}</p>
+              {hero.showDescription && (hero.titulo || hero.subtitulo) && (
+                <div
+                  className="absolute inset-x-0 bottom-12 flex flex-col items-center justify-center text-white text-center p-6 bg-gradient-to-t from-black/80 to-transparent pt-12 animate-in fade-in slide-in-from-bottom duration-700"
+                >
+                  {hero.titulo && <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2 drop-shadow-lg">{hero.titulo}</h1>}
+                  {hero.subtitulo && <p className="text-sm sm:text-base font-medium opacity-90 drop-shadow-md max-w-xs sm:max-w-md">{hero.subtitulo}</p>}
                 </div>
               )}
             </div>
