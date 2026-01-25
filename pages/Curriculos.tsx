@@ -159,9 +159,6 @@ const CurriculosPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Currículos</h1>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerencie as candidaturas e currículos recebidos pelo sistema.</p>
           </div>
-          <button onClick={() => refetch()} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
-            <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-          </button>
         </div>
       </div>
 

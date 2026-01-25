@@ -459,9 +459,6 @@ const ReservasPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Reservas</h1>
-            <button onClick={() => refetch()} disabled={loading} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
           </div>
           <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gerenciamento completo das reservas do estabelecimento.</p>
         </div>
