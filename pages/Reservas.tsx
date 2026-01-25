@@ -390,13 +390,18 @@ const ReservasPage: React.FC = () => {
     const firstName = item.nome.split(' ')[0];
     const phone = item.contato.replace(/\D/g, '');
 
-    // Converte DD/MM/YYYY para Objeto Date para pegar o dia da semana
     const [day, month, year] = item.data.split('/');
     const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     const dayOfWeek = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
-    const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+    const capitalizedDay = dayOfWeek.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
 
-    const message = `Olá ${firstName} tudo bem? Passando aqui só pra confirmar sua reserva ☺️\nJá vou avisar o pessoal para deixar tudo no jeito pra você❤️\n\nPosso confirmar?\n* *Data/H:* ${day}/${month} às ${item.hora.replace(':00', '')}h ( ${capitalizedDay} )\n* Nosso tempo de tolerância é de 10 minutinhos, ta bom😉`;
+    const horaNum = item.hora.split(':')[0];
+
+    const message = `Olá ${firstName} tudo bem  ?  Passando aqui só pra confirmar sua reserva\n` +
+      `Já vou avisar o pessoal para deixar tudo no jeito pra você\n\n` +
+      `Posso confirmar ?\n` +
+      `* *Data/H:* ${day}/${month} às ${horaNum}h  ( ${capitalizedDay} )\n` +
+      `* Nosso tempo de tolerância é de 10 minutinhos, ta bom`;
 
     return `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
   };
