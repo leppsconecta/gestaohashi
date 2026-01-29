@@ -37,6 +37,14 @@ const formatName = (name: string) => {
   return `${parts[0]} ${parts[1]}`;
 };
 
+const formatNameShort = (fullName: string) => {
+  const names = fullName.trim().replace(/\s+/g, ' ').split(' ');
+  if (names.length === 1) return names[0];
+  const first = names[0];
+  const last = names[names.length - 1];
+  return `${first} ${last}`;
+};
+
 const getMonday = (d: Date) => {
   const date = new Date(d);
   const day = date.getDay();
@@ -176,6 +184,7 @@ const EscalaPage: React.FC = () => {
 
   const [draggedEmployeeId, setDraggedEmployeeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedTurno, setExpandedTurno] = useState<string | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -395,14 +404,25 @@ const EscalaPage: React.FC = () => {
             // Per existing request: "Exiba apenas turnos que contem funcionário."
             if (assigned.length === 0) return null;
 
+            const isExpanded = expandedTurno === key;
+
             return (
               <div key={turno.id} className="relative mb-3 last:mb-0">
-                {/* Turno Label */}
-                <div className="flex items-center gap-2 mb-1.5 px-2">
+                {/* Turno Label (Clickable Header) */}
+                <div
+                  onClick={() => setExpandedTurno(isExpanded ? null : key)}
+                  className={`flex items-center gap-2 mb-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
                   <div className={`w-1.5 h-1.5 rounded-full ${turno.bgClass.replace('bg-', 'bg-')}`} style={{ backgroundColor: 'currentColor' }} />
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${turno.colorClass}`}>{turno.label}</span>
-                  <span className="text-[9px] text-slate-300 font-mono ml-auto">{assigned.length}</span>
-                  <button onClick={() => {
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${turno.colorClass} flex-1`}>{turno.label}</span>
+
+                  {/* Badge Count - Always Visible */}
+                  <span className="flex items-center justify-center min-w-[16px] h-4 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 rounded px-1">
+                    {assigned.length}
+                  </span>
+
+                  <button onClick={(e) => {
+                    e.stopPropagation();
                     setModalConfig({
                       isOpen: true,
                       title: `${turno.label} - ${day.label}`,
@@ -415,24 +435,26 @@ const EscalaPage: React.FC = () => {
                   }} className="lg:hidden p-1 text-red-500"><Plus size={12} /></button>
                 </div>
 
-                {/* Assigned List */}
-                <div className="space-y-1.5">
-                  {assigned.map(empId => {
-                    const f = funcionarios.find(x => x.id === empId);
-                    if (!f) return null;
-                    return (
-                      <div key={empId} className="group/item flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 hover:border-red-200 dark:hover:border-red-900/50 transition-colors">
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate w-32">{formatName(f.nome)}</span>
-                        <button
-                          onClick={() => removeFuncionarioFromEscala(day.id, turno.id, empId)}
-                          className="opacity-0 group-hover/item:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all scale-90 hover:scale-100"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
+                {/* Assigned List (Accordion Content) */}
+                {isExpanded && (
+                  <div className="space-y-1.5 pl-2 animate-in slide-in-from-top-1 duration-200">
+                    {assigned.map(empId => {
+                      const f = funcionarios.find(x => x.id === empId);
+                      if (!f) return null;
+                      return (
+                        <div key={empId} className="group/item flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 hover:border-red-200 dark:hover:border-red-900/50 transition-colors">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate w-32">{formatNameShort(f.nome)}</span>
+                          <button
+                            onClick={() => removeFuncionarioFromEscala(day.id, turno.id, empId)}
+                            className="opacity-0 group-hover/item:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all scale-90 hover:scale-100"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )
           })}

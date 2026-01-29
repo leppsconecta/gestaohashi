@@ -9,43 +9,65 @@ const KEYS = {
 
 // Mappers
 const mapFuncionarioFromDB = (f: any): Funcionario => ({
-  ...f,
-  dataEntrada: f.data_entrada,
-  tipoContrato: f.tipo_contrato,
-  dataNascimento: f.data_nascimento,
-  estadoCivil: f.estado_civil,
-  titularConta: f.titular_conta,
-  contatoRecado: f.contato_recado,
-  pixTipo: f.pix_tipo,
-  pixChave: f.pix_chave,
-  documentoTipo: f.documento_tipo,
-  documentoNumero: f.documento_numero,
-  documentoFrente: f.documento_frente,
-  documentoVerso: f.documento_verso,
-});
+  id: f.id,
+  codigo: f.code?.toString() || '',
+  nome: f.name,
+  funcao: f.role,
+  status: f.status,
+  dataEntrada: f.admission_date,
+  tipoContrato: f.type,
+  contato: f.phone,
+  email: f.email,
+  sexo: f.gender,
+  dataNascimento: f.birth_date,
+  nacionalidade: f.nationality,
+  documentoTipo: f.document_type,
+  documentoNumero: f.document,
+  documentoFrente: f.document_front,
+  documentoVerso: f.document_back,
+  endereco: {
+    rua: f.street,
+    numero: f.number,
+    bairro: f.neighborhood,
+    cidade: f.city,
+    estado: f.state,
+    complemento: f.complement
+  },
+  banco: f.bank_name,
+  titularConta: f.bank_account_name,
+  pixTipo: f.bank_key_type,
+  pixChave: f.bank_key,
+  // Fallbacks for optional fields ensuring types match
+  contact_emergency: f.emergency_phone
+} as Funcionario);
 
 const mapFuncionarioToDB = (f: Funcionario) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const {
-    dataEntrada, tipoContrato, dataNascimento, estadoCivil, titularConta,
-    contatoRecado, pixTipo, pixChave, documentoTipo, documentoNumero,
-    documentoFrente, documentoVerso, ...rest
-  } = f;
-
   return {
-    ...rest,
-    data_entrada: f.dataEntrada,
-    tipo_contrato: f.tipoContrato,
-    data_nascimento: f.dataNascimento,
-    estado_civil: f.estadoCivil,
-    titular_conta: f.titularConta,
-    contato_recado: f.contatoRecado,
-    pix_tipo: f.pixTipo,
-    pix_chave: f.pixChave,
-    documento_tipo: f.documentoTipo,
-    documento_numero: f.documentoNumero,
-    documento_frente: f.documentoFrente,
-    documento_verso: f.documentoVerso
+    name: f.nome,
+    role: f.funcao,
+    status: f.status,
+    admission_date: f.dataEntrada,
+    type: f.tipoContrato,
+    phone: f.contato,
+    email: f.email,
+    gender: f.sexo,
+    birth_date: f.dataNascimento,
+    nationality: f.nacionalidade,
+    document_type: f.documentoTipo,
+    document: f.documentoNumero,
+    document_front: f.documentoFrente,
+    document_back: f.documentoVerso,
+    street: f.endereco?.rua,
+    number: f.endereco?.numero,
+    neighborhood: f.endereco?.bairro,
+    city: f.endereco?.cidade,
+    state: f.endereco?.estado,
+    complement: f.endereco?.complemento,
+    bank_name: f.banco,
+    bank_account_name: f.titularConta,
+    bank_key_type: f.pixTipo,
+    bank_key: f.pixChave,
+    code: parseInt(f.codigo || '0')
   };
 };
 
@@ -85,10 +107,10 @@ export const DBService = {
   funcionarios: {
     getAll: async (): Promise<Funcionario[]> => {
       const { data, error } = await supabase
-        .schema('gestaohashi')
-        .from('funcionarios')
-        .select('*')
-        .order('nome');
+        .schema('public')
+        .from('equipe_view')
+        .select('id, code, name, role, status, admission_date, type, phone, email, gender, birth_date, nationality, document_type, document, street, number, neighborhood, city, state, complement, bank_name, bank_account_name, bank_key_type, bank_key, emergency_phone')
+        .order('name');
 
       if (error) {
         console.error('Error fetching funcionarios:', error);
@@ -102,7 +124,7 @@ export const DBService = {
       // but upsert is safer if ID is primary key.
       const { error } = await supabase
         .schema('gestaohashi')
-        .from('funcionarios')
+        .from('equipe')
         .upsert(payload);
 
       if (error) console.error('Error saving funcionario:', error);
@@ -110,7 +132,7 @@ export const DBService = {
     delete: async (id: string): Promise<void> => {
       const { error } = await supabase
         .schema('gestaohashi')
-        .from('funcionarios')
+        .from('equipe')
         .delete()
         .eq('id', id);
 
