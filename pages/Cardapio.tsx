@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid3X3,
-  List,
+
   ArrowUp,
   ArrowDown,
   Save,
@@ -59,6 +59,7 @@ interface CardapioItem {
   showSavings?: boolean; // Show savings info
   savingsAmount?: string; // Amount saved, e.g., "15,00"
   visivel?: boolean; // New property for visibility
+  categoria_id?: string; // Add category reference
 }
 
 interface DestaqueMidia {
@@ -154,7 +155,7 @@ const CardapioPage: React.FC = () => {
   const [categorias, setCategorias] = useState<CardapioCategoria[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCatId, setActiveCatId] = useState<string>('cat-1');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -166,9 +167,11 @@ const CardapioPage: React.FC = () => {
     descricao: '',
     preco: '',
     foto: '',
-    visivel: true
+    visivel: true,
+    categoria_id: ''
   });
   const [tempId, setTempId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; visible: boolean }>({
@@ -500,6 +503,7 @@ const CardapioPage: React.FC = () => {
             showSavings: p.show_savings ?? false,
             savingsAmount: p.savings_amount?.toString().replace('.', ',') || '',
             visivel: p.visivel ?? true,
+            categoria_id: cat.id,
             comboItens: comboItemData
               .filter(ci => ci.combo_id === p.id)
               .map(ci => ({
@@ -1086,6 +1090,9 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
+    if (isSaving) return;
+    setIsSaving(true);
+
     try {
       const priceVal = parseFloat(comboFormData.preco.replace(',', '.')) || 0;
       const savingsVal = parseFloat(comboFormData.savingsAmount.replace(',', '.')) || 0;
@@ -1157,6 +1164,8 @@ const CardapioPage: React.FC = () => {
     } catch (error) {
       console.error('Error saving combo:', error);
       alert('Erro ao salvar combo no banco de dados.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1189,7 +1198,8 @@ const CardapioPage: React.FC = () => {
       descricao: item?.descricao || '',
       preco: item?.preco || '',
       foto: item?.foto || '',
-      visivel: item?.visivel ?? true
+      visivel: item?.visivel ?? true,
+      categoria_id: item?.categoria_id || activeCatId
     });
     setTempId(null);
     setModalConfig({
@@ -1205,6 +1215,9 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
+    if (isSaving) return;
+    setIsSaving(true);
+
     try {
       const priceVal = parseFloat(formData.preco.replace(',', '.')) || 0;
       const payload = {
@@ -1213,9 +1226,9 @@ const CardapioPage: React.FC = () => {
         preco: priceVal,
         foto_url: formData.foto,
         visivel: formData.visivel,
-        categoria_id: activeCatId,
         ativo: true,
-        is_combo: false
+        is_combo: false,
+        categoria_id: formData.categoria_id || activeCatId
       };
 
       if (editingItem) {
@@ -1238,9 +1251,13 @@ const CardapioPage: React.FC = () => {
 
       await fetchData();
       setModalConfig({ isOpen: false });
+      await fetchData();
+      setModalConfig({ isOpen: false });
     } catch (error) {
       console.error('Error saving item:', error);
       alert('Erro ao salvar produto no banco de dados.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1337,6 +1354,48 @@ const CardapioPage: React.FC = () => {
       console.error('Error toggling visibility:', error);
       alert('Erro ao alterar visibilidade no banco de dados.');
     }
+  };
+
+  const handleNavigateItem = (direction: 'prev' | 'next') => {
+    if (!editingItem) return;
+
+    // Flatten all items from all categories if we want global navigation, 
+    // or just current category. 
+    // Requirement says "user can go to next or back". 
+    // Let's assume navigation within the current view (all loaded items or current filtered).
+
+    // Let's use `allProducts` (excluding combos if modal is for regular product) 
+    // OR create a flat list respecting current filter/sort.
+    // For simplicity and best UX, navigation should follow the visible list.
+
+    // BUT `activeCategory` defines the current view usually.
+    // If we want to navigate ACROSS categories, we should use `categorias`.
+
+    let navigableItems: CardapioItem[] = [];
+
+    // If using invalid "activeCategory" (like search results across all), we might need logic.
+    // Default to flattening all categories for navigation if we want "infinite" scroll effect,
+    // or just current category. 
+    // Let's implement navigation within the CURRENT displayed list (activeCategory).
+
+    if (activeCategory) {
+      navigableItems = activeCategory.itens.filter(i => !i.isCombo);
+    } else {
+      // If no active category (unlikely), fallback to all
+      navigableItems = categorias.flatMap(c => c.itens).filter(i => !i.isCombo);
+    }
+
+    const currentIndex = navigableItems.findIndex(i => i.id === editingItem.id);
+    if (currentIndex === -1) return;
+
+    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+    // Boundary checks
+    if (newIndex < 0) return; // Or loop? let's stop at ends
+    if (newIndex >= navigableItems.length) return;
+
+    const nextItem = navigableItems[newIndex];
+    openItemModal(nextItem);
   };
 
 
@@ -2087,25 +2146,7 @@ const CardapioPage: React.FC = () => {
 
 
 
-                    {/* View Toggle - Hide for special categories */}
-                    {activeCategory?.tipo !== 'especial' && (
-                      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 ml-2">
-                        <button
-                          onClick={() => setViewMode('grid')}
-                          className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                          title="Visualização em grade"
-                        >
-                          <Grid3X3 size={18} />
-                        </button>
-                        <button
-                          onClick={() => setViewMode('list')}
-                          className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-500'}`}
-                          title="Visualização em lista"
-                        >
-                          <List size={18} />
-                        </button>
-                      </div>
-                    )}
+                    {/* View Toggle Removed */}
                   </div>
                 </div>
               )}
@@ -2270,8 +2311,8 @@ const CardapioPage: React.FC = () => {
                 </div>
               ) : null}
 
-              {/* GRID VIEW */}
-              {activeCategory?.tipo !== 'especial' && viewMode === 'grid' && (
+              {/* GRID VIEW - Default */}
+              {activeCategory?.tipo !== 'especial' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                   {activeCategory?.itens
                     .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
@@ -2283,8 +2324,9 @@ const CardapioPage: React.FC = () => {
                         onDragOver={(e) => handleDragOver(e, item.id)}
                         onDrop={() => handleDrop(item.id)}
                         onDragEnd={handleDragEnd}
+                        onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
                         className={`
-                bg-white dark:bg-slate-900 rounded-xl border overflow-hidden hover:shadow-lg transition-all group cursor-grab active:cursor-grabbing
+                bg-white dark:bg-slate-900 rounded-xl border overflow-hidden hover:shadow-lg transition-all group cursor-pointer active:cursor-grabbing
                 ${dragOverItemId === item.id ? 'border-indigo-500 border-2 scale-105' : 'border-slate-100 dark:border-slate-800'}
                 ${draggedItemId === item.id ? 'opacity-50' : 'opacity-100'}
               `}
@@ -2416,185 +2458,113 @@ const CardapioPage: React.FC = () => {
                 </div>
               )}
 
-              {/* LIST VIEW */}
-              {activeCategory?.tipo !== 'especial' && viewMode === 'list' && (
-                <div className="space-y-2">
-                  {activeCategory?.itens
-                    .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
-                    .map((item, idx) => (
-                      <div
-                        key={item.id}
-                        draggable
-                        onDragStart={() => handleDragStart(item.id)}
-                        onDragOver={(e) => handleDragOver(e, item.id)}
-                        onDrop={() => handleDrop(item.id)}
-                        onDragEnd={handleDragEnd}
-                        className={`
-                bg-white dark:bg-slate-900 rounded-xl border p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all
-                ${dragOverItemId === item.id ? 'border-indigo-500 border-2 scale-[1.02]' : 'border-slate-100 dark:border-slate-800'}
-                ${draggedItemId === item.id ? 'opacity-50' : 'opacity-100'}
-              `}
-                      >
-                        {/* Drag Handle */}
-                        <div className="flex-shrink-0 text-slate-300 dark:text-slate-600">
-                          <GripVertical size={20} />
-                        </div>
 
-                        {/* Editable Fields - 20% nome, 65% descrição, 15% preço */}
-                        <div className="flex-1 flex items-center gap-3">
-                          {/* Nome - 20% */}
-                          <input
-                            type="text"
-                            value={item.nome}
-                            onChange={(e) => updateItemField(item.id, 'nome', e.target.value)}
-                            placeholder="Nome do produto"
-                            className="w-[20%] min-w-[100px] px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                          {/* Descrição - 65% */}
-                          <input
-                            type="text"
-                            value={item.descricao}
-                            onChange={(e) => updateItemField(item.id, 'descricao', e.target.value)}
-                            placeholder="Descrição do produto"
-                            className="w-[65%] flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                          {/* Preço - 15% */}
-                          <div className="w-[15%] min-w-[90px] flex items-center gap-2">
-                            <div className="relative flex-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm font-medium">R$</span>
-                              <input
-                                type="text"
-                                value={item.preco}
-                                onChange={(e) => updateItemField(item.id, 'preco', formatPrice(e.target.value))}
-                                placeholder="0,00"
-                                className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                              />
-                            </div>
-
-                            <button
-                              onClick={() => toggleVisibility(item.id)}
-                              className={`p-2 rounded-lg transition-all flex-shrink-0 ${item.visivel ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
-                              title={item.visivel ? "Ocultar do Menu" : "Exibir no Menu"}
-                            >
-                              {item.visivel ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all flex-shrink-0"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Image Thumbnail with Combo Badge - Moved to Right */}
-                        <div className="relative flex-shrink-0">
-                          <div
-                            onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                            className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all group"
-                            title="Clique para editar"
-                          >
-                            {item.foto ? (
-                              <img src={item.foto} alt={item.nome} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
-                              </div>
-                            )}
-                          </div>
-                          {/* Combo Badge */}
-                          {item.isCombo && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <Layers size={10} className="text-white" />
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-                    ))}
-                </div>
-              )}
 
               {/* Empty State */}
-              {activeCategory?.tipo !== 'especial' && activeCategory?.itens.length === 0 && (
-                <div className="text-center py-12">
-                  <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
-                  <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
-                  <button
-                    onClick={() => openItemModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
-                  >
-                    Adicionar Produto
-                  </button>
-                </div>
-              )}
-            </div>
+              {
+                activeCategory?.tipo !== 'especial' && activeCategory?.itens.length === 0 && (
+                  <div className="text-center py-12">
+                    <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
+                    <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
+                    <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
+                    <button
+                      onClick={() => openItemModal()}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
+                    >
+                      Adicionar Produto
+                    </button>
+                  </div>
+                )
+              }
+            </div >
           )}
-        </div>
+        </div >
       )}
 
       {/* Splash Section - Collapsible */}
-      {(!heroImagesExpanded && !productsExpanded) && (
-        <div id="splash-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-          {splashExpanded && (
-            <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <button
-                onClick={() => setSplashExpanded(false)}
-                className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ChevronLeft size={20} />
-                Voltar ao Menu Principal
-              </button>
-            </div>
-          )}
-          <button
-            onClick={() => splashExpanded ? setSplashExpanded(false) : focusSection('splash')}
-            className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Layers size={18} className="text-purple-600 dark:text-purple-400" />
+      {
+        (!heroImagesExpanded && !productsExpanded) && (
+          <div id="splash-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+            {splashExpanded && (
+              <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <button
+                  onClick={() => setSplashExpanded(false)}
+                  className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                  Voltar ao Menu Principal
+                </button>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Splash</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Configurar tela de abertura do menu</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-full">
-                Em breve
-              </span>
-              <ChevronRight size={20} className={`text-slate-400 transition-transform ${splashExpanded ? 'rotate-90' : ''}`} />
-            </div>
-          </button>
-
-          {splashExpanded && (
-            <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
-              <div className="py-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
-                  <Layers size={32} className="text-purple-500" />
+            )}
+            <button
+              onClick={() => splashExpanded ? setSplashExpanded(false) : focusSection('splash')}
+              className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <Layers size={18} className="text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">Splash Screen</h3>
-                <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
-                  Configure uma tela de abertura personalizada para o seu menu digital. Esta funcionalidade estará disponível em breve.
-                </p>
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm font-medium">
-                  <Loader2 size={14} className="animate-spin" />
-                  Em desenvolvimento
-                </span>
+                <div>
+                  <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Splash</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Configurar tela de abertura do menu</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-full">
+                  Em breve
+                </span>
+                <ChevronRight size={20} className={`text-slate-400 transition-transform ${splashExpanded ? 'rotate-90' : ''}`} />
+              </div>
+            </button>
+
+            {splashExpanded && (
+              <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
+                <div className="py-12 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
+                    <Layers size={32} className="text-purple-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">Splash Screen</h3>
+                  <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
+                    Configure uma tela de abertura personalizada para o seu menu digital. Esta funcionalidade estará disponível em breve.
+                  </p>
+                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm font-medium">
+                    <Loader2 size={14} className="animate-spin" />
+                    Em desenvolvimento
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
 
       {/* Product Modal */}
       <Modal
         isOpen={modalConfig.isOpen}
         type={modalConfig.type}
-        title={modalConfig.title}
+        title={
+          <div className="flex items-center justify-between w-full mr-8">
+            <span>{modalConfig.title}</span>
+            {editingItem && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleNavigateItem('prev'); }}
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors disabled:opacity-30"
+                  title="Anterior"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleNavigateItem('next'); }}
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors disabled:opacity-30"
+                  title="Próximo"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </div>
+        }
         maxWidth="max-w-lg"
         content={
           <div className="space-y-5">
@@ -2654,6 +2624,22 @@ const CardapioPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Category Selector */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Categoria</label>
+              <select
+                value={formData.categoria_id}
+                onChange={(e) => setFormData({ ...formData, categoria_id: e.target.value })}
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm appearance-none"
+              >
+                {categorias
+                  .filter(c => c.tipo !== 'especial')
+                  .map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                  ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-2">Nome do produto <span className="text-red-500">*</span></label>
               <input
@@ -2692,363 +2678,367 @@ const CardapioPage: React.FC = () => {
           </div>
         }
         onConfirm={handleSaveItem}
-        confirmText={editingItem ? 'Salvar Alterações' : 'Adicionar Produto'}
-        onClose={() => setModalConfig({ isOpen: false })}
+        confirmText={isSaving ? 'Salvando...' : (editingItem ? 'Salvar Alterações' : 'Adicionar Produto')}
+        onClose={() => !isSaving && setModalConfig({ isOpen: false })}
       />
 
       {/* Toast Notification */}
-      {toast.visible && (
-        <div className="fixed bottom-6 right-6 z-[150] animate-in slide-in-from-bottom-5 duration-300">
-          <div className={`
+      {
+        toast.visible && (
+          <div className="fixed bottom-6 right-6 z-[150] animate-in slide-in-from-bottom-5 duration-300">
+            <div className={`
             flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border
             ${toast.type === 'success' ? 'bg-white dark:bg-slate-800 border-emerald-500 text-emerald-600' : ''}
             ${toast.type === 'error' ? 'bg-white dark:bg-slate-800 border-red-500 text-red-600' : ''}
             ${toast.type === 'info' ? 'bg-white dark:bg-slate-800 border-blue-500 text-blue-600' : ''}
           `}>
-            {toast.type === 'success' && <CheckCircle size={24} className="fill-current" />}
-            {toast.type === 'error' && <AlertTriangle size={24} className="fill-current" />}
-            {toast.type === 'info' && <Info size={24} className="fill-current" />}
-            <div>
-              <p className="font-bold text-sm text-slate-900 dark:text-white">{toast.type === 'success' ? 'Sucesso' : toast.type === 'error' ? 'Erro' : 'Informação'}</p>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{toast.message}</p>
-            </div>
-            <button
-              onClick={() => setToast(prev => ({ ...prev, visible: false }))}
-              className="ml-4 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
-            >
-              <X size={16} className="text-slate-400" />
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Combo Modal - Two Column Layout */}
-      {comboModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-            {/* Header */}
-            <div className="bg-white dark:bg-slate-900 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {editingCombo ? 'Editar Combo' : 'Novo Combo'}
-              </h2>
+              {toast.type === 'success' && <CheckCircle size={24} className="fill-current" />}
+              {toast.type === 'error' && <AlertTriangle size={24} className="fill-current" />}
+              {toast.type === 'info' && <Info size={24} className="fill-current" />}
+              <div>
+                <p className="font-bold text-sm text-slate-900 dark:text-white">{toast.type === 'success' ? 'Sucesso' : toast.type === 'error' ? 'Erro' : 'Informação'}</p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{toast.message}</p>
+              </div>
               <button
-                onClick={() => setComboModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+                className="ml-4 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X size={16} className="text-slate-400" />
               </button>
             </div>
+          </div>
+        )
+      }
+      {/* Combo Modal - Two Column Layout */}
+      {
+        comboModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+              {/* Header */}
+              <div className="bg-white dark:bg-slate-900 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {editingCombo ? 'Editar Combo' : 'Novo Combo'}
+                </h2>
+                <button
+                  onClick={() => setComboModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-            {/* Two Column Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column - Photo, Name, Description, Price, Savings */}
-                <div className="space-y-4">
-                  {/* Foto do Combo */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-2">Foto do Combo</label>
-                    <input
-                      ref={comboFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleComboFileUpload}
-                      className="hidden"
-                    />
-                    <div
-                      onClick={() => !isComboUploading && comboFileInputRef.current?.click()}
-                      className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 cursor-pointer hover:border-amber-300 transition-all relative overflow-hidden"
-                    >
-                      {isComboUploading ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 size={24} className="text-amber-500 animate-spin" />
-                          <span className="text-xs text-slate-400">Processando...</span>
-                        </div>
-                      ) : comboFormData.foto ? (
-                        <>
-                          <img src={comboFormData.foto} alt="Preview" className="w-full h-full object-cover" />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setComboFormData(prev => ({ ...prev, foto: '' }));
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all"
-                          >
-                            <X size={12} />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={24} className="text-slate-300 mb-1" />
-                          <span className="text-xs text-slate-500">Clique para enviar (até 5MB)</span>
-                        </>
-                      )}
+              {/* Two Column Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column - Photo, Name, Description, Price, Savings */}
+                  <div className="space-y-4">
+                    {/* Foto do Combo */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-2">Foto do Combo</label>
+                      <input
+                        ref={comboFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleComboFileUpload}
+                        className="hidden"
+                      />
+                      <div
+                        onClick={() => !isComboUploading && comboFileInputRef.current?.click()}
+                        className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 cursor-pointer hover:border-amber-300 transition-all relative overflow-hidden"
+                      >
+                        {isComboUploading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 size={24} className="text-amber-500 animate-spin" />
+                            <span className="text-xs text-slate-400">Processando...</span>
+                          </div>
+                        ) : comboFormData.foto ? (
+                          <>
+                            <img src={comboFormData.foto} alt="Preview" className="w-full h-full object-cover" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setComboFormData(prev => ({ ...prev, foto: '' }));
+                              }}
+                              className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all"
+                            >
+                              <X size={12} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={24} className="text-slate-300 mb-1" />
+                            <span className="text-xs text-slate-500">Clique para enviar (até 5MB)</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Nome */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-2">Nome do Combo <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={comboFormData.nome}
-                      onChange={(e) => setComboFormData({ ...comboFormData, nome: e.target.value })}
-                      placeholder="Ex: Combo Família"
-                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Descrição */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-2">Descrição</label>
-                    <textarea
-                      value={comboFormData.descricao}
-                      onChange={(e) => setComboFormData({ ...comboFormData, descricao: e.target.value })}
-                      placeholder="Descrição do combo..."
-                      rows={2}
-                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Preço */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-2">Valor do Combo</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                    {/* Nome */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-2">Nome do Combo <span className="text-red-500">*</span></label>
                       <input
                         type="text"
-                        value={comboFormData.preco}
-                        onChange={(e) => setComboFormData({ ...comboFormData, preco: formatPrice(e.target.value) })}
-                        placeholder="59,90"
-                        className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-amber-500/20 text-slate-900 dark:text-white"
+                        value={comboFormData.nome}
+                        onChange={(e) => setComboFormData({ ...comboFormData, nome: e.target.value })}
+                        placeholder="Ex: Combo Família"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 text-slate-900 dark:text-white"
                       />
                     </div>
-                  </div>
 
-                  {/* Economia Toggle */}
-                  <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-4 py-3">
+                    {/* Descrição */}
                     <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Mostrar economia</p>
-                      <p className="text-xs text-slate-500">Ex: "Cliente economiza R$ 15,00"</p>
+                      <label className="block text-xs font-semibold text-slate-500 mb-2">Descrição</label>
+                      <textarea
+                        value={comboFormData.descricao}
+                        onChange={(e) => setComboFormData({ ...comboFormData, descricao: e.target.value })}
+                        placeholder="Descrição do combo..."
+                        rows={2}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-slate-900 dark:text-white"
+                      />
                     </div>
-                    <button
-                      onClick={() => setComboFormData({ ...comboFormData, showSavings: !comboFormData.showSavings })}
-                      className={`relative w-12 h-6 rounded-full transition-all ${comboFormData.showSavings ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${comboFormData.showSavings ? 'right-1' : 'left-1'}`} />
-                    </button>
-                  </div>
 
-                  {/* Savings Amount */}
-                  {comboFormData.showSavings && (
+                    {/* Preço */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-2">Valor da economia</label>
+                      <label className="block text-xs font-semibold text-slate-500 mb-2">Valor do Combo</label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 text-sm font-medium">R$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
                         <input
                           type="text"
-                          value={comboFormData.savingsAmount}
-                          onChange={(e) => setComboFormData({ ...comboFormData, savingsAmount: formatPrice(e.target.value) })}
-                          placeholder="15,00"
-                          className="w-full pl-12 pr-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-sm font-semibold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          value={comboFormData.preco}
+                          onChange={(e) => setComboFormData({ ...comboFormData, preco: formatPrice(e.target.value) })}
+                          placeholder="59,90"
+                          className="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-amber-500/20 text-slate-900 dark:text-white"
                         />
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Right Column - Products List */}
-                <div className="space-y-4">
-                  <label className="block text-xs font-semibold text-slate-500">Produtos incluídos <span className="text-red-500">*</span></label>
-
-                  {/* Products List with Thumbnails */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 min-h-[200px] max-h-[280px] overflow-y-auto">
-                    {comboProducts.length > 0 ? (
-                      <div className="space-y-2">
-                        {comboProducts.map((product) => (
-                          <div key={product.id} className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
-                            {/* Thumbnail */}
-                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden flex-shrink-0">
-                              {product.foto ? (
-                                <img src={product.foto} alt={product.nome} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <ImageIcon size={14} className="text-slate-300" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{product.nome}</p>
-                              <p className="text-xs text-slate-400 truncate">{product.descricao || 'Sem descrição'}</p>
-                            </div>
-                            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded whitespace-nowrap">
-                              {product.quantidade} {product.unidade}
-                            </span>
-                            <button
-                              onClick={() => removeProductFromCombo(product.id)}
-                              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded flex-shrink-0"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
+                    {/* Economia Toggle */}
+                    <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Mostrar economia</p>
+                        <p className="text-xs text-slate-500">Ex: "Cliente economiza R$ 15,00"</p>
                       </div>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 py-8">
-                        <Grid3X3 size={32} className="mb-2 opacity-40" />
-                        <p className="text-sm">Nenhum produto adicionado</p>
+                      <button
+                        onClick={() => setComboFormData({ ...comboFormData, showSavings: !comboFormData.showSavings })}
+                        className={`relative w-12 h-6 rounded-full transition-all ${comboFormData.showSavings ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                      >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${comboFormData.showSavings ? 'right-1' : 'left-1'}`} />
+                      </button>
+                    </div>
+
+                    {/* Savings Amount */}
+                    {comboFormData.showSavings && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-2">Valor da economia</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 text-sm font-medium">R$</span>
+                          <input
+                            type="text"
+                            value={comboFormData.savingsAmount}
+                            onChange={(e) => setComboFormData({ ...comboFormData, savingsAmount: formatPrice(e.target.value) })}
+                            placeholder="15,00"
+                            className="w-full pl-12 pr-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-sm font-semibold text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Add Product Section */}
-                  <div className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
-                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Adicionar produto</p>
+                  {/* Right Column - Products List */}
+                  <div className="space-y-4">
+                    <label className="block text-xs font-semibold text-slate-500">Produtos incluídos <span className="text-red-500">*</span></label>
 
-                    {/* Product Search/Name */}
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={productSearchQuery}
-                        onChange={(e) => {
-                          setProductSearchQuery(e.target.value);
-                          setNewComboProduct({ ...newComboProduct, nome: e.target.value });
-                          setShowProductSuggestions(true);
-                          setSelectedProduct(null);
-                        }}
-                        onFocus={() => setShowProductSuggestions(true)}
-                        placeholder="Buscar ou digitar nome do produto..."
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 dark:text-white"
-                      />
-
-                      {/* Suggestions Dropdown */}
-                      {showProductSuggestions && filteredProducts.length > 0 && !selectedProduct && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-20 max-h-40 overflow-y-auto">
-                          {filteredProducts.map((product) => (
-                            <button
-                              key={product.id}
-                              onClick={() => {
-                                setSelectedProduct(product);
-                                setProductSearchQuery(product.nome);
-                                setNewComboProduct({ ...newComboProduct, nome: product.nome, descricao: product.descricao });
-                                setShowProductSuggestions(false);
-                              }}
-                              className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700 last:border-0"
-                            >
-                              <div className="w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden flex-shrink-0">
+                    {/* Products List with Thumbnails */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 min-h-[200px] max-h-[280px] overflow-y-auto">
+                      {comboProducts.length > 0 ? (
+                        <div className="space-y-2">
+                          {comboProducts.map((product) => (
+                            <div key={product.id} className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2">
+                              {/* Thumbnail */}
+                              <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden flex-shrink-0">
                                 {product.foto ? (
                                   <img src={product.foto} alt={product.nome} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
-                                    <ImageIcon size={12} className="text-slate-300" />
+                                    <ImageIcon size={14} className="text-slate-300" />
                                   </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{product.nome}</p>
-                                <p className="text-xs text-slate-400">{product.categoryName}</p>
+                                <p className="text-xs text-slate-400 truncate">{product.descricao || 'Sem descrição'}</p>
                               </div>
-                            </button>
+                              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded whitespace-nowrap">
+                                {product.quantidade} {product.unidade}
+                              </span>
+                              <button
+                                onClick={() => removeProductFromCombo(product.id)}
+                                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded flex-shrink-0"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
                           ))}
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 py-8">
+                          <Grid3X3 size={32} className="mb-2 opacity-40" />
+                          <p className="text-sm">Nenhum produto adicionado</p>
                         </div>
                       )}
                     </div>
 
-                    {/* Description option for existing products */}
-                    {selectedProduct && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setNewComboProduct({ ...newComboProduct, useOriginalDescription: true })}
-                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${newComboProduct.useOriginalDescription ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'}`}
-                          >
-                            Usar descrição original
-                          </button>
-                          <button
-                            onClick={() => setNewComboProduct({ ...newComboProduct, useOriginalDescription: false })}
-                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${!newComboProduct.useOriginalDescription ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'}`}
-                          >
-                            Nova descrição
-                          </button>
-                        </div>
-                        {!newComboProduct.useOriginalDescription && (
-                          <textarea
-                            value={newComboProduct.descricao}
-                            onChange={(e) => setNewComboProduct({ ...newComboProduct, descricao: e.target.value })}
-                            placeholder="Digite a nova descrição..."
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm resize-none text-slate-900 dark:text-white"
-                          />
+                    {/* Add Product Section */}
+                    <div className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Adicionar produto</p>
+
+                      {/* Product Search/Name */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={productSearchQuery}
+                          onChange={(e) => {
+                            setProductSearchQuery(e.target.value);
+                            setNewComboProduct({ ...newComboProduct, nome: e.target.value });
+                            setShowProductSuggestions(true);
+                            setSelectedProduct(null);
+                          }}
+                          onFocus={() => setShowProductSuggestions(true)}
+                          placeholder="Buscar ou digitar nome do produto..."
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 dark:text-white"
+                        />
+
+                        {/* Suggestions Dropdown */}
+                        {showProductSuggestions && filteredProducts.length > 0 && !selectedProduct && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-20 max-h-40 overflow-y-auto">
+                            {filteredProducts.map((product) => (
+                              <button
+                                key={product.id}
+                                onClick={() => {
+                                  setSelectedProduct(product);
+                                  setProductSearchQuery(product.nome);
+                                  setNewComboProduct({ ...newComboProduct, nome: product.nome, descricao: product.descricao });
+                                  setShowProductSuggestions(false);
+                                }}
+                                className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700 last:border-0"
+                              >
+                                <div className="w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden flex-shrink-0">
+                                  {product.foto ? (
+                                    <img src={product.foto} alt={product.nome} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <ImageIcon size={12} className="text-slate-300" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{product.nome}</p>
+                                  <p className="text-xs text-slate-400">{product.categoryName}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    )}
 
-                    {/* Description for new products (not from cardapio) */}
-                    {!selectedProduct && productSearchQuery && (
-                      <textarea
-                        value={newComboProduct.descricao}
-                        onChange={(e) => setNewComboProduct({ ...newComboProduct, descricao: e.target.value })}
-                        placeholder="Descrição do produto..."
-                        rows={2}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm resize-none text-slate-900 dark:text-white"
-                      />
-                    )}
+                      {/* Description option for existing products */}
+                      {selectedProduct && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setNewComboProduct({ ...newComboProduct, useOriginalDescription: true })}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${newComboProduct.useOriginalDescription ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'}`}
+                            >
+                              Usar descrição original
+                            </button>
+                            <button
+                              onClick={() => setNewComboProduct({ ...newComboProduct, useOriginalDescription: false })}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${!newComboProduct.useOriginalDescription ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'}`}
+                            >
+                              Nova descrição
+                            </button>
+                          </div>
+                          {!newComboProduct.useOriginalDescription && (
+                            <textarea
+                              value={newComboProduct.descricao}
+                              onChange={(e) => setNewComboProduct({ ...newComboProduct, descricao: e.target.value })}
+                              placeholder="Digite a nova descrição..."
+                              rows={2}
+                              className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm resize-none text-slate-900 dark:text-white"
+                            />
+                          )}
+                        </div>
+                      )}
 
-                    {/* Quantity and Unit */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newComboProduct.quantidade}
-                        onChange={(e) => setNewComboProduct({ ...newComboProduct, quantidade: e.target.value })}
-                        placeholder="Qtd"
-                        className="w-20 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none text-slate-900 dark:text-white text-center"
-                      />
-                      <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden">
-                        {(['Unid', 'g', 'ml'] as const).map((unit) => (
-                          <button
-                            key={unit}
-                            onClick={() => setNewComboProduct({ ...newComboProduct, unidade: unit })}
-                            className={`px-3 py-2 text-xs font-medium transition-all ${newComboProduct.unidade === unit ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                          >
-                            {unit}
-                          </button>
-                        ))}
+                      {/* Description for new products (not from cardapio) */}
+                      {!selectedProduct && productSearchQuery && (
+                        <textarea
+                          value={newComboProduct.descricao}
+                          onChange={(e) => setNewComboProduct({ ...newComboProduct, descricao: e.target.value })}
+                          placeholder="Descrição do produto..."
+                          rows={2}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm resize-none text-slate-900 dark:text-white"
+                        />
+                      )}
+
+                      {/* Quantity and Unit */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newComboProduct.quantidade}
+                          onChange={(e) => setNewComboProduct({ ...newComboProduct, quantidade: e.target.value })}
+                          placeholder="Qtd"
+                          className="w-20 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm outline-none text-slate-900 dark:text-white text-center"
+                        />
+                        <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden">
+                          {(['Unid', 'g', 'ml'] as const).map((unit) => (
+                            <button
+                              key={unit}
+                              onClick={() => setNewComboProduct({ ...newComboProduct, unidade: unit })}
+                              className={`px-3 py-2 text-xs font-medium transition-all ${newComboProduct.unidade === unit ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                            >
+                              {unit}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (selectedProduct) {
+                              addProductFromSuggestion();
+                            } else {
+                              addProductToCombo();
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                          <Plus size={16} />
+                          Adicionar
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (selectedProduct) {
-                            addProductFromSuggestion();
-                          } else {
-                            addProductToCombo();
-                          }
-                        }}
-                        className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
-                      >
-                        <Plus size={16} />
-                        Adicionar
-                      </button>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="bg-white dark:bg-slate-900 px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 flex-shrink-0">
-              <button
-                onClick={() => setComboModalOpen(false)}
-                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveCombo}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-all"
-              >
-                {editingCombo ? 'Salvar Alterações' : 'Criar Combo'}
-              </button>
+              {/* Footer */}
+              <div className="bg-white dark:bg-slate-900 px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 flex-shrink-0">
+                <button
+                  onClick={() => setComboModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  className={`px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Salvando...' : (editingCombo ? 'Salvar Alterações' : 'Criar Combo')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Add Category Modal */}
       <Modal
