@@ -232,7 +232,7 @@ const ShareEscalaModal: React.FC<{ onDownload: () => void, onCopyText: () => voi
 
 const EscalaPage: React.FC = () => {
   // State
-  const [activeTab, setActiveTab] = useState<'semanal' | 'pontual'>('semanal');
+  const [activeTab, setActiveTab] = useState<'semanal' | 'pontual'>('pontual');
   const [currentWeekMonday, setCurrentWeekMonday] = useState(getMonday(new Date()));
   const [pontualDate, setPontualDate] = useState(new Date());
 
@@ -852,7 +852,17 @@ const EscalaPage: React.FC = () => {
                 const assigned = escala[key] || [];
 
                 return (
-                  <div key={t.id} className={`bg-white dark:bg-slate-900 rounded-2xl border ${t.borderClass} p-5 flex flex-col min-h-[400px]`}>
+                  <div
+                    key={t.id}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => {
+                      e.preventDefault();
+                      if (draggedEmployeeId) {
+                        completeAssignment(dayId, t.id, draggedEmployeeId);
+                      }
+                    }}
+                    className={`bg-white dark:bg-slate-900 rounded-2xl border ${t.borderClass} p-5 flex flex-col min-h-[400px] transition-all hover:shadow-lg ${draggedEmployeeId ? 'ring-2 ring-dashed ring-red-300 dark:ring-red-700' : ''}`}
+                  >
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-3">
