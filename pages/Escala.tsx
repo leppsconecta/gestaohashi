@@ -844,17 +844,86 @@ const EscalaPage: React.FC = () => {
               {weekDays.map(day => renderDayCard(day))}
             </div>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {/* Pontual View implementation - Simplified generic logic reuse or custom horizontal scroller */}
-              {turnosConfigs.map(t => (
-                <div key={t.id} className="min-w-[300px] flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                  <h3 className={`font-bold ${t.colorClass} mb-4`}>{t.label}</h3>
-                  {/* Same logic as day card but for specific turn across all day? No, pontual is usually single day */}
-                  <div className="border-t border-slate-100 pt-4 text-center text-slate-400 text-xs">
-                    Visualização Pontual Simplificada
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Pontual View - Single day with all shifts */}
+              {turnosConfigs.map(t => {
+                const dayId = pontualDate.setHours(0, 0, 0, 0);
+                const key = `${dayId}-${t.id}`;
+                const assigned = escala[key] || [];
+
+                return (
+                  <div key={t.id} className={`bg-white dark:bg-slate-900 rounded-2xl border ${t.borderClass} p-5 flex flex-col min-h-[400px]`}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-10 rounded-full ${t.bgClass}`} style={{ backgroundColor: 'currentColor' }} />
+                        <div>
+                          <h3 className={`text-lg font-bold ${t.colorClass}`}>{t.label}</h3>
+                          <span className="text-xs text-slate-500">{t.inicio} - {t.fim}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {assigned.length > 0 && (
+                          <span className="px-2 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400">
+                            {assigned.length}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setModalConfig({
+                            isOpen: true,
+                            title: `${t.label} - ${pontualDate.toLocaleDateString('pt-BR')}`,
+                            type: 'view-content',
+                            content: <MobileEmployeeSelector employees={funcionarios} onSelect={(empId) => {
+                              completeAssignment(dayId, t.id, empId);
+                              setModalConfig(prev => ({ ...prev, isOpen: false }));
+                            }} />
+                          })}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Employee List - scrollable after 10 items */}
+                    <div className="flex-1 overflow-y-auto max-h-[360px] custom-scrollbar">
+                      {assigned.length > 0 ? (
+                        <div className="space-y-2">
+                          {assigned.map(empId => {
+                            const f = funcionarios.find(x => x.id === empId);
+                            if (!f) return null;
+                            return (
+                              <div key={empId} className="group flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 hover:border-red-200 dark:hover:border-red-900/50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 font-bold text-sm flex items-center justify-center">
+                                    {f.nome?.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{formatNameShort(f.nome)}</span>
+                                    <p className="text-[10px] text-slate-500">{f.funcao}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => removeFuncionarioFromEscala(dayId, t.id, empId)}
+                                  className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition-all"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="h-full min-h-[200px] border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-300">
+                          <Users size={28} className="opacity-30" />
+                          <span className="text-xs font-medium opacity-60">Nenhum funcionário escalado</span>
+                          <span className="text-[10px] opacity-40">Clique no + para adicionar</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </main>
