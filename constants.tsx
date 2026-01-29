@@ -1,17 +1,17 @@
 
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  CalendarCheck, 
-  FileText, 
-  Utensils, 
-  Star, 
-  Megaphone, 
-  Ticket, 
-  CalendarDays, 
-  Users, 
-  BookOpen, 
-  Key, 
+import {
+  LayoutDashboard,
+  CalendarCheck,
+  FileText,
+  Utensils,
+  Star,
+  Megaphone,
+  Ticket,
+  CalendarDays,
+  Users,
+  BookOpen,
+  Key,
   Folder,
   Settings,
   UtensilsCrossed
@@ -38,7 +38,7 @@ export const MENU_GROUPS: MenuGroup[] = [
       { label: 'Reservas', path: AppRoute.RESERVAS, icon: <CalendarCheck size={20} /> },
       { label: 'Currículos', path: AppRoute.CURRICULOS, icon: <FileText size={20} /> },
       { label: 'Consumações', path: AppRoute.CONSUMACOES, icon: <Utensils size={20} /> },
-      { label: 'Feedbacks', path: AppRoute.FEEDBACKS, icon: <Star size={20} /> },
+
       { label: 'Promocional', path: AppRoute.PROMOCIONAL, icon: <Megaphone size={20} /> },
       { label: 'Cupons', path: AppRoute.CUPONS, icon: <Ticket size={20} /> },
     ]
@@ -47,6 +47,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     label: 'Administração',
     color: 'text-red-600 dark:text-red-400',
     items: [
+      { label: 'Feedbacks', path: AppRoute.FEEDBACKS, icon: <Star size={20} /> },
       { label: 'Cardápio', path: AppRoute.CARDAPIO, icon: <UtensilsCrossed size={20} /> },
       { label: 'Escala', path: AppRoute.ESCALA, icon: <CalendarDays size={20} /> },
       { label: 'Funcionários', path: AppRoute.FUNCIONARIOS, icon: <Users size={20} /> },

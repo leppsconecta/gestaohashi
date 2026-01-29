@@ -145,15 +145,18 @@ const SpecialCategoryView: React.FC<{ destaque: DestaqueConteudo }> = ({ destaqu
             className={`absolute inset-0 transition-opacity duration-300 flex items-center justify-center ${idx === currentMedia ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
           >
             {media.type === 'video' ? (
-              <video
-                ref={idx === currentMedia ? videoRef : null}
-                src={media.url}
-                className="w-full h-full object-cover"
-                playsInline
-                autoPlay
-                onEnded={handleVideoEnded}
-                onTimeUpdate={handleVideoProgress}
-              />
+              idx === currentMedia && (
+                <video
+                  ref={videoRef}
+                  src={media.url}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  autoPlay
+                  onEnded={handleVideoEnded}
+                  onTimeUpdate={handleVideoProgress}
+                  muted={false}
+                />
+              )
             ) : (
               <img src={media.url} alt="" className="w-full h-full object-cover" />
             )}
@@ -818,7 +821,7 @@ const MenuOnline: React.FC = () => {
         {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
           <SpecialCategoryView destaque={activeCategory.destaque} />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {activeCategory?.itens.filter(item => item.visivel !== false).map((item, idx) => (
               <div
                 key={item.id}

@@ -142,7 +142,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         onPinToggle={setIsPinned}
       />
 
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isPinned ? 'lg:pl-64' : 'lg:pl-20'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 pb-20 lg:pb-0 ${isPinned ? 'lg:pl-64' : 'lg:pl-20'}`}>
         <Header onMobileMenuOpen={() => setIsMobileOpen(true)} />
         <main className="flex-1 p-4 sm:p-6 md:p-8 animate-in fade-in duration-500 overflow-y-auto">
           {children}
@@ -163,7 +163,7 @@ const App: React.FC = () => {
           <Route path={AppRoute.RESERVAS} element={<ReservasPage />} />
           <Route path={AppRoute.CURRICULOS} element={<CurriculosPage />} />
           <Route path={AppRoute.CURRICULO_DETAIL} element={<CurriculoDetail />} />
-          <Route path={AppRoute.FEEDBACKS} element={<FeedbacksPage />} />
+          <Route path={AppRoute.FEEDBACKS} element={<AdminGuard><FeedbacksPage /></AdminGuard>} />
           <Route path={AppRoute.PROMOCIONAL} element={<PromocionalPage />} />
           <Route path={AppRoute.CUPONS} element={<CuponsPage />} />
           <Route path={AppRoute.CONSUMACOES} element={<ConsumacoesPage />} />
