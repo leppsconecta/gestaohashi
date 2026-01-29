@@ -16,7 +16,7 @@ import {
   Settings,
   UtensilsCrossed
 } from 'lucide-react';
-import { AppRoute } from './types';
+import { AppRoute, TurnoConfig } from './types';
 
 export interface MenuItem {
   label: string;
@@ -55,5 +55,48 @@ export const MENU_GROUPS: MenuGroup[] = [
       { label: 'Arquivos', path: AppRoute.ARQUIVOS, icon: <Folder size={20} /> },
       { label: 'Logins e Senhas', path: AppRoute.LOGINS_SENHAS, icon: <Key size={20} /> },
     ]
+  }
+];
+
+export const turnosConfigs: TurnoConfig[] = [
+  {
+    id: 't1',
+    label: 'Manhã',
+    inicio: '09:00',
+    fim: '15:00',
+    colorClass: 'text-sky-600',
+    bgClass: 'bg-sky-50',
+    borderClass: 'border-sky-200',
+    ordem: 1
+  },
+  {
+    id: 't2',
+    label: 'Tarde',
+    inicio: '15:00',
+    fim: '18:00',
+    colorClass: 'text-orange-600',
+    bgClass: 'bg-orange-50',
+    borderClass: 'border-orange-200',
+    ordem: 2
+  },
+  {
+    id: 't3',
+    label: 'Noite',
+    inicio: '18:00',
+    fim: '23:00',
+    colorClass: 'text-indigo-600',
+    bgClass: 'bg-indigo-50',
+    borderClass: 'border-indigo-200',
+    ordem: 3
+  },
+  {
+    id: 't4',
+    label: 'Extra',
+    inicio: '(Flex)',
+    fim: '',
+    colorClass: 'text-purple-600',
+    bgClass: 'bg-purple-50',
+    borderClass: 'border-purple-200',
+    ordem: 4
   }
 ];
