@@ -319,117 +319,127 @@ const EscalaPage: React.FC = () => {
   // --- ACTIONS ---
   const handleDownloadPDF = async () => {
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
+      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 15;
-      let y = 20;
 
-      // Helper for footer
-      const addFooter = (pageNumber: number) => {
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text('Desenvolvido por leppsconecta.com', pageWidth / 2, pageHeight - 10, { align: 'center' });
-        doc.text(`Página ${pageNumber}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-      };
+      const marginX = 10;
+      const marginY = 15;
 
-      // Header
-      doc.setFontSize(18);
+      // --- HEADER ---
+      // Title
+      doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(40);
-      doc.text('Escala Hashi Express', margin, y);
+      doc.setTextColor(30, 41, 59); // Slate 800
+      doc.text('Escala Semanal', marginX, 22);
 
-      y += 8;
-      doc.setFontSize(12);
+      // Date Range & Timestamp
+      const rightX = pageWidth - marginX;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(dateText, rightX, 18, { align: 'right' });
+
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
-      doc.text(dateText, margin, y);
+      const now = new Date();
+      const timestamp = `Emitido em: ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR').slice(0, 5)}`;
+      doc.text(timestamp, rightX, 22, { align: 'right' });
 
-      y += 15;
-      doc.setDrawColor(200);
-      doc.line(margin, y - 5, pageWidth - margin, y - 5);
+      // Separator Line
+      doc.setDrawColor(30, 41, 59);
+      doc.setLineWidth(0.5);
+      doc.line(marginX, 26, rightX, 26);
 
-      let pageCount = 1;
+      // --- GRID LAYOUT ---
+      const startY = 32;
+      const gap = 3;
+      // Calculate column width dynamically: (PageWidth - (Margins * 2) - (Gap * 6)) / 7
+      const colWidth = (pageWidth - (marginX * 2) - (gap * 6)) / 7;
+      const gridHeight = pageHeight - startY - 20; // 20mm bottom margin for footer
 
-      // Content
       weekDays.forEach((day, index) => {
-        // Prepare Day Data
-        const dayHasScale = turnosConfigs.some(t => {
-          const key = `${day.id}-${t.id}`;
-          const assigned = escala[key] || [];
-          return assigned.length > 0;
-        });
+        const x = marginX + (index * (colWidth + gap));
 
-        if (!dayHasScale && activeTab === 'semanal') return;
+        // 1. Column Header (Dark Box)
+        doc.setFillColor(15, 23, 42); // Slate 900 (Dark)
+        doc.roundedRect(x, startY, colWidth, 14, 2, 2, 'F');
 
-        // Check page break for Day Header
-        if (y > pageHeight - 40) {
-          addFooter(pageCount);
-          doc.addPage();
-          pageCount++;
-          y = 20;
-        }
-
-        // Draw Day Header
-        doc.setFillColor(245, 247, 250); // Light gray bg
-        doc.roundedRect(margin, y, pageWidth - (margin * 2), 10, 2, 2, 'F');
-
-        doc.setFontSize(11);
+        // Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(50);
-        doc.text(`${day.label.toUpperCase()} (${day.dia}/${day.fullDate.getMonth() + 1})`, margin + 3, y + 7);
+        doc.text(day.label, x + (colWidth / 2), startY + 5, { align: 'center' });
 
-        y += 16;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184); // Slate 400
+        const dateStr = `${day.dia}/${day.fullDate.getMonth() + 1}`;
+        doc.text(dateStr, x + (colWidth / 2), startY + 10, { align: 'center' });
 
-        // Shifts
-        turnosConfigs.forEach((t) => {
+        // 2. Column Body (Border)
+        doc.setDrawColor(226, 232, 240); // Slate 200
+        doc.setLineWidth(0.3);
+        // Draw rect for body
+        doc.roundedRect(x, startY + 14, colWidth, gridHeight - 14, 2, 2, 'S');
+
+        // 3. Content
+        let currentY = startY + 18;
+
+        turnosConfigs.forEach(t => {
           const key = `${day.id}-${t.id}`;
           const assigned = escala[key] || [];
 
           if (assigned.length > 0) {
-            // Check page break for Shift Rows
-            if (y > pageHeight - 30) {
-              addFooter(pageCount);
-              doc.addPage();
-              pageCount++;
-              y = 20;
+            // Turno Header (e.g. 1º Turno)
+            // Thin separator before if not first
+            if (currentY > startY + 20) {
+              doc.setDrawColor(241, 245, 249); // lighter separator
+              doc.line(x + 2, currentY - 3, x + colWidth - 2, currentY - 3);
             }
 
-            // Shift Label
-            doc.setFontSize(10);
+            doc.setFontSize(7);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(80);
-            const label = t.id === 't1' ? '1º Turno' :
-              t.id === 't2' ? '2º Turno' :
-                t.id === 't3' ? '3º Turno' : t.label;
+            doc.setTextColor(59, 130, 246); // Blue 500
 
-            doc.text(`${label} (${t.inicio} - ${t.fim}h):`, margin + 5, y);
+            // Custom label logic for turns
+            const tLabel = t.id === 't1' ? '1º Turno' : t.id === 't2' ? '2º Turno' : t.id === 't3' ? '3º Turno' : t.label;
+            doc.text(tLabel, x + 2, currentY);
+            currentY += 4;
 
             // Employees
-            const employeesText = assigned.map(uid => {
-              const f = funcionarios.find(x => x.id === uid);
-              return f ? `${formatNameShort(f.nome)} (${f.funcao || 'Func.'})` : 'Desconhecido';
-            }).join(', ');
+            assigned.forEach(uid => {
+              const f = funcionarios.find(emp => emp.id === uid);
+              if (f) {
+                // Name
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(51, 65, 85); // Slate 700
+                const name = formatNameShort(f.nome);
+                doc.text(name, x + 2, currentY);
 
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(20);
-
-            // Text Wrap
-            const textX = margin + 55;
-            const maxWidth = pageWidth - margin - textX;
-            const splitText = doc.splitTextToSize(employeesText, maxWidth);
-
-            // If text wraps, align shift label correctly
-            doc.text(splitText, textX, y);
-
-            y += (splitText.length * 6) + 4; // Spacing based on lines
+                // Role
+                if (f.funcao) {
+                  currentY += 3;
+                  doc.setFontSize(6);
+                  doc.setFont('helvetica', 'normal');
+                  doc.setTextColor(100, 116, 139); // Slate 500
+                  // Truncate role if too long??
+                  doc.text(f.funcao, x + 2, currentY);
+                }
+                currentY += 5; // Space for next person
+              }
+            });
+            currentY += 2; // Extra space after group
           }
         });
-
-        y += 6; // Spacing between days
       });
 
-      addFooter(pageCount);
+      // --- FOOTER ---
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 41, 59); // Darker for visibility
+      doc.text('Desenvolvido por leppsconecta.com', pageWidth - marginX, pageHeight - 8, { align: 'right' });
 
       doc.save(`escala-hashi-${dateText.replace(/\s+/g, '-')}.pdf`);
       setModalConfig(prev => ({ ...prev, isOpen: false }));
