@@ -329,11 +329,11 @@ const MenuOnline: React.FC = () => {
             id: p.id,
             nome: p.nome,
             descricao: p.descricao || '',
-            preco: p.preco?.toString().replace('.', ',') || '0,00',
+            preco: p.preco ? Number(p.preco).toFixed(2).replace('.', ',') : '0,00',
             foto: p.foto_url,
             isCombo: p.is_combo ?? false,
             showSavings: p.show_savings ?? false,
-            savingsAmount: p.savings_amount?.toString().replace('.', ',') || '',
+            savingsAmount: p.savings_amount ? Number(p.savings_amount).toFixed(2).replace('.', ',') : '',
             visivel: p.visivel ?? true,
             comboItens: comboItemData
               .filter(ci => ci.combo_id === p.id)
@@ -502,11 +502,11 @@ const MenuOnline: React.FC = () => {
               className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentHero ? 'opacity-100' : 'opacity-0'}`}
             >
               <img src={hero.foto} alt={hero.titulo} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
+              <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
               {hero.showDescription && (hero.titulo || hero.subtitulo) && (
                 <div
-                  className="absolute inset-x-0 bottom-12 flex flex-col items-center justify-center text-white text-center p-6 bg-gradient-to-t from-black/80 to-transparent pt-12 animate-in fade-in slide-in-from-bottom duration-700"
+                  className="absolute inset-x-0 bottom-0 pb-12 pt-24 px-6 flex flex-col items-center justify-center text-white text-center animate-in fade-in slide-in-from-bottom duration-700"
                 >
                   {hero.titulo && <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-2 drop-shadow-lg">{hero.titulo}</h1>}
                   {hero.subtitulo && <p className="text-sm sm:text-base font-medium opacity-90 drop-shadow-md max-w-xs sm:max-w-md">{hero.subtitulo}</p>}
@@ -716,36 +716,7 @@ const MenuOnline: React.FC = () => {
                 <>
                   <p className="text-slate-500 leading-relaxed mb-6">{currentItem.descricao}</p>
 
-                  {/* Feedbacks Carousel Section */}
-                  <div className="mb-6">
-                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                      <MessageSquare size={16} className="text-purple-500" />
-                      O que estão falando deste produto
-                    </h3>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6">
-                      {[
-                        { name: 'Ana Silva', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d', rating: 5, text: 'Simplesmente delicioso! O sabor é incomparável.' },
-                        { name: 'João Souza', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d', rating: 5, text: 'Melhor pedido que fiz na semana. Chegou super rápido!' },
-                        { name: 'Mariana Costa', avatar: 'https://i.pravatar.cc/150?u=a04258114e29026302d', rating: 4, text: 'Muito bom, mas a porção poderia ser um pouco maior.' },
-                        { name: 'Pedro Alves', avatar: 'https://i.pravatar.cc/150?u=a048581f4e29026704d', rating: 5, text: 'Sabor autêntico e fresco. Recomendo demais!' }
-                      ].map((fb, idx) => (
-                        <div key={idx} className="flex-shrink-0 w-64 bg-slate-50 rounded-xl p-3 border border-slate-100 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <img src={fb.avatar} alt={fb.name} className="w-8 h-8 rounded-full" />
-                            <div>
-                              <p className="text-xs font-bold text-slate-800">{fb.name}</p>
-                              <div className="flex">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star key={i} size={10} className={i < fb.rating ? "text-amber-400 fill-amber-400" : "text-slate-300"} />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-xs text-slate-600 line-clamp-3 italic">"{fb.text}"</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+
 
                   {/* Combo products list - Expandable with carousel */}
                   {currentItem.isCombo && currentItem.comboItens && currentItem.comboItens.length > 0 && (
