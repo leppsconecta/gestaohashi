@@ -33,23 +33,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import Modal from '../components/UI/Modal';
 import { Funcionario, TurnoConfig, ModalType } from '../types';
-
-// Mock de funcionários
-const MOCK_FUNCIONARIOS: Funcionario[] = [
-  { id: '1', codigo: '#2161', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Leonardo José da Silva', status: 'Ativo', funcao: 'Sushiman', contato: '11995079167' },
-  { id: '2', codigo: '#3920', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Genieide Maria dos Santos', status: 'Ativo', funcao: 'Auxiliar de Cozinha', contato: '1194880-2248' },
-  { id: '3', codigo: '#5161', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Dayane Barros Pereira', status: 'Ativo', funcao: 'Garçonete', contato: '11944769197' },
-  { id: '4', codigo: '#5747', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Vânia da solidade de Oliveira Vasconcelos', status: 'Ativo', funcao: 'Cozinheiro(a)', contato: '11921940439' },
-  { id: '5', codigo: '#8224', dataEntrada: '12/12/2025', tipoContrato: 'CLT', nome: 'Maria Helena de Oliveira', status: 'Ativo', funcao: 'Auxiliar de Serviços Gerais', contato: '11999776738' },
-  { id: '6', codigo: '#9112', dataEntrada: '12/12/2025', tipoContrato: 'Freelancer', nome: 'Lucia Maria de Oliveira', status: 'Ativo', funcao: 'Auxiliar de Cozinha', contato: '11995079167' },
-];
-
-const DEFAULT_TURNOS: TurnoConfig[] = [
-  { id: 't1', label: '1º Turno', inicio: '08:00', fim: '16:00', colorClass: 'text-blue-700', bgClass: 'bg-blue-50/50', borderClass: 'border-blue-200' },
-  { id: 't2', label: '2º Turno', inicio: '16:00', fim: '00:00', colorClass: 'text-amber-700', bgClass: 'bg-amber-50/50', borderClass: 'border-amber-200' },
-  { id: 't3', label: '3º Turno', inicio: '00:00', fim: '08:00', colorClass: 'text-fuchsia-700', bgClass: 'bg-fuchsia-50/50', borderClass: 'border-fuchsia-200' },
-  { id: 't4', label: 'Personalizado', inicio: 'Horário Variável / Plantão', fim: '', colorClass: 'text-slate-700', bgClass: 'bg-slate-50/50', borderClass: 'border-slate-200' },
-];
+import { DBService } from '../lib/db';
 
 const formatName = (name: string) => {
   const parts = name.trim().split(' ');
@@ -305,6 +289,7 @@ const EditTextModal: React.FC<{
   );
 };
 
+
 const ReportTemplate: React.FC<{
   mode: 'semanal' | 'pontual';
   weekDays: any[];
@@ -312,7 +297,8 @@ const ReportTemplate: React.FC<{
   turnos: TurnoConfig[];
   escala: Record<string, string[]>;
   reportRef: React.RefObject<HTMLDivElement | null>;
-}> = ({ mode, weekDays, pontualDate, turnos, escala, reportRef }) => {
+  employees: Funcionario[];
+}> = ({ mode, weekDays, pontualDate, turnos, escala, reportRef, employees }) => {
   const now = new Date();
   const timestamp = now.toLocaleString('pt-BR');
 
@@ -353,7 +339,7 @@ const ReportTemplate: React.FC<{
                   </div>
                   <div className="flex-1 p-4 flex flex-col gap-3">
                     {escaladosIds.length > 0 ? escaladosIds.map(fId => {
-                      const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+                      const func = employees.find(f => f.id === fId);
                       if (!func) return null;
                       return (
                         <div key={fId} className="flex flex-col border-b border-slate-100 pb-2 last:border-b-0">
@@ -401,7 +387,7 @@ const ReportTemplate: React.FC<{
                         </div>
                         <div className="flex flex-col gap-2">
                           {escaladosIds.map(fId => {
-                            const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+                            const func = employees.find(f => f.id === fId);
                             if (!func) return null;
                             return (
                               <div key={fId} className="flex flex-col">
@@ -433,12 +419,86 @@ const EscalaPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'semanal' | 'pontual'>('semanal');
   const [currentWeekMonday, setCurrentWeekMonday] = useState(new Date(getMonday(new Date())));
   const [pontualDate, setPontualDate] = useState(new Date(new Date().setHours(0, 0, 0, 0)));
-  const [turnosConfigs, setTurnosConfigs] = useState<TurnoConfig[]>(DEFAULT_TURNOS);
-  const [tempTurnos, setTempTurnos] = useState<TurnoConfig[]>(DEFAULT_TURNOS);
+  const [turnosConfigs, setTurnosConfigs] = useState<TurnoConfig[]>([]);
+  const [tempTurnos, setTempTurnos] = useState<TurnoConfig[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
   const [escala, setEscala] = useState<Record<string, string[]>>({});
   const [draggedEmployeeId, setDraggedEmployeeId] = useState<string | null>(null);
+
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, [currentWeekMonday, activeTab, pontualDate]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch Employees
+      const funcs = await DBService.funcionarios.getAll();
+      setFuncionarios(funcs);
+
+      // 2. Fetch Turnos
+      let turnos = await DBService.turnos.getAll();
+      if (!turnos || turnos.length === 0) {
+        // Fallback for initial load if DB is empty? Should not happen if SQL ran.
+        turnos = [
+          { id: 't1', label: '1º Turno', inicio: '08:00', fim: '16:00', colorClass: 'text-blue-700', bgClass: 'bg-blue-50/50', borderClass: 'border-blue-200' },
+          { id: 't2', label: '2º Turno', inicio: '16:00', fim: '00:00', colorClass: 'text-amber-700', bgClass: 'bg-amber-50/50', borderClass: 'border-amber-200' },
+          { id: 't3', label: '3º Turno', inicio: '00:00', fim: '08:00', colorClass: 'text-fuchsia-700', bgClass: 'bg-fuchsia-50/50', borderClass: 'border-fuchsia-200' },
+          { id: 't4', label: 'Personalizado', inicio: 'Horário Variável / Plantão', fim: '', colorClass: 'text-slate-700', bgClass: 'bg-slate-50/50', borderClass: 'border-slate-200' },
+        ];
+      }
+      setTurnosConfigs(turnos);
+      setTempTurnos(turnos);
+
+      // 3. Fetch Escala for range
+      let startDate, endDate;
+      if (activeTab === 'semanal') {
+        startDate = new Date(currentWeekMonday);
+        const end = new Date(currentWeekMonday);
+        end.setDate(end.getDate() + 6);
+        endDate = end;
+      } else {
+        startDate = pontualDate;
+        endDate = pontualDate;
+      }
+
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+
+      const assignments = await DBService.escala.getByRange(startStr, endStr);
+
+      // Transform assignments to Record<string, string[]> map
+      // Key: dayTimestamp-turnoId
+      const newEscala: Record<string, string[]> = {};
+
+      assignments.forEach((a: any) => {
+        // 'a.data' is YYYY-MM-DD
+        // We need to convert it to the timestamp used by the UI (setHours(0,0,0,0))
+        // Be careful with timezone. The UI uses local midnight timestamp.
+        // Let's parse YYYY-MM-DD to local date
+        const [y, m, d] = a.data.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        dateObj.setHours(0, 0, 0, 0);
+        const dayId = dateObj.getTime();
+
+        const key = `${dayId}-${a.turno_id}`;
+        if (!newEscala[key]) newEscala[key] = [];
+        if (!newEscala[key].includes(a.funcionario_id)) {
+          newEscala[key].push(a.funcionario_id);
+        }
+      });
+      setEscala(newEscala);
+
+    } catch (error) {
+      console.error('Error fetching escala data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [textSemanal, setTextSemanal] = useState<string>('');
   const [textPontual, setTextPontual] = useState<string>('');
@@ -466,10 +526,10 @@ const EscalaPage: React.FC = () => {
   }, [activeTab, weekDays, pontualDate]);
 
   const filteredFuncionarios = useMemo(() => {
-    if (!searchTerm.trim()) return MOCK_FUNCIONARIOS;
+    if (!searchTerm.trim()) return funcionarios;
     const search = searchTerm.toLowerCase();
-    return MOCK_FUNCIONARIOS.filter(f => f.nome.toLowerCase().includes(search) || f.codigo.toLowerCase().includes(search) || f.funcao.toLowerCase().includes(search));
-  }, [searchTerm]);
+    return funcionarios.filter(f => f.nome.toLowerCase().includes(search) || f.codigo.toLowerCase().includes(search) || f.funcao.toLowerCase().includes(search));
+  }, [searchTerm, funcionarios]);
 
   const changeWeek = (direction: number) => {
     const newMonday = new Date(currentWeekMonday);
@@ -484,8 +544,36 @@ const EscalaPage: React.FC = () => {
   };
 
   const toggleTurn = (dayId: number, turnoId: string) => { const key = `${dayId}-${turnoId}`; setExpandedTurns(prev => ({ ...prev, [key]: !prev[key] })); };
-  const completeAssignment = (dayId: number, turnoId: string, employeeId: string) => { const key = `${dayId}-${turnoId}`; setEscala(prev => { const currentList = prev[key] || []; if (currentList.includes(employeeId)) return prev; return { ...prev, [key]: [...currentList, employeeId] }; }); setExpandedTurns(prev => ({ ...prev, [key]: true })); setDraggedEmployeeId(null); };
-  const removeFuncionarioFromEscala = (dayId: number, turnoId: string, employeeId: string) => { const key = `${dayId}-${turnoId}`; setEscala(prev => ({ ...prev, [key]: (prev[key] || []).filter(id => id !== employeeId) })); };
+
+  const completeAssignment = async (dayId: number, turnoId: string, employeeId: string) => {
+    const key = `${dayId}-${turnoId}`;
+
+    // Optimistic Update
+    setEscala(prev => {
+      const currentList = prev[key] || [];
+      if (currentList.includes(employeeId)) return prev;
+      return { ...prev, [key]: [...currentList, employeeId] };
+    });
+    setExpandedTurns(prev => ({ ...prev, [key]: true }));
+    setDraggedEmployeeId(null);
+
+    // DB Save
+    const date = new Date(dayId);
+    const dataStr = date.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // YYYY-MM-DD
+    await DBService.escala.add(dataStr, turnoId, employeeId);
+  };
+
+  const removeFuncionarioFromEscala = async (dayId: number, turnoId: string, employeeId: string) => {
+    const key = `${dayId}-${turnoId}`;
+
+    // Optimistic Update
+    setEscala(prev => ({ ...prev, [key]: (prev[key] || []).filter(id => id !== employeeId) }));
+
+    // DB Remove
+    const date = new Date(dayId);
+    const dataStr = date.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // YYYY-MM-DD
+    await DBService.escala.remove(dataStr, turnoId, employeeId);
+  };
 
   const handleMobileAdd = (dayId: number) => {
     setModalConfig({
@@ -495,7 +583,7 @@ const EscalaPage: React.FC = () => {
       maxWidth: 'max-w-md',
       content: (
         <MobileEmployeeSelector
-          employees={MOCK_FUNCIONARIOS}
+          employees={funcionarios}
           onSelect={(employeeId) => handleDropOnDay(dayId, employeeId)}
         />
       )
@@ -503,7 +591,7 @@ const EscalaPage: React.FC = () => {
   };
 
   const handleDropOnDay = (dayId: number, employeeId: string) => {
-    const employee = MOCK_FUNCIONARIOS.find(f => f.id === employeeId);
+    const employee = funcionarios.find(f => f.id === employeeId);
     if (!employee) return;
     setModalConfig({
       isOpen: true,
@@ -531,7 +619,7 @@ const EscalaPage: React.FC = () => {
       maxWidth: 'max-w-md',
       content: (
         <MobileEmployeeSelector
-          employees={MOCK_FUNCIONARIOS}
+          employees={funcionarios}
           onSelect={(employeeId) => {
             completeAssignment(dayId, turnoId, employeeId);
             setModalConfig(p => ({ ...p, isOpen: false }));
@@ -585,6 +673,10 @@ const EscalaPage: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-full"><div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin"></div></div>;
+  }
+
   const generateSnapshotText = (mode: 'semanal' | 'pontual') => {
     let textContent = "";
     if (mode === 'pontual') {
@@ -599,7 +691,7 @@ const EscalaPage: React.FC = () => {
           const timeStr = t.id === 't4' ? t.inicio : `${t.inicio} às ${t.fim}h`;
           textContent += `\n🠖 ${t.label}: ${timeStr}\n`;
           escaladosIds.forEach(fId => {
-            const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+            const func = funcionarios.find(f => f.id === fId);
             if (func) {
               textContent += `* *${formatNameForText(func.nome)}* - _${func.funcao}_\n`;
             }
@@ -620,7 +712,7 @@ const EscalaPage: React.FC = () => {
             const timeStr = t.id === 't4' ? t.inicio : `${t.inicio} - ${t.fim}h`;
             textContent += `\n🠖 ${t.label} (${timeStr}):\n`;
             escaladosIds.forEach(fId => {
-              const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+              const func = funcionarios.find(f => f.id === fId);
               if (func) {
                 textContent += `* *${formatNameForText(func.nome)}* - _${func.funcao}_\n`;
               }
@@ -661,8 +753,12 @@ const EscalaPage: React.FC = () => {
     });
   };
 
-  const handleSaveTurnos = () => {
-    setTurnosConfigs(tempTurnos);
+  const handleSaveTurnos = async () => {
+    const updated = [...tempTurnos];
+    setTurnosConfigs(updated);
+
+    // Persist to DB
+    await DBService.turnos.saveAll(updated);
     setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
@@ -706,7 +802,7 @@ const EscalaPage: React.FC = () => {
                 {isExpanded && (
                   <div className="space-y-2 pl-1 animate-in slide-in-from-top-1 duration-200">
                     {escalados.map(fId => {
-                      const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+                      const func = funcionarios.find(f => f.id === fId);
                       if (!func) return null;
                       return (
                         <div key={fId} className="bg-white dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3 relative group">
@@ -781,7 +877,7 @@ const EscalaPage: React.FC = () => {
               <div className="flex-1 p-3 space-y-2 overflow-y-auto no-scrollbar min-h-[100px]">
                 {escalados.length > 0 ? (
                   escalados.map(fId => {
-                    const func = MOCK_FUNCIONARIOS.find(f => f.id === fId);
+                    const func = funcionarios.find(f => f.id === fId);
                     if (!func) return null;
                     return (
                       <div key={fId} className="bg-white dark:bg-slate-950 p-3 rounded-2xl border border-slate-50 dark:border-slate-800 shadow-sm flex items-center gap-3 relative group animate-in slide-in-from-bottom-2">
@@ -839,6 +935,7 @@ const EscalaPage: React.FC = () => {
           turnos={turnosConfigs}
           escala={escala}
           reportRef={reportRef}
+          employees={funcionarios}
         />
 
         <aside className="hidden lg:flex w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] flex flex-col shadow-sm flex-shrink-0 overflow-hidden">

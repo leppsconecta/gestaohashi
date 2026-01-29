@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Funcionario, Reserva, Feedback, Consumacao, LoginSenha, Promocao, Cupom } from '../types';
+import { Funcionario, Reserva, Feedback, Consumacao, LoginSenha, Promocao, Cupom, TurnoConfig } from '../types';
 
 const KEYS = {
   AUTH: 'hashi_auth_token',
@@ -361,6 +361,98 @@ export const DBService = {
         cuponsAtivos: 0,
         reservasSemanais: []
       };
+    }
+  },
+
+  // --- TURNOS ---
+  turnos: {
+    getAll: async (): Promise<TurnoConfig[]> => {
+      const { data, error } = await supabase
+        .schema('gestaohashi')
+        .from('turnos')
+        .select('*')
+        .order('ordem');
+
+      if (error) {
+        console.error('Error fetching turnos:', error);
+        return [];
+      }
+      return (data || []).map((t: any) => ({
+        id: t.id,
+        label: t.label,
+        inicio: t.inicio,
+        fim: t.fim,
+        colorClass: t.color_class,
+        bgClass: t.bg_class,
+        borderClass: t.border_class
+      }));
+    },
+    saveAll: async (turnos: TurnoConfig[]): Promise<void> => {
+      const payload = turnos.map((t, index) => ({
+        id: t.id,
+        label: t.label,
+        inicio: t.inicio,
+        fim: t.fim,
+        color_class: t.colorClass,
+        bg_class: t.bgClass,
+        border_class: t.borderClass,
+        ordem: index + 1
+      }));
+
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('turnos')
+        .upsert(payload);
+
+      if (error) console.error('Error saving turnos:', error);
+    }
+  },
+
+  // --- ESCALA ---
+  escala: {
+    getByRange: async (startDate: string, endDate: string) => {
+      const { data, error } = await supabase
+        .schema('gestaohashi')
+        .from('escala')
+        .select('*')
+        .gte('data', startDate)
+        .lte('data', endDate);
+
+      if (error) {
+        console.error('Error fetching escala:', error);
+        return [];
+      }
+      return data || [];
+    },
+    add: async (data: string, turnoId: string, funcionarioId: string) => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('escala')
+        .insert({
+          data,
+          turno_id: turnoId,
+          funcionario_id: funcionarioId
+        });
+
+      if (error) {
+        // Ignore duplicate key error, otherwise log
+        if (!error.message.includes('unique constraint')) {
+          console.error('Error adding escala:', error);
+        }
+      }
+    },
+    remove: async (data: string, turnoId: string, funcionarioId: string) => {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('escala')
+        .delete()
+        .match({
+          data,
+          turno_id: turnoId,
+          funcionario_id: funcionarioId
+        });
+
+      if (error) console.error('Error removing escala:', error);
     }
   }
 };
