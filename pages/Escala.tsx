@@ -271,7 +271,9 @@ const EscalaPage: React.FC = () => {
       // 2. Fetch Turnos (Real DB) - Using hardcoded for now if DB empty, but let's try fetch
       const dbTurnos = await DBService.turnos.getAll();
       if (dbTurnos && dbTurnos.length > 0) {
-        setTurnosConfigs(dbTurnos);
+        // Filter out turno personalizado (t4)
+        const filteredTurnos = dbTurnos.filter((t: TurnoConfig) => t.id !== 't4');
+        setTurnosConfigs(filteredTurnos);
       }
 
       // 3. Fetch Escala Range
