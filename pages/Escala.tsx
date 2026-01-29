@@ -152,6 +152,65 @@ const ConfigTurnosForm: React.FC<{ turnos: TurnoConfig[], onChange: (t: TurnoCon
   );
 };
 
+const EditCopyModalContent: React.FC<{ initialText: string, onCancel: () => void }> = ({ initialText, onCancel }) => {
+  const [text, setText] = useState(initialText);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Escala copiada para a área de transferência!");
+      onCancel();
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 py-2">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Conteúdo da Escala</span>
+          <button
+            onClick={() => setText(initialText)}
+            className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-wider"
+          >
+            <RotateCcw size={12} /> Restaurar
+          </button>
+        </div>
+        <div className="p-0">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            className="w-full h-[400px] p-4 text-sm font-mono text-slate-600 dark:text-slate-300 bg-transparent resize-none focus:outline-none custom-scrollbar leading-relaxed"
+            spellCheck={false}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={handleCopy}
+        className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all group"
+      >
+        <Copy size={20} className="group-hover:scale-110 transition-transform" />
+        <span className="uppercase tracking-wide">Copiar para o WhatsApp</span>
+      </button>
+
+      <p className="text-center text-[10px] text-slate-400 font-medium italic">
+        Você pode editar o texto acima antes de copiar.
+      </p>
+
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={onCancel}
+          className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-slate-300"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ShareEscalaModal: React.FC<{ onDownload: () => void, onCopyText: () => void }> = ({ onDownload, onCopyText }) => (
   <div className="grid grid-cols-2 gap-4 py-4">
     <button onClick={onDownload} className="flex flex-col items-center justify-center gap-3 p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-white hover:shadow-lg hover:border-red-100 transition-all group">
@@ -256,6 +315,188 @@ const EscalaPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [currentWeekMonday, activeTab, pontualDate]);
+
+  // --- ACTIONS ---
+  const handleDownloadPDF = async () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      let y = 20;
+
+      // Helper for footer
+      const addFooter = (pageNumber: number) => {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text('Desenvolvido por leppsconecta.com', pageWidth / 2, pageHeight - 10, { align: 'center' });
+        doc.text(`Página ${pageNumber}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      };
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40);
+      doc.text('Escala Hashi Express', margin, y);
+
+      y += 8;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100);
+      doc.text(dateText, margin, y);
+
+      y += 15;
+      doc.setDrawColor(200);
+      doc.line(margin, y - 5, pageWidth - margin, y - 5);
+
+      let pageCount = 1;
+
+      // Content
+      weekDays.forEach((day, index) => {
+        // Prepare Day Data
+        const dayHasScale = turnosConfigs.some(t => {
+          const key = `${day.id}-${t.id}`;
+          const assigned = escala[key] || [];
+          return assigned.length > 0;
+        });
+
+        if (!dayHasScale && activeTab === 'semanal') return;
+
+        // Check page break for Day Header
+        if (y > pageHeight - 40) {
+          addFooter(pageCount);
+          doc.addPage();
+          pageCount++;
+          y = 20;
+        }
+
+        // Draw Day Header
+        doc.setFillColor(245, 247, 250); // Light gray bg
+        doc.roundedRect(margin, y, pageWidth - (margin * 2), 10, 2, 2, 'F');
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(50);
+        doc.text(`${day.label.toUpperCase()} (${day.dia}/${day.fullDate.getMonth() + 1})`, margin + 3, y + 7);
+
+        y += 16;
+
+        // Shifts
+        turnosConfigs.forEach((t) => {
+          const key = `${day.id}-${t.id}`;
+          const assigned = escala[key] || [];
+
+          if (assigned.length > 0) {
+            // Check page break for Shift Rows
+            if (y > pageHeight - 30) {
+              addFooter(pageCount);
+              doc.addPage();
+              pageCount++;
+              y = 20;
+            }
+
+            // Shift Label
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(80);
+            const label = t.id === 't1' ? '1º Turno' :
+              t.id === 't2' ? '2º Turno' :
+                t.id === 't3' ? '3º Turno' : t.label;
+
+            doc.text(`${label} (${t.inicio} - ${t.fim}h):`, margin + 5, y);
+
+            // Employees
+            const employeesText = assigned.map(uid => {
+              const f = funcionarios.find(x => x.id === uid);
+              return f ? `${formatNameShort(f.nome)} (${f.funcao || 'Func.'})` : 'Desconhecido';
+            }).join(', ');
+
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(20);
+
+            // Text Wrap
+            const textX = margin + 55;
+            const maxWidth = pageWidth - margin - textX;
+            const splitText = doc.splitTextToSize(employeesText, maxWidth);
+
+            // If text wraps, align shift label correctly
+            doc.text(splitText, textX, y);
+
+            y += (splitText.length * 6) + 4; // Spacing based on lines
+          }
+        });
+
+        y += 6; // Spacing between days
+      });
+
+      addFooter(pageCount);
+
+      doc.save(`escala-hashi-${dateText.replace(/\s+/g, '-')}.pdf`);
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Erro ao gerar PDF: " + (error instanceof Error ? error.message : "Desconhecido"));
+    }
+  };
+
+  const handleCopyText = async () => {
+    let text = `📅 *Escala Semanal*\n------------------------\n\n`;
+
+    const formatNameInitial = (fullName: string) => {
+      const names = fullName.trim().replace(/\s+/g, ' ').split(' ');
+      if (names.length === 1) return names[0];
+      const first = names[0];
+      const last = names[names.length - 1];
+      return `${first} ${last.charAt(0)}.`;
+    };
+
+    const getTurnoLabel = (id: string, originalLabel: string) => {
+      if (id === 't1') return '1º Turno';
+      if (id === 't2') return '2º Turno';
+      if (id === 't3') return '3º Turno';
+      return originalLabel;
+    };
+
+    weekDays.forEach(day => {
+      const dayHasScale = turnosConfigs.some(t => {
+        const key = `${day.id}-${t.id}`;
+        const assigned = escala[key] || [];
+        return assigned.length > 0;
+      });
+
+      if (!dayHasScale && activeTab === 'semanal') return;
+
+      if (dayHasScale) {
+        text += `📍 *${day.label} (${day.dia}/${day.fullDate.getMonth() + 1})*\n\n`;
+
+        turnosConfigs.forEach((t) => {
+          const key = `${day.id}-${t.id}`;
+          const assigned = escala[key] || [];
+          if (assigned.length > 0) {
+            const label = getTurnoLabel(t.id, t.label);
+            text += `🠖 ${label} (${t.inicio} - ${t.fim}h):\n`;
+            assigned.forEach(uid => {
+              const f = funcionarios.find(x => x.id === uid);
+              if (f) {
+                const role = f.funcao || 'Funcionario';
+                text += `* *${formatNameInitial(f.nome)}* - _${role}_\n`;
+              }
+            });
+            text += '\n';
+          }
+        });
+      }
+    });
+
+    setModalConfig({
+      isOpen: true,
+      title: 'Editar e Copiar Texto',
+      type: 'view-content',
+      maxWidth: 'max-w-xl',
+      content: <EditCopyModalContent initialText={text} onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} />
+    });
+  };
 
 
   // --- COMPUTED ---
@@ -570,7 +811,7 @@ const EscalaPage: React.FC = () => {
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setModalConfig({ isOpen: true, title: 'Compartilhar', type: 'view-content', content: <ShareEscalaModal onDownload={() => { }} onCopyText={() => { }} /> })}
+              onClick={() => setModalConfig({ isOpen: true, title: 'Compartilhar', type: 'view-content', content: <ShareEscalaModal onDownload={handleDownloadPDF} onCopyText={handleCopyText} /> })}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-red-600/20 active:scale-95"
             >
               <Share2 size={16} /> Compartilhar
@@ -585,7 +826,7 @@ const EscalaPage: React.FC = () => {
         </header>
 
         {/* CANVAS */}
-        <main className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar bg-slate-50 dark:bg-slate-950">
+        <main ref={reportRef} className="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar bg-slate-50 dark:bg-slate-950">
           {activeTab === 'semanal' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
               {weekDays.map(day => renderDayCard(day))}
