@@ -410,6 +410,16 @@ const CardapioPage: React.FC = () => {
       const fileName = `${fileId}.${fileExt}`;
       const filePath = `produtos/${fileName}`;
 
+      // 1. Delete old image/video if exists
+      if (formData.foto) {
+        const oldPath = extractPathFromUrl(formData.foto);
+        if (oldPath) {
+          await supabase.storage
+            .from('cardapio')
+            .remove([oldPath]);
+        }
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('cardapio')
         .upload(filePath, file, { upsert: true });
@@ -645,8 +655,8 @@ const CardapioPage: React.FC = () => {
           // Collect Product Images
           categoryToDelete.itens.forEach(item => {
             if (item.foto) {
-              const fileName = item.foto.split('/').pop();
-              if (fileName) filesToDelete.push(`produtos/${fileName}`);
+              const oldPath = extractPathFromUrl(item.foto);
+              if (oldPath) filesToDelete.push(oldPath);
             }
           });
 
@@ -654,11 +664,8 @@ const CardapioPage: React.FC = () => {
           if (categoryToDelete.destaque && categoryToDelete.destaque.midias) {
             categoryToDelete.destaque.midias.forEach(midia => {
               if (midia.url) {
-                const fileName = midia.url.split('/').pop();
-                // We need to know if it's in 'destaques/' folder.
-                // Assuming upload logic uses 'destaques/' prefix.
-                // The current upload logic uses `destaques/${fileName}`.
-                if (fileName) filesToDelete.push(`destaques/${fileName}`);
+                const oldPath = extractPathFromUrl(midia.url);
+                if (oldPath) filesToDelete.push(oldPath);
               }
             });
           }
@@ -854,7 +861,7 @@ const CardapioPage: React.FC = () => {
       savingsAmount: combo?.savingsAmount || ''
     });
     setComboProducts(combo?.comboItens || []);
-    setNewComboProduct({ nome: '', quantidade: '' });
+    setNewComboProduct({ nome: '', descricao: '', quantidade: '', unidade: 'Unid', useOriginalDescription: true });
     setProductSearchQuery('');
     setShowProductSuggestions(false);
     setComboModalOpen(true);
@@ -881,6 +888,16 @@ const CardapioPage: React.FC = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
       const filePath = `combos/${fileName}`;
+
+      // 1. Delete old image if exists
+      if (comboFormData.foto) {
+        const oldPath = extractPathFromUrl(comboFormData.foto);
+        if (oldPath) {
+          await supabase.storage
+            .from('cardapio')
+            .remove([oldPath]);
+        }
+      }
 
       const { error: uploadError } = await supabase.storage
         .from('cardapio')
@@ -1277,13 +1294,11 @@ const CardapioPage: React.FC = () => {
         if (error) throw error;
 
         // Try to delete image from storage (best effort)
-        // We don't know the extension, but we can try to guess or just leave it if complex.
-        // Actually we can get the item first to see the URL.
         const itemToDelete = categorias.flatMap(c => c.itens).find(i => i.id === deleteItemModal.itemId);
         if (itemToDelete?.foto) {
-          const path = itemToDelete.foto.split('/').pop(); // "id.ext"
-          if (path) {
-            await supabase.storage.from('cardapio').remove([`produtos/${path}`]);
+          const oldPath = extractPathFromUrl(itemToDelete.foto);
+          if (oldPath) {
+            await supabase.storage.from('cardapio').remove([oldPath]);
           }
         }
 
@@ -1713,145 +1728,125 @@ const CardapioPage: React.FC = () => {
 
 
       {/* Hero Images - Collapsible Section */}
-      {(!productsExpanded && !splashExpanded) && (
+      {heroImagesExpanded && (
         <div id="hero-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-          {heroImagesExpanded && (
-            <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <button
-                onClick={() => setHeroImagesExpanded(false)}
-                className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ChevronLeft size={20} />
-                Voltar ao Menu Principal
-              </button>
-            </div>
-          )}
-          <button
-            onClick={() => heroImagesExpanded ? setHeroImagesExpanded(false) : focusSection('hero')}
-            className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-bold"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                <ImageIcon size={18} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Imagens - Capa MENU</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Adicione até 3 imagens para o carrossel do menu</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <ChevronRight size={20} className={`text-slate-400 transition-transform ${heroImagesExpanded ? 'rotate-90' : ''}`} />
-            </div>
-          </button>
+          <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <h3 className="font-bold text-slate-700 dark:text-slate-200">Editor de Capa</h3>
+            <button
+              onClick={() => focusSection('products')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+            >
+              <X size={16} />
+              Fechar
+            </button>
+          </div>
 
-          {heroImagesExpanded && (
-            <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                {heroImages.map((hero, idx) => (
-                  <div key={hero.id} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">IMAGEM {idx + 1}</span>
-                      {hero.foto && (
-                        <button
-                          onClick={() => removeHeroImage(idx)}
-                          className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all"
-                          title="Remover imagem"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Hidden file input */}
-                    <input
-                      ref={heroFileInputRefs[idx]}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleHeroImageUpload(e, idx)}
-                      className="hidden"
-                    />
-
-                    {/* Image upload area */}
-                    <div
-                      onClick={() => !uploadingHeroIndex && heroFileInputRefs[idx]?.current?.click()}
-                      className="aspect-video rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-amber-400 transition-all overflow-hidden relative"
-                    >
-                      {uploadingHeroIndex === idx ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 size={24} className="text-amber-500 animate-spin" />
-                          <span className="text-xs text-slate-400">Carregando...</span>
-                        </div>
-                      ) : hero.foto ? (
-                        <>
-                          <img src={hero.foto} alt={`Hero ${idx + 1}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-xs font-medium">Clique para trocar</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-slate-400">
-                          <Upload size={24} />
-                          <span className="text-xs">Clique para enviar</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Toggle for description */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Adicionar descrição?</span>
+          <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              {heroImages.map((hero, idx) => (
+                <div key={hero.id} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">IMAGEM {idx + 1}</span>
+                    {hero.foto && (
                       <button
-                        onClick={() => updateHeroImageField(idx, 'showDescription', !hero.showDescription)}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${hero.showDescription ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        onClick={() => removeHeroImage(idx)}
+                        className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all"
+                        title="Remover imagem"
                       >
-                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${hero.showDescription ? 'translate-x-5' : ''}`} />
+                        <X size={14} />
                       </button>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Title and Subtitle inputs - only shown if toggle is on */}
-                    {hero.showDescription && (
-                      <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-600">
-                        {/* Title input - max 20 characters */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Título</label>
-                            <span className={`text-[10px] ${hero.titulo.length > 20 ? 'text-red-500' : 'text-slate-400'}`}>
-                              {hero.titulo.length}/20
-                            </span>
-                          </div>
-                          <input
-                            type="text"
-                            value={hero.titulo}
-                            onChange={(e) => updateHeroImageField(idx, 'titulo', e.target.value.slice(0, 20))}
-                            placeholder="Título"
-                            maxLength={20}
-                            className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                          />
-                        </div>
+                  {/* Hidden file input */}
+                  <input
+                    ref={heroFileInputRefs[idx]}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleHeroImageUpload(e, idx)}
+                    className="hidden"
+                  />
 
-                        {/* Subtitle input - max 50 characters */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Subtítulo</label>
-                            <span className={`text-[10px] ${hero.subtitulo.length > 50 ? 'text-red-500' : 'text-slate-400'}`}>
-                              {hero.subtitulo.length}/50
-                            </span>
-                          </div>
-                          <textarea
-                            value={hero.subtitulo}
-                            onChange={(e) => updateHeroImageField(idx, 'subtitulo', e.target.value.slice(0, 50))}
-                            placeholder="Subtítulo"
-                            maxLength={50}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-none"
-                          />
+                  {/* Image upload area */}
+                  <div
+                    onClick={() => !uploadingHeroIndex && heroFileInputRefs[idx]?.current?.click()}
+                    className="aspect-video rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-amber-400 transition-all overflow-hidden relative"
+                  >
+                    {uploadingHeroIndex === idx ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 size={24} className="text-amber-500 animate-spin" />
+                        <span className="text-xs text-slate-400">Carregando...</span>
+                      </div>
+                    ) : hero.foto ? (
+                      <>
+                        <img src={hero.foto} alt={`Hero ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">Clique para trocar</span>
                         </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <Upload size={24} />
+                        <span className="text-xs">Clique para enviar</span>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+
+                  {/* Toggle for description */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Adicionar descrição?</span>
+                    <button
+                      onClick={() => updateHeroImageField(idx, 'showDescription', !hero.showDescription)}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${hero.showDescription ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                    >
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${hero.showDescription ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* Title and Subtitle inputs - only shown if toggle is on */}
+                  {hero.showDescription && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-600">
+                      {/* Title input - max 20 characters */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Título</label>
+                          <span className={`text-[10px] ${hero.titulo.length > 20 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {hero.titulo.length}/20
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={hero.titulo}
+                          onChange={(e) => updateHeroImageField(idx, 'titulo', e.target.value.slice(0, 20))}
+                          placeholder="Título"
+                          maxLength={20}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                        />
+                      </div>
+
+                      {/* Subtitle input - max 50 characters */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Subtítulo</label>
+                          <span className={`text-[10px] ${hero.subtitulo.length > 50 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {hero.subtitulo.length}/50
+                          </span>
+                        </div>
+                        <textarea
+                          value={hero.subtitulo}
+                          onChange={(e) => updateHeroImageField(idx, 'subtitulo', e.target.value.slice(0, 50))}
+                          placeholder="Subtítulo"
+                          maxLength={50}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -2090,6 +2085,15 @@ const CardapioPage: React.FC = () => {
                         </button>
                       )}
                     </div>
+
+                    {/* Capa Button */}
+                    <button
+                      onClick={() => focusSection('hero')}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg text-sm transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+                    >
+                      <ImageIcon size={16} />
+                      Capa
+                    </button>
 
                     {/* Add Dropdown */}
                     <button
