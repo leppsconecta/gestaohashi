@@ -294,3 +294,12 @@ export interface ModalProps {
   confirmText?: string;
   autoClose?: boolean;
 }
+export interface AvaliacaoProduto {
+  id: string;
+  created_at: string;
+  produto_nome: string;
+  categoria_nome: string;
+  avaliacao: string;
+  status: string;
+  tipo: string;
+}

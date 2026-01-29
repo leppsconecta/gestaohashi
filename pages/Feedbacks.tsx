@@ -5,7 +5,7 @@ import { Trash2, StickyNote, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Table from '../components/UI/Table';
 import Modal from '../components/UI/Modal';
-import { Feedback, FeedbackStatus, ModalType } from '../types';
+import { Feedback, FeedbackStatus, ModalType, AvaliacaoProduto } from '../types';
 import { supabase } from '../lib/supabase';
 
 
@@ -23,12 +23,14 @@ const FeedbacksPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Helper para normalizar status (caso venha diferente do banco legado)
+  // Helper para normalizar status (caso venha diferente do banco legado)
   const getNormalizedStatus = (status: string) => {
     if (status === 'Pending') return 'Pendente';
     return status;
   };
 
-  const { data: data = [], isLoading: loading, refetch } = useQuery({
+  // --- QUERY POST FEEDBACKS (Originais) ---
+  const { data: feedbackData = [], isLoading: loadingFeedbacks, refetch: refetchFeedbacks } = useQuery({
     queryKey: ['feedbacks'],
     queryFn: async () => {
       const { data: result, error } = await supabase
@@ -67,6 +69,34 @@ const FeedbacksPage: React.FC = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  // --- QUERY PRODUCT REVIEWS ---
+  const { data: productReviewsData = [], isLoading: loadingReviews, refetch: refetchReviews } = useQuery({
+    queryKey: ['avaliacoes_produto'],
+    queryFn: async () => {
+      const { data: result, error } = await supabase
+        .schema('gestaohashi')
+        .from('avaliacoes_produto')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (result) {
+        return result.map(item => ({
+          ...item,
+          data: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+          tipo: item.tipo || 'Elogio',
+          descricao: item.avaliacao
+        }));
+      }
+      return [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const isLoading = loadingFeedbacks || loadingReviews;
+  const refetch = () => { refetchFeedbacks(); refetchReviews(); };
+
   // Configuração Realtime
   useEffect(() => {
     const channel = supabase
@@ -84,8 +114,24 @@ const FeedbacksPage: React.FC = () => {
       )
       .subscribe();
 
+    const channelProducts = supabase
+      .channel('avaliacoes_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'gestaohashi',
+          table: 'avaliacoes_produto'
+        },
+        () => {
+          refetchReviews();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(channelProducts);
     };
   }, [refetch]);
 
@@ -102,6 +148,22 @@ const FeedbacksPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status.');
+    }
+  };
+
+  const handleProductReviewStatusChange = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('avaliacoes_produto')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['avaliacoes_produto'] });
+    } catch (error) {
+      console.error('Erro ao atualizar status da avaliação:', error);
       alert('Erro ao atualizar status.');
     }
   };
@@ -143,30 +205,36 @@ const FeedbacksPage: React.FC = () => {
 
   // Counts for alert badges
   const getUnresolvedCount = (type: string) => {
-    return data.filter(item => item.tipo === type && getNormalizedStatus(item.status) !== 'Resolvido').length;
+    if (type === 'produtos') {
+      return productReviewsData.filter((item: any) => getNormalizedStatus(item.status) === 'Pendente').length;
+    }
+    return feedbackData.filter(item => item.tipo === type && getNormalizedStatus(item.status) !== 'Resolvido').length;
   };
 
-  const tabs = ['elogio', 'reclamacao', 'sugestao', 'denuncia'];
+  const tabs = ['elogio', 'reclamacao', 'sugestao', 'produtos', 'denuncia'];
 
   const getTabLabel = (tab: string) => {
     const labels: Record<string, string> = {
       elogio: 'Elogio',
       reclamacao: 'Reclamação',
       sugestao: 'Sugestão',
-      denuncia: 'Denúncia'
+      denuncia: 'Denúncia',
+      produtos: 'Produtos'
     };
     return labels[tab] || tab;
   };
 
-  const filteredData = data.filter(item => item.tipo === activeTab);
+  const filteredData = activeTab === 'produtos'
+    ? productReviewsData
+    : feedbackData.filter(item => item.tipo === activeTab);
 
   // Calcula contadores para os insights
   const stats = {
-    total: data.length,
-    elogio: data.filter(i => i.tipo === 'elogio').length,
-    reclamacao: data.filter(i => i.tipo === 'reclamacao').length,
-    sugestao: data.filter(i => i.tipo === 'sugestao').length,
-    denuncia: data.filter(i => i.tipo === 'denuncia').length
+    total: feedbackData.length,
+    elogio: feedbackData.filter(i => i.tipo === 'elogio').length,
+    reclamacao: feedbackData.filter(i => i.tipo === 'reclamacao').length,
+    sugestao: feedbackData.filter(i => i.tipo === 'sugestao').length,
+    denuncia: feedbackData.filter(i => i.tipo === 'denuncia').length
   };
 
   const columns = [
@@ -212,6 +280,52 @@ const FeedbacksPage: React.FC = () => {
         </div>
       ),
       className: 'w-[300px] text-left'
+    }
+  ];
+
+  const productColumns = [
+    { header: '#', accessor: (_: any, index: number) => <span className="text-slate-500">{index + 1}</span>, className: 'w-[5%] text-center' },
+    { header: 'Data', accessor: 'data', className: 'w-[10%] text-slate-700 dark:text-slate-300' },
+    {
+      header: 'Status',
+      accessor: (item: any) => (
+        <select
+          value={item.status || 'Pendente'}
+          onChange={(e) => handleProductReviewStatusChange(item.id, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className={`text-xs px-2 py-1.5 rounded-full border-0 focus:ring-2 focus:ring-indigo-500 cursor-pointer outline-none transition-colors
+            ${item.status === 'Pendente' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' :
+              'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'}
+          `}
+        >
+          <option value="Pendente" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Pendente</option>
+          <option value="Resolvido" className="text-slate-900 dark:bg-slate-800 dark:text-slate-100">Resolvido</option>
+        </select>
+      ),
+      className: 'w-[15%]'
+    },
+    { header: 'Categoria', accessor: 'categoria_nome', className: 'w-[15%] text-slate-600 dark:text-slate-400 whitespace-nowrap' },
+    { header: 'Produto', accessor: (item: any) => <span className="text-slate-900 dark:text-white">{item.produto_nome}</span>, className: 'w-[20%]' },
+    {
+      header: 'Tipo',
+      accessor: (item: any) => (
+        <span className={`text-xs px-2 py-1 rounded-full ${item.tipo === 'Reclamação' ? 'bg-red-50 text-red-600' :
+          item.tipo === 'Sugestão' ? 'bg-blue-50 text-blue-600' :
+            'bg-emerald-50 text-emerald-600'
+          }`}>
+          {item.tipo}
+        </span>
+      ),
+      className: 'w-[10%]'
+    },
+    {
+      header: 'Descrição',
+      accessor: (item: any) => (
+        <span className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1" title={item.avaliacao}>
+          {item.avaliacao}
+        </span>
+      ),
+      className: 'w-[25%]'
     }
   ];
 
@@ -275,6 +389,12 @@ const FeedbacksPage: React.FC = () => {
               activeClass = 'bg-orange-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-orange-600';
               inactiveClass = 'bg-orange-600 text-white border-transparent opacity-50 hover:opacity-80';
               badgeClass = 'bg-white text-orange-700 shadow-sm';
+              badgeClass = 'bg-white text-orange-700 shadow-sm';
+              break;
+            case 'produtos':
+              activeClass = 'bg-blue-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-blue-600';
+              inactiveClass = 'bg-blue-600 text-white border-transparent opacity-50 hover:opacity-80';
+              badgeClass = 'bg-white text-blue-700 shadow-sm';
               break;
             default:
               activeClass = 'bg-indigo-600 text-white shadow-md border-transparent ring-2 ring-offset-2 ring-indigo-600';
@@ -303,7 +423,7 @@ const FeedbacksPage: React.FC = () => {
       </div>
 
       <Table
-        columns={columns}
+        columns={activeTab === 'produtos' ? productColumns : columns}
         data={filteredData}
         searchPlaceholder="Buscar por nome, código ou contato..."
       />

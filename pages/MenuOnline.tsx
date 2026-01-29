@@ -13,7 +13,13 @@ import {
   Package,
   Sparkles,
   Loader2,
-  Star
+  Star,
+  Search,
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  MessageCircle,
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -234,6 +240,16 @@ const MenuOnline: React.FC = () => {
   const [expandedComboItemIndex, setExpandedComboItemIndex] = useState<number | null>(null);
   const [menuEnabled, setMenuEnabled] = useState(true);
 
+  // Rating Feedback States
+  const [showRatingSearch, setShowRatingSearch] = useState(false);
+  const [ratingSearchTerm, setRatingSearchTerm] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedProductToRate, setSelectedProductToRate] = useState<MenuItem | null>(null);
+  const [ratingText, setRatingText] = useState('');
+  const [ratingType, setRatingType] = useState<'Elogio' | 'Sugestão' | 'Reclamação'>('Elogio');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [isRatingSuccess, setIsRatingSuccess] = useState(false);
+
   const categoriesRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll categories
@@ -258,6 +274,7 @@ const MenuOnline: React.FC = () => {
     { icon: Share2, label: 'Redes Sociais', color: 'bg-pink-500', url: 'https://instagram.com/hashiexpressjundiai' },
     { icon: Calendar, label: 'Reservas', color: 'bg-green-500', url: 'https://hashiexpressjundiai.com.br' },
     { icon: Handshake, label: 'Parcerias', color: 'bg-orange-500', url: 'https://hashiexpressjundiai.com.br' },
+    { icon: Star, label: 'Avaliar Produto', color: 'bg-yellow-500', action: 'rate' },
   ];
 
   const activeCategory = categorias.find(c => c.id === activeCatId);
@@ -491,9 +508,230 @@ const MenuOnline: React.FC = () => {
     );
   }
 
+
+
+  const handleContactAction = (option: any) => {
+    if (option.action === 'rate') {
+      setShowContactModal(false);
+      setShowRatingSearch(true);
+    } else {
+      window.open(option.url, '_blank');
+    }
+  };
+
+  const handleProductSelectForRating = (product: MenuItem) => {
+    setSelectedProductToRate(product);
+    setShowRatingSearch(false);
+    setShowRatingModal(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedProductToRate || !ratingText.trim()) return;
+
+    setIsSubmittingRating(true);
+    try {
+      const category = categorias.find(c => c.itens.some(i => i.id === selectedProductToRate.id));
+
+      const { error } = await supabase
+        .schema('gestaohashi')
+        .from('avaliacoes_produto')
+        .insert({
+          produto_nome: selectedProductToRate.nome,
+          categoria_nome: category?.nome || 'Geral',
+          avaliacao: ratingText,
+          status: 'Pendente',
+          tipo: ratingType
+        });
+
+      if (error) throw error;
+
+      if (error) throw error;
+
+      setIsRatingSuccess(true);
+      // Reset logic moved to success modal close
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Erro ao enviar avaliação. Tente novamente.');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  const handleCloseRatingModal = () => {
+    setShowRatingModal(false);
+    setTimeout(() => {
+      setIsRatingSuccess(false);
+      setRatingText('');
+      setRatingType('Elogio');
+      setSelectedProductToRate(null);
+    }, 300);
+  };
+
+  const filteredProductsForRating = ratingSearchTerm
+    ? allItems.filter(item => item.nome.toLowerCase().includes(ratingSearchTerm.toLowerCase()))
+    : [];
+
+
+
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-20 font-sans">
+      {/* Search Product Modal for Rating */}
+      {/* Search Product Modal for Rating */}
+      {/* Search Product Modal for Rating */}
+      {showRatingSearch && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4" onClick={() => setShowRatingSearch(false)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
+              <button onClick={() => setShowRatingSearch(false)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+              <div className="flex-1 bg-slate-100 rounded-xl flex items-center px-4 py-3">
+                <Search size={20} className="text-slate-400 mr-2" />
+                <input
+                  type="text"
+                  placeholder="Busque o produto..."
+                  className="bg-transparent w-full outline-none text-slate-800 font-medium"
+                  autoFocus
+                  value={ratingSearchTerm}
+                  onChange={e => setRatingSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {ratingSearchTerm ? (
+                <div className="space-y-2">
+                  {filteredProductsForRating.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleProductSelectForRating(item)}
+                      className="flex items-center gap-4 p-3 border border-slate-100 rounded-xl hover:bg-slate-50 active:bg-slate-100 cursor-pointer"
+                    >
+                      <div className="w-12 h-12 bg-slate-200 rounded-lg overflow-hidden shrink-0">
+                        {item.foto && <img src={item.foto} alt="" className="w-full h-full object-cover" />}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800">{item.nome}</h4>
+                        <p className="text-xs text-slate-500 line-clamp-1">{item.descricao}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredProductsForRating.length === 0 && (
+                    <p className="text-center text-slate-400 py-8">Nenhum produto encontrado</p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-400">
+                  <Search size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>Digite o nome do produto que deseja avaliar</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Form Modal */}
+      {showRatingModal && selectedProductToRate && (
+        <div className="fixed inset-0 z-[61] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800">{isRatingSuccess ? 'Sucesso!' : 'Avaliar Produto'}</h3>
+              <button onClick={handleCloseRatingModal} className="p-1 text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+
+            {isRatingSuccess ? (
+              <div className="p-8 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 text-emerald-600 animate-in zoom-in duration-300">
+                  <CheckCircle size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Avaliação Enviada!</h3>
+                <p className="text-slate-500 mb-8">Obrigado por compartilhar sua opinião conosco.</p>
+                <button
+                  onClick={handleCloseRatingModal}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                >
+                  Concluir
+                </button>
+              </div>
+            ) : (
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden shadow-sm shrink-0">
+                    {selectedProductToRate.foto ? (
+                      <img src={selectedProductToRate.foto} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={24} /></div>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg text-slate-800 leading-tight">{selectedProductToRate.nome}</h4>
+                    <p className="text-xs text-slate-500 mt-1">Compartilhe sua experiência</p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tipo de Avaliação</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setRatingType('Elogio')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${ratingType === 'Elogio'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                      <ThumbsUp size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Elogio</span>
+                    </button>
+                    <button
+                      onClick={() => setRatingType('Sugestão')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${ratingType === 'Sugestão'
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                      <MessageCircle size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Sugestão</span>
+                    </button>
+                    <button
+                      onClick={() => setRatingType('Reclamação')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${ratingType === 'Reclamação'
+                        ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                      <ThumbsDown size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Reclamação</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sua Avaliação</label>
+                  <textarea
+                    value={ratingText}
+                    onChange={e => setRatingText(e.target.value)}
+                    placeholder="O que você achou deste produto? Sabor, apresentação, etc..."
+                    className="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-yellow-400 min-h-[120px] text-slate-700 resize-none"
+                  ></textarea>
+                </div>
+
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={isSubmittingRating || !ratingText.trim()}
+                  className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-xl shadow-lg shadow-yellow-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100"
+                >
+                  {isSubmittingRating ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  {isSubmittingRating ? 'Enviando...' : 'Enviar Avaliação'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Hero Carousel */}
+
       <section className="h-[40vh] sm:h-[50vh] relative overflow-hidden bg-slate-900">
         {heroImages.length > 0 ? (
           heroImages.map((hero, idx) => (
@@ -895,6 +1133,7 @@ const MenuOnline: React.FC = () => {
       )}
 
       {/* Contact Modal */}
+      {/* Contact Modal */}
       {showContactModal && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
@@ -902,35 +1141,38 @@ const MenuOnline: React.FC = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl"
+            className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative"
           >
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 text-white text-center relative">
-              <button
-                onClick={() => setShowContactModal(false)}
-                className="absolute top-4 right-4 p-1.5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-              >
-                <X size={18} />
-              </button>
-              <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <User size={28} />
-              </div>
-              <h2 className="text-xl font-bold">Fale Conosco</h2>
-              <p className="text-sm opacity-80 mt-1">Como podemos ajudar?</p>
+            <button
+              onClick={() => setShowContactModal(false)}
+              className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="pt-8 px-6 text-center">
+              <h2 className="text-xl font-bold text-slate-800">Fale Conosco</h2>
+              <p className="text-sm text-slate-500 mt-1 mb-6">Escolha uma opção</p>
             </div>
 
-            {/* Modal Options */}
-            <div className="p-4 space-y-3">
+            <div className="p-6 pt-2 space-y-3">
               {contactOptions.map((option, idx) => (
                 <button
                   key={idx}
-                  onClick={() => window.open(option.url, '_blank')}
-                  className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors group"
+                  onClick={() => {
+                    if (option.action === 'rate') {
+                      setShowContactModal(false);
+                      setShowRatingSearch(true);
+                    } else if (option.url) {
+                      window.open(option.url, '_blank');
+                    }
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl transition-all group"
                 >
-                  <div className={`w-12 h-12 ${option.color} rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform`}>
-                    <option.icon size={22} />
+                  <div className={`w-10 h-10 ${option.color} rounded-xl flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}>
+                    <option.icon size={20} />
                   </div>
-                  <span className="text-lg font-semibold text-slate-700">{option.label}</span>
+                  <span className="text-base font-bold text-slate-700">{option.label}</span>
                 </button>
               ))}
             </div>
