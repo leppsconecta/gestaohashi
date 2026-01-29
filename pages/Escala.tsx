@@ -106,13 +106,13 @@ const MobileEmployeeSelector: React.FC<{
   return (
     <div className="space-y-5">
       <div className="relative group px-1">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={18} />
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-600 transition-colors pointer-events-none" size={18} />
         <input
           type="text"
           placeholder="Buscar por nome ou função..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-bold text-slate-800 dark:text-white placeholder:font-medium shadow-inner"
+          className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all text-sm font-bold text-slate-800 dark:text-white placeholder:font-medium shadow-inner"
         />
       </div>
 
@@ -121,10 +121,10 @@ const MobileEmployeeSelector: React.FC<{
           <button
             key={f.id}
             onClick={() => onSelect(f.id)}
-            className="w-full p-4 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-indigo-200 transition-all text-left shadow-sm active:scale-[0.98]"
+            className="w-full p-4 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-red-200 transition-all text-left shadow-sm active:scale-[0.98]"
           >
             <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shadow-sm border border-indigo-100 dark:border-indigo-800/50">
+              <div className="w-11 h-11 rounded-2xl bg-red-50 dark:bg-indigo-900/30 text-red-600 dark:text-red-400 flex items-center justify-center font-black text-xs shadow-sm border border-indigo-100 dark:border-indigo-800/50">
                 {f.nome.charAt(0)}
               </div>
               <div className="overflow-hidden">
@@ -154,7 +154,7 @@ const ConfigTurnosForm: React.FC<{ turnos: TurnoConfig[], onChange: (t: TurnoCon
     onChange(updated);
   };
 
-  const inputTimeClass = "flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 text-center shadow-sm";
+  const inputTimeClass = "flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-red-500/20 text-center shadow-sm";
 
   return (
     <div className="space-y-5 py-2">
@@ -204,7 +204,7 @@ const ConfigTurnosForm: React.FC<{ turnos: TurnoConfig[], onChange: (t: TurnoCon
 
 const ShareEscalaModal: React.FC<{ onDownload: () => void, onCopyText: () => void }> = ({ onDownload, onCopyText }) => (
   <div className="space-y-4 py-2">
-    <button onClick={onDownload} className="w-full p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group shadow-md active:scale-95">
+    <button onClick={onDownload} className="w-full p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group shadow-md active:scale-95">
       <div className="flex items-center gap-5">
         <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 shadow-inner">
           <FileText size={28} />
@@ -216,7 +216,7 @@ const ShareEscalaModal: React.FC<{ onDownload: () => void, onCopyText: () => voi
       </div>
       <Download size={24} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
     </button>
-    <button onClick={onCopyText} className="w-full p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group shadow-md active:scale-95">
+    <button onClick={onCopyText} className="w-full p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group shadow-md active:scale-95">
       <div className="flex items-center gap-5"><div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 shadow-inner"><Copy size={28} /></div><div className="text-left"><h4 className="font-bold text-slate-900 dark:text-white tracking-tight">Copiar Texto</h4><p className="text-xs text-slate-500 font-medium">Formatado para WhatsApp</p></div></div>
       <ChevronRight size={24} className="text-slate-300 group-hover:text-emerald-600 transition-colors" />
     </button>
@@ -253,14 +253,14 @@ const EditTextModal: React.FC<{
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Conteúdo da Escala</label>
           <button
             onClick={handleResetAction}
-            className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-700 uppercase tracking-widest transition-colors"
+            className="flex items-center gap-1 text-[10px] font-medium text-red-600 hover:text-indigo-700 uppercase tracking-widest transition-colors"
             title="Restaurar texto original do sistema"
           >
             <RotateCcw size={12} strokeWidth={2.5} /> Restaurar
           </button>
         </div>
         <textarea
-          className="w-full h-[45vh] sm:h-[55vh] max-h-[550px] p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed text-slate-700 dark:text-slate-300 custom-scrollbar overflow-y-auto shadow-inner"
+          className="w-full h-[45vh] sm:h-[55vh] max-h-[550px] p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono focus:ring-2 focus:ring-red-500 outline-none resize-none leading-relaxed text-slate-700 dark:text-slate-300 custom-scrollbar overflow-y-auto shadow-inner"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="A escala aparecerá aqui..."
@@ -383,7 +383,7 @@ const ReportTemplate: React.FC<{
                     return (
                       <div key={t.id} className="space-y-2">
                         <div className="border-b border-slate-100 pb-0.5 mb-1">
-                          <p className="text-[8px] font-bold text-indigo-600/80 leading-none">{t.label}</p>
+                          <p className="text-[8px] font-bold text-red-600/80 leading-none">{t.label}</p>
                         </div>
                         <div className="flex flex-col gap-2">
                           {escaladosIds.map(fId => {
@@ -528,7 +528,11 @@ const EscalaPage: React.FC = () => {
   const filteredFuncionarios = useMemo(() => {
     if (!searchTerm.trim()) return funcionarios;
     const search = searchTerm.toLowerCase();
-    return funcionarios.filter(f => f.nome.toLowerCase().includes(search) || f.codigo.toLowerCase().includes(search) || f.funcao.toLowerCase().includes(search));
+    return funcionarios.filter(f =>
+      f.nome?.toLowerCase().includes(search) ||
+      f.codigo?.toLowerCase().includes(search) ||
+      f.funcao?.toLowerCase().includes(search)
+    );
   }, [searchTerm, funcionarios]);
 
   const changeWeek = (direction: number) => {
@@ -769,18 +773,18 @@ const EscalaPage: React.FC = () => {
         key={dia.id}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); if (draggedEmployeeId) handleDropOnDay(dia.id, draggedEmployeeId); }}
-        className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border transition-all duration-300 flex flex-col gap-4 min-h-[320px] shadow-sm p-6 overflow-hidden ${isToday ? 'border-indigo-600 ring-8 ring-indigo-500/10 shadow-md' : 'border-slate-200 dark:border-slate-800'}`}
+        className={`bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-300 flex flex-col gap-4 min-h-[320px] shadow-sm p-6 overflow-hidden ${isToday ? 'border-red-600 ring-8 ring-red-500/10 shadow-md' : 'border-slate-200 dark:border-slate-800'}`}
       >
         <div className="flex items-center justify-between">
-          <h3 className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-slate-800 dark:text-white'}`}>{dia.label}</h3>
+          <h3 className={`text-sm font-bold ${isToday ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{dia.label}</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleMobileAdd(dia.id)}
-              className="lg:hidden p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-95 transition-all shadow-sm"
+              className="lg:hidden p-1.5 bg-red-50 text-red-600 rounded-lg active:scale-95 transition-all shadow-sm"
             >
               <Plus size={14} strokeWidth={3} />
             </button>
-            <span className={`text-base font-bold ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>{dia.dia}</span>
+            <span className={`text-base font-bold ${isToday ? 'text-red-600' : 'text-slate-400'}`}>{dia.dia}</span>
           </div>
         </div>
         <div className="h-[1px] bg-slate-100 dark:bg-slate-800 w-full" />
@@ -851,7 +855,7 @@ const EscalaPage: React.FC = () => {
               key={turno.id}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (draggedEmployeeId) completeAssignment(dayId, turno.id, draggedEmployeeId); }}
-              className={`flex-none lg:flex-1 min-w-0 bg-white dark:bg-slate-900 border rounded-[2rem] flex flex-col transition-all duration-300 shadow-sm overflow-hidden ${turno.borderClass.replace('border-', 'border-opacity-20 border-')}`}
+              className={`flex-none lg:flex-1 min-w-0 bg-white dark:bg-slate-900 border rounded-xl flex flex-col transition-all duration-300 shadow-sm overflow-hidden ${turno.borderClass.replace('border-', 'border-opacity-20 border-')}`}
             >
               <div className="p-5 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20">
                 <div className="flex items-center justify-between mb-1">
@@ -859,7 +863,7 @@ const EscalaPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => openEmployeeSelectorForTurn(dayId, turno.id)}
-                      className="lg:hidden p-1.5 bg-indigo-50 text-indigo-600 rounded-lg active:scale-95 transition-all shadow-sm"
+                      className="lg:hidden p-1.5 bg-red-50 text-red-600 rounded-lg active:scale-95 transition-all shadow-sm"
                     >
                       <Plus size={14} strokeWidth={3} />
                     </button>
@@ -938,30 +942,57 @@ const EscalaPage: React.FC = () => {
           employees={funcionarios}
         />
 
-        <aside className="hidden lg:flex w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] flex flex-col shadow-sm flex-shrink-0 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 flex-shrink-0"><Users size={20} className="text-indigo-600" /><h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Equipe</h2></div>
+        <aside className="hidden lg:flex w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shadow-xl z-20 h-full fixed left-0 top-0 pt-20 pb-4">
+          <div className="px-6 pb-6 pt-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-indigo-900/20 flex items-center justify-center">
+              <Users size={16} className="text-red-600 dark:text-red-400" />
+            </div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Equipe</h2>
+          </div>
           <div className="px-6 py-4 shrink-0">
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={16} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-600 transition-colors pointer-events-none" size={16} />
               <input
                 type="text"
                 placeholder="Buscar na equipe..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 tracking-tight shadow-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 tracking-tight shadow-sm"
               />
             </div>
           </div>
-          <div className="flex-1 px-4 pb-6 space-y-3 overflow-y-auto no-scrollbar">{filteredFuncionarios.length > 0 ? (filteredFuncionarios.map(func => (<div key={func.id} draggable onDragStart={() => setDraggedEmployeeId(func.id)} onDragEnd={() => setDraggedEmployeeId(null)} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] flex items-center justify-between hover:shadow-md hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">{func.nome.charAt(0)}{func.nome.split(' ')[1]?.charAt(0) || ''}</div><div className="overflow-hidden"><h4 className="text-[11px] font-bold text-slate-900 dark:text-white truncate">{formatName(func.nome)}</h4><p className="text-[9px] font-medium text-slate-400 tracking-tight truncate">{func.funcao}</p></div></div><GripVertical size={16} className="text-slate-300 group-hover:text-indigo-400 transition-colors" /></div>))) : (<div className="py-20 text-center flex flex-col items-center gap-3"><Users size={32} className="text-slate-200" /><p className="text-[10px] font-medium text-slate-300 tracking-wide">Nenhum Resultado</p></div>)}</div>
+          <div className="flex-1 px-4 pb-6 space-y-3 overflow-y-auto no-scrollbar">
+            {filteredFuncionarios.length > 0 ? (
+              filteredFuncionarios.map(func => (
+                <div key={func.id} draggable onDragStart={() => setDraggedEmployeeId(func.id)} onDragEnd={() => setDraggedEmployeeId(null)} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between hover:shadow-md hover:border-red-200 transition-all cursor-grab active:cursor-grabbing group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-[10px] shadow-sm uppercase">
+                      {func.nome?.charAt(0)}{func.nome?.split(' ')[1]?.charAt(0) || ''}
+                    </div>
+                    <div className="overflow-hidden">
+                      <h4 className="text-[11px] font-bold text-slate-900 dark:text-white truncate">{formatName(func.nome || '')}</h4>
+                      <p className="text-[9px] font-medium text-slate-400 tracking-tight truncate">{func.funcao}</p>
+                    </div>
+                  </div>
+                  <GripVertical size={14} className="text-slate-300 group-hover:text-red-400 transition-colors" />
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center flex flex-col items-center gap-3 opacity-60">
+                <Users size={32} className="text-slate-200" />
+                <p className="text-[10px] font-medium text-slate-300 tracking-wide">Nenhum Resultado</p>
+              </div>
+            )}
+          </div>
         </aside>
 
-        <main className="flex-1 flex flex-col gap-6 overflow-hidden">
-          <div className="bg-white dark:bg-slate-900 px-6 py-4 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row items-center justify-between shadow-sm flex-shrink-0 gap-4">
+        <main className="flex-1 flex flex-col gap-6 overflow-hidden lg:pl-80 pt-6 h-screen">
+          <div className="bg-white dark:bg-slate-900 px-6 py-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row items-center justify-between shadow-sm flex-shrink-0 gap-4">
             <div className="flex justify-center lg:justify-start w-full lg:w-auto">
               <div className="flex bg-slate-50/80 dark:bg-slate-800/80 p-1.5 rounded-2xl gap-1 shadow-inner border border-slate-100/50 dark:border-slate-700/50 w-auto">
                 <button
                   onClick={() => setActiveTab('semanal')}
-                  className={`px-4 lg:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${activeTab === 'semanal' ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-md ring-1 ring-slate-200/50 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`px-4 lg:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${activeTab === 'semanal' ? 'bg-white dark:bg-slate-900 text-red-600 shadow-md ring-1 ring-slate-200/50 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   Semanal
                 </button>
@@ -1028,7 +1059,7 @@ const EscalaPage: React.FC = () => {
               <div className="flex-1 overflow-y-auto space-y-6 pb-12 no-scrollbar">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                   {weekDays.map(dia => renderDayCard(dia))}
-                  <div className="hidden xl:flex bg-slate-100/30 dark:bg-slate-800/20 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-700 items-center justify-center opacity-30 hover:opacity-50 transition-opacity min-h-[320px]">
+                  <div className="hidden xl:flex bg-slate-100/30 dark:bg-slate-800/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 items-center justify-center opacity-30 hover:opacity-50 transition-opacity min-h-[320px]">
                     <Plus size={40} className="text-slate-400" />
                   </div>
                 </div>

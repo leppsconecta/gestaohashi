@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onMobileClose, isPinned
                     to={item.path}
                     onClick={() => window.innerWidth < 1024 && onMobileClose()}
                     className={({ isActive }) => `
-                      flex items-center justify-center lg:justify-start lg:gap-4 p-2 lg:px-3 lg:py-2.5 rounded-xl transition-all group relative shrink-0
+                      flex items-center justify-center ${isExpanded ? 'lg:justify-start' : 'lg:justify-center'} lg:gap-4 p-2 lg:px-3 lg:py-2.5 rounded-xl transition-all group relative shrink-0
                       ${isActive
                         ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-semibold shadow-sm lg:shadow-none'
                         : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'}

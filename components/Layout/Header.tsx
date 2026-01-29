@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuOpen }) => {
           className="hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
         >
           <Menu size={24} />
-        </button>>
+        </button>
 
         <div className="hidden sm:block">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-200 tracking-tight">
