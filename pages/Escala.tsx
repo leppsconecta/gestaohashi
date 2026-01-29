@@ -391,15 +391,17 @@ const EscalaPage: React.FC = () => {
           {turnosConfigs.map(turno => {
             const key = `${day.id}-${turno.id}`;
             const assigned = escala[key] || [];
-            const isEmpty = assigned.length === 0;
+
+            // Per existing request: "Exiba apenas turnos que contem funcionário."
+            if (assigned.length === 0) return null;
 
             return (
-              <div key={turno.id} className="relative">
-                {/* Turno Label (Only show if has people OR is hovering group to reduce noise? showing always for structure) */}
-                <div className={`flex items-center gap-2 mb-1.5 px-2 ${isEmpty ? 'opacity-50' : 'opacity-100'}`}>
+              <div key={turno.id} className="relative mb-3 last:mb-0">
+                {/* Turno Label */}
+                <div className="flex items-center gap-2 mb-1.5 px-2">
                   <div className={`w-1.5 h-1.5 rounded-full ${turno.bgClass.replace('bg-', 'bg-')}`} style={{ backgroundColor: 'currentColor' }} />
                   <span className={`text-[10px] font-bold uppercase tracking-widest ${turno.colorClass}`}>{turno.label}</span>
-                  <span className="text-[9px] text-slate-300 font-mono ml-auto">{assigned.length || '-'}</span>
+                  <span className="text-[9px] text-slate-300 font-mono ml-auto">{assigned.length}</span>
                   <button onClick={() => {
                     setModalConfig({
                       isOpen: true,
@@ -414,7 +416,7 @@ const EscalaPage: React.FC = () => {
                 </div>
 
                 {/* Assigned List */}
-                <div className="space-y-1.5 min-h-[20px]">
+                <div className="space-y-1.5">
                   {assigned.map(empId => {
                     const f = funcionarios.find(x => x.id === empId);
                     if (!f) return null;
@@ -430,15 +432,19 @@ const EscalaPage: React.FC = () => {
                       </div>
                     )
                   })}
-                  {isEmpty && (
-                    <div className="h-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center">
-                      <span className="text-[9px] text-slate-300 select-none">Vazio</span>
-                    </div>
-                  )}
                 </div>
               </div>
             )
           })}
+
+          {/* Empty State for Day */}
+          {turnosConfigs.every(t => (escala[`${day.id}-${t.id}`] || []).length === 0) && (
+            <div className="h-32 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-300">
+              <Calendar size={24} className="opacity-20" />
+              <span className="text-[10px] font-medium opacity-50">Sem escalas</span>
+              <span className="text-[9px] opacity-40 px-4 text-center">Arraste um funcionário para adicionar</span>
+            </div>
+          )}
         </div>
       </div>
     );
