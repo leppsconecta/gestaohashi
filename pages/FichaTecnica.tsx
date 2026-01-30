@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Utensils,
   Package,
@@ -26,6 +26,7 @@ import {
 import Modal from '../components/UI/Modal';
 import Table, { Column } from '../components/UI/Table';
 import { MateriaPrima, PratoFicha, CategoriaPrato, IngredientePrato } from '../types';
+import * as fichaTecnicaService from '../services/fichaTecnicaService';
 
 // Utility class to hide spin buttons
 const NO_SPINNER_CLASS = "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]";
@@ -41,45 +42,12 @@ interface PratoFichaFormState extends PratoFicha {
   observacao?: string;
 }
 
-const INITIAL_INSUMOS: MateriaPrima[] = [
-  { id: 'i1', nome: 'Açúcar', unidade: 'kg', custoUnitario: 4.00 },
-  { id: 'i2', nome: 'Sal', unidade: 'kg', custoUnitario: 3.00 },
-  { id: 'i3', nome: 'Salmão Inteiro', unidade: 'kg', custoUnitario: 48.00 },
-  { id: 'i4', nome: 'Salmão Filé', unidade: 'kg', custoUnitario: 85.00 },
-  { id: 'i5', nome: 'Arroz Shari', unidade: 'kg', custoUnitario: 12.00 },
-  { id: 'i6', nome: 'Vinagre de Arroz', unidade: 'l', custoUnitario: 15.00 },
-  { id: 'i7', nome: 'Cream Cheese', unidade: 'kg', custoUnitario: 35.00 },
-  { id: 'i8', nome: 'Nori (Folha)', unidade: 'un', custoUnitario: 0.80 },
-];
-
-const INITIAL_CATEGORIAS: CategoriaPrato[] = [
-  { id: 'c1', nome: 'Entradas' },
-  { id: 'c2', nome: 'Sashimis' },
-  { id: 'c3', nome: 'Temakis' },
-  { id: 'c4', nome: 'Combinados' },
-  { id: 'c5', nome: 'Bebidas' },
-];
-
-const INITIAL_PRATOS: PratoFicha[] = [
-  {
-    id: 'p1',
-    nome: 'Sashimi de Salmão (5un)',
-    categoriaId: 'c2',
-    custoTotal: 12.50,
-    precoVenda: 35.00,
-    modoPreparo: '1. Limpar o salmão.\n2. Cortar em fatias de 20g.\n3. Servir 5 fatias.',
-    atualizadoEm: '30/01/2026 10:00',
-    ingredientes: [{ materiaPrimaId: 'i4', quantidade: 0.1 }],
-    rendimento: 1,
-    unidadeRendimento: 'porcao'
-  }
-];
-
 const FichaTecnicaPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'pratos' | 'insumos' | 'categorias'>('pratos');
-  const [insumos, setInsumos] = useState<MateriaPrima[]>(INITIAL_INSUMOS);
-  const [categorias, setCategorias] = useState<CategoriaPrato[]>(INITIAL_CATEGORIAS);
-  const [pratos, setPratos] = useState<PratoFicha[]>(INITIAL_PRATOS);
+  const [insumos, setInsumos] = useState<MateriaPrima[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaPrato[]>([]);
+  const [pratos, setPratos] = useState<PratoFicha[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // View Mode: 'list' or 'form' (substitui o modal de Prato)
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
@@ -101,6 +69,52 @@ const FichaTecnicaPage: React.FC = () => {
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printProduct, setPrintProduct] = useState<PratoFicha | null>(null);
 
+  // --- Load Data from Database ---
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      // Load insumos
+      const insumosData = await fichaTecnicaService.getInsumos();
+      setInsumos(insumosData.map(i => ({
+        id: i.id,
+        nome: i.nome,
+        unidade: i.unidade,
+        custoUnitario: Number(i.custo_unitario)
+      })));
+
+      // Load categorias
+      const categoriasData = await fichaTecnicaService.getCategorias();
+      setCategorias(categoriasData.map(c => ({ id: c.id, nome: c.nome })));
+
+      // Load pratos with ingredientes
+      const pratosData = await fichaTecnicaService.getAllPratosWithIngredientes();
+      setPratos(pratosData.map(p => ({
+        id: p.id,
+        nome: p.nome,
+        categoriaId: p.categoria_id || '',
+        custoTotal: Number(p.custo_total),
+        precoVenda: Number(p.preco_venda),
+        modoPreparo: p.modo_preparo || '',
+        foto: p.foto_url || undefined,
+        atualizadoEm: p.updated_at ? new Date(p.updated_at).toLocaleString('pt-BR') : '',
+        ingredientes: p.ingredientes.map(ing => ({
+          materiaPrimaId: ing.insumo_id,
+          quantidade: Number(ing.quantidade)
+        })),
+        rendimento: p.rendimento,
+        unidadeRendimento: p.unidade_rendimento
+      })));
+    } catch (err) {
+      console.error('Error loading data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
   // --- Handlers ---
   const handleOpenPrato = (prato?: PratoFicha) => {
     setEditingPrato(prato);
@@ -113,28 +127,102 @@ const FichaTecnicaPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSavePrato = (prato: PratoFicha) => {
-    if (editingPrato) {
-      setPratos(pratos.map(p => p.id === prato.id ? prato : p));
-    } else {
-      setPratos([...pratos, { ...prato, id: Date.now().toString(), atualizadoEm: new Date().toLocaleString('pt-BR') }]);
+  const handleSavePrato = async (prato: PratoFicha) => {
+    try {
+      const pratoData = {
+        nome: prato.nome,
+        categoria_id: prato.categoriaId || null,
+        custo_total: prato.custoTotal,
+        preco_venda: prato.precoVenda,
+        modo_preparo: prato.modoPreparo || null,
+        foto_url: prato.foto || null,
+        rendimento: prato.rendimento || 1,
+        unidade_rendimento: prato.unidadeRendimento || 'un'
+      };
+
+      const ingredientesData = (prato.ingredientes || []).map(ing => {
+        const insumoId = ing.materiaPrimaId;
+        const insumo = insumos.find(i => i.id === insumoId);
+        const custoCalculado = insumo ? ing.quantidade * insumo.custoUnitario : 0;
+        return {
+          insumo_id: insumoId,
+          quantidade: ing.quantidade,
+          custo_calculado: custoCalculado
+        };
+      });
+
+      if (editingPrato) {
+        await fichaTecnicaService.updatePrato(prato.id, pratoData, ingredientesData);
+      } else {
+        await fichaTecnicaService.createPrato(pratoData, ingredientesData);
+      }
+      await loadData();
+    } catch (err) {
+      console.error('Error saving prato:', err);
     }
     setViewMode('list');
     setEditingPrato(undefined);
   };
 
-  const handleSaveInsumo = (nome: string, unidade: string, custo: number) => {
-    if (editingInsumo) {
-      setInsumos(insumos.map(i => i.id === editingInsumo.id ? { ...i, nome, unidade, custoUnitario: custo } : i));
-    } else {
-      setInsumos([...insumos, { id: Date.now().toString(), nome, unidade, custoUnitario: custo }]);
+  const handleDeletePrato = async (id: string) => {
+    try {
+      const prato = pratos.find(p => p.id === id);
+      await fichaTecnicaService.deletePratoWithImage(id, prato?.foto);
+      await loadData();
+    } catch (err) {
+      console.error('Error deleting prato:', err);
+    }
+  };
+
+  const handleSaveInsumo = async (nome: string, unidade: string, custo: number) => {
+    try {
+      if (editingInsumo) {
+        await fichaTecnicaService.updateInsumo(editingInsumo.id, { nome, unidade, custo_unitario: custo });
+      } else {
+        await fichaTecnicaService.createInsumo({ nome, unidade, custo_unitario: custo });
+      }
+      await loadData();
+    } catch (err) {
+      console.error('Error saving insumo:', err);
     }
     setIsModalOpen(false);
   };
 
-  const handleSaveCategoria = (nome: string) => {
-    setCategorias([...categorias, { id: Date.now().toString(), nome }]);
+  const handleDeleteInsumo = async (id: string) => {
+    try {
+      await fichaTecnicaService.deleteInsumo(id);
+      await loadData();
+    } catch (err) {
+      console.error('Error deleting insumo:', err);
+    }
+  };
+
+  const handleSaveCategoria = async (nome: string) => {
+    try {
+      await fichaTecnicaService.createCategoria({ nome });
+      await loadData();
+    } catch (err) {
+      console.error('Error saving categoria:', err);
+    }
     setIsModalOpen(false);
+  };
+
+  const handleUpdateCategoria = async (id: string, nome: string) => {
+    try {
+      await fichaTecnicaService.updateCategoria(id, { nome });
+      await loadData();
+    } catch (err) {
+      console.error('Error updating categoria:', err);
+    }
+  };
+
+  const handleDeleteCategoria = async (id: string) => {
+    try {
+      await fichaTecnicaService.deleteCategoria(id);
+      await loadData();
+    } catch (err) {
+      console.error('Error deleting categoria:', err);
+    }
   };
 
   // --- Sub-components ---
@@ -226,17 +314,23 @@ const FichaTecnicaPage: React.FC = () => {
       custoTotal: initial?.custoTotal || 0,
       precoVenda: initial?.precoVenda || 0,
       modoPreparo: initial?.modoPreparo || '1. ',
+      foto: initial?.foto || undefined,
       atualizadoEm: initial?.atualizadoEm || '',
       ingredientes: initial?.ingredientes || [],
       // Visual fields
       sku: 'PRT-' + Math.floor(Math.random() * 1000).toString().padStart(3, '0'),
-      rendimento: 1,
-      unidadeRendimento: 'un',
+      rendimento: initial?.rendimento || 1,
+      unidadeRendimento: initial?.unidadeRendimento || 'un',
       custoGas: 0,
       custoEnergia: 0,
       custoAgua: 0,
       observacao: ''
     });
+
+    // Image upload state
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | undefined>(initial?.foto);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Insumo Selection State
     const [selectedInsumoId, setSelectedInsumoId] = useState('');
@@ -282,20 +376,57 @@ const FichaTecnicaPage: React.FC = () => {
       }));
     };
 
-    const handlePreSave = () => {
-      const pratoToSave: PratoFicha = {
-        id: formData.id,
-        nome: formData.nome,
-        categoriaId: formData.categoriaId,
-        custoTotal: custoUnitarioFinal,
-        precoVenda: formData.precoVenda,
-        modoPreparo: formData.modoPreparo,
-        atualizadoEm: new Date().toLocaleString('pt-BR'),
-        ingredientes: formData.ingredientes,
-        rendimento: formData.rendimento,
-        unidadeRendimento: formData.unidadeRendimento
-      };
-      onSave(pratoToSave);
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const handlePreSave = async () => {
+      setIsUploading(true);
+      try {
+        let fotoUrl = formData.foto;
+
+        // Upload new image if selected
+        if (imageFile) {
+          // If editing, delete old image first
+          if (initial?.foto && initial.foto !== fotoUrl) {
+            try {
+              await fichaTecnicaService.deletePratoImage(initial.foto);
+            } catch (err) {
+              console.error('Error deleting old image:', err);
+            }
+          }
+          // Generate temp ID for new pratos
+          const tempId = formData.id || `temp_${Date.now()}`;
+          fotoUrl = await fichaTecnicaService.uploadPratoImage(tempId, imageFile);
+        }
+
+        const pratoToSave: PratoFicha = {
+          id: formData.id,
+          nome: formData.nome,
+          categoriaId: formData.categoriaId,
+          custoTotal: custoUnitarioFinal,
+          precoVenda: formData.precoVenda,
+          modoPreparo: formData.modoPreparo,
+          foto: fotoUrl,
+          atualizadoEm: new Date().toLocaleString('pt-BR'),
+          ingredientes: formData.ingredientes,
+          rendimento: formData.rendimento,
+          unidadeRendimento: formData.unidadeRendimento
+        };
+        onSave(pratoToSave);
+      } catch (err) {
+        console.error('Error saving prato:', err);
+      } finally {
+        setIsUploading(false);
+      }
     };
 
     // Sub-modal for Preparação Steps
@@ -423,10 +554,19 @@ const FichaTecnicaPage: React.FC = () => {
               {/* 1. Identification (Compact) */}
               <section className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex-none">
                 <div className="flex gap-4">
-                  {/* Photo Placeholder Large */}
-                  <div className="w-36 h-36 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-400 cursor-pointer transition-all shrink-0">
-                    <ImageIcon size={32} />
-                  </div>
+                  {/* Photo Upload */}
+                  <label className="w-36 h-36 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-400 cursor-pointer transition-all shrink-0 overflow-hidden relative">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon size={32} />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
 
                   <div className="flex-1 flex flex-col justify-between">
                     <div className="grid grid-cols-4 gap-3">
@@ -982,7 +1122,7 @@ const FichaTecnicaPage: React.FC = () => {
                         <div className="flex justify-end gap-1 pr-2">
                           <button onClick={() => { setPrintProduct(p); setPrintModalOpen(true); }} className="p-2 text-slate-300 hover:text-emerald-600 transition-colors" title="Imprimir"><Printer size={18} /></button>
                           <button onClick={() => handleOpenPrato(p)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors" title="Editar"><Edit3 size={18} /></button>
-                          <button onClick={() => setPratos(pratos.filter(x => x.id !== p.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors" title="Excluir"><Trash2 size={18} /></button>
+                          <button onClick={() => handleDeletePrato(p.id)} className="p-2 text-slate-300 hover:text-red-600 transition-colors" title="Excluir"><Trash2 size={18} /></button>
                         </div>
                       ), className: 'w-36 pl-4 whitespace-nowrap'
                     }
@@ -1011,7 +1151,7 @@ const FichaTecnicaPage: React.FC = () => {
                       header: '', accessor: (i: MateriaPrima) => (
                         <div className="flex justify-end gap-2 pr-2">
                           <button onClick={() => handleOpenInsumo(i)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Edit3 size={18} /></button>
-                          <button onClick={() => setInsumos(insumos.filter(x => x.id !== i.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                          <button onClick={() => handleDeleteInsumo(i.id)} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
                         </div>
                       ), className: 'w-1/4 whitespace-nowrap'
                     }
@@ -1058,9 +1198,9 @@ const FichaTecnicaPage: React.FC = () => {
                               Cancelar
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (newCategoriaName.trim()) {
-                                  setCategorias([...categorias, { id: Date.now().toString(), nome: newCategoriaName.trim() }]);
+                                  await handleSaveCategoria(newCategoriaName.trim());
                                   setNewCategoriaName('');
                                   setShowNewCategoriaModal(false);
                                 }
@@ -1090,12 +1230,14 @@ const FichaTecnicaPage: React.FC = () => {
                                 value={editingCategoria.nome}
                                 onChange={(e) => setEditingCategoria({ ...editingCategoria, nome: e.target.value })}
                                 onBlur={() => {
-                                  setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                  if (editingCategoria.nome.trim()) {
+                                    handleUpdateCategoria(cat.id, editingCategoria.nome);
+                                  }
                                   setEditingCategoria(null);
                                 }}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                  if (e.key === 'Enter' && editingCategoria.nome.trim()) {
+                                    handleUpdateCategoria(cat.id, editingCategoria.nome);
                                     setEditingCategoria(null);
                                   }
                                 }}
@@ -1114,7 +1256,7 @@ const FichaTecnicaPage: React.FC = () => {
                                 <Edit3 size={14} />
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setCategorias(categorias.filter(c => c.id !== cat.id)); }}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteCategoria(cat.id); }}
                                 className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                               >
                                 <Trash2 size={14} />
