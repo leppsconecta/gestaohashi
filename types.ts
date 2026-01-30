@@ -44,6 +44,8 @@ export interface PratoFicha {
   modoPreparo: string;
   foto?: string;
   atualizadoEm: string;
+  rendimento: number;
+  unidadeRendimento?: string;
 }
 
 export interface CategoriaPrato {

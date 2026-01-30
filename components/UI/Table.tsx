@@ -6,6 +6,7 @@ export interface Column<T> {
   header: string;
   accessor: keyof T | ((item: T, index: number) => React.ReactNode);
   className?: string;
+  headerClassName?: string;
   sortable?: boolean;
 }
 
@@ -17,12 +18,12 @@ interface TableProps<T> {
   searchPlaceholder?: string;
 }
 
-const Table = <T,>({ 
-  columns, 
-  data, 
-  itemsPerPage = 20, 
-  onRowClick, 
-  searchPlaceholder = "Buscar..." 
+const Table = <T,>({
+  columns,
+  data,
+  itemsPerPage = 20,
+  onRowClick,
+  searchPlaceholder = "Buscar..."
 }: TableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,7 +31,7 @@ const Table = <T,>({
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const searchStr = searchTerm.toLowerCase();
-      return Object.values(item as any).some(val => 
+      return Object.values(item as any).some(val =>
         String(val).toLowerCase().includes(searchStr)
       );
     });
@@ -68,9 +69,9 @@ const Table = <T,>({
           <thead className="bg-slate-50 dark:bg-slate-900/50">
             <tr>
               {columns.map((col, idx) => (
-                <th 
-                  key={idx} 
-                  className={`px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 ${col.className || ''}`}
+                <th
+                  key={idx}
+                  className={`px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 ${col.className || ''} ${col.headerClassName || ''}`}
                 >
                   <div className="flex items-center gap-2">
                     {col.header}
@@ -82,19 +83,19 @@ const Table = <T,>({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
             {currentItems.length > 0 ? (
               currentItems.map((item, rowIdx) => (
-                <tr 
-                  key={rowIdx} 
+                <tr
+                  key={rowIdx}
                   className={`transition-colors group ${onRowClick ? 'hover:bg-slate-50/50 dark:hover:bg-slate-700/30 cursor-pointer' : 'hover:bg-slate-50/20 dark:hover:bg-slate-800/20 cursor-default'}`}
                   onClick={() => onRowClick && onRowClick(item)}
                 >
                   {columns.map((col, colIdx) => {
-                    const content = typeof col.accessor === 'function' 
+                    const content = typeof col.accessor === 'function'
                       ? col.accessor(item, (currentPage - 1) * itemsPerPage + rowIdx + 1)
                       : (item as any)[col.accessor];
-                    
+
                     return (
-                      <td 
-                        key={colIdx} 
+                      <td
+                        key={colIdx}
                         className={`px-6 py-4 text-sm text-slate-600 dark:text-slate-300 ${col.className || ''}`}
                       >
                         {content}
@@ -140,11 +141,10 @@ const Table = <T,>({
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
-                      currentPage === pageNum 
-                        ? 'bg-red-600 text-white shadow-md shadow-red-200 dark:shadow-none' 
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
+                        ? 'bg-red-600 text-white shadow-md shadow-red-200 dark:shadow-none'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
