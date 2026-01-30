@@ -88,6 +88,10 @@ const FichaTecnicaPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'insumo' | 'categoria'>('insumo');
   const [editingInsumo, setEditingInsumo] = useState<MateriaPrima | undefined>(undefined);
+  const [selectedCategoriaId, setSelectedCategoriaId] = useState<string | null>(null);
+  const [editingCategoria, setEditingCategoria] = useState<CategoriaPrato | null>(null);
+  const [newCategoriaName, setNewCategoriaName] = useState('');
+  const [showNewCategoriaModal, setShowNewCategoriaModal] = useState(false);
 
   // --- Handlers ---
   const handleOpenPrato = (prato?: PratoFicha) => {
@@ -801,17 +805,17 @@ const FichaTecnicaPage: React.FC = () => {
                     <Table<MateriaPrima>
                       columns={[
                         { header: 'Nome', accessor: 'nome', className: 'font-bold text-slate-900 dark:text-white text-left pl-4 w-1/4 whitespace-nowrap' },
-                        { 
-                          header: 'Unidade', 
-                          accessor: 'unidade', 
+                        {
+                          header: 'Unidade',
+                          accessor: 'unidade',
                           className: 'text-slate-500 text-center w-1/4 whitespace-nowrap',
                           headerClassName: '[&>div]:justify-center'
                         },
-                        { 
-                          header: 'Custo / Unid', 
-                          accessor: (i: MateriaPrima) => <span className="font-bold text-slate-700 dark:text-slate-300">R$ {i.custoUnitario.toFixed(2)}</span>, 
+                        {
+                          header: 'Custo / Unid',
+                          accessor: (i: MateriaPrima) => <span className="font-bold text-slate-700 dark:text-slate-300">R$ {i.custoUnitario.toFixed(2)}</span>,
                           className: 'text-right w-1/4 whitespace-nowrap',
-                          headerClassName: '[&>div]:justify-end' 
+                          headerClassName: '[&>div]:justify-end'
                         },
                         {
                           header: '', accessor: (i: MateriaPrima) => (
@@ -827,14 +831,171 @@ const FichaTecnicaPage: React.FC = () => {
                   )}
 
                   {activeTab === 'categorias' && (
-                    <div className="p-8 text-center text-slate-400">
-                      <p>Gerenciamento simplificado de categorias.</p>
-                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {categorias.map(c => (
-                          <div key={c.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300">
-                            {c.nome}
+                    <div className="flex gap-6 p-6">
+                      {/* Sidebar */}
+                      <div className="w-64 flex-shrink-0">
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-900 dark:text-white">Categorias</h3>
+                            <button
+                              onClick={() => setShowNewCategoriaModal(true)}
+                              className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              <Plus size={16} />
+                            </button>
                           </div>
-                        ))}
+
+                          {/* Mini Modal for New Category */}
+                          {showNewCategoriaModal && (
+                            <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nova Categoria</p>
+                              <input
+                                type="text"
+                                placeholder="Nome da categoria..."
+                                value={newCategoriaName}
+                                onChange={(e) => setNewCategoriaName(e.target.value)}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 mb-3"
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setShowNewCategoriaModal(false);
+                                    setNewCategoriaName('');
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (newCategoriaName.trim()) {
+                                      setCategorias([...categorias, { id: Date.now().toString(), nome: newCategoriaName.trim() }]);
+                                      setNewCategoriaName('');
+                                      setShowNewCategoriaModal(false);
+                                    }
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                                >
+                                  Criar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Category List */}
+                          <div className="space-y-2">
+                            {categorias.map(cat => (
+                              <div
+                                key={cat.id}
+                                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedCategoriaId === cat.id
+                                  ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                  }`}
+                                onClick={() => setSelectedCategoriaId(cat.id)}
+                              >
+                                {editingCategoria?.id === cat.id ? (
+                                  <input
+                                    type="text"
+                                    value={editingCategoria.nome}
+                                    onChange={(e) => setEditingCategoria({ ...editingCategoria, nome: e.target.value })}
+                                    onBlur={() => {
+                                      setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                      setEditingCategoria(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                        setEditingCategoria(null);
+                                      }
+                                    }}
+                                    className="flex-1 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded text-sm"
+                                    autoFocus
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  <span className="font-medium text-slate-700 dark:text-slate-300">{cat.nome}</span>
+                                )}
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setEditingCategoria(cat); }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                                  >
+                                    <Edit3 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setCategorias(categorias.filter(c => c.id !== cat.id)); }}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Product Cards Grid */}
+                      <div className="flex-1">
+                        {selectedCategoriaId ? (
+                          <>
+                            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">
+                              {categorias.find(c => c.id === selectedCategoriaId)?.nome || 'Produtos'}
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {pratos.filter(p => p.categoriaId === selectedCategoriaId).map(produto => {
+                                const lucro = produto.precoVenda - produto.custoTotal;
+                                const margem = produto.custoTotal > 0 ? Math.round((lucro / produto.custoTotal) * 100) : 0;
+                                return (
+                                  <div
+                                    key={produto.id}
+                                    className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                                  >
+                                    {/* Image Placeholder */}
+                                    <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                                      <span className="text-4xl">🍽️</span>
+                                    </div>
+                                    {/* Info */}
+                                    <div className="p-4">
+                                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-3 line-clamp-2">{produto.nome}</h4>
+                                      <div className="space-y-1 text-xs">
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-500">Custo:</span>
+                                          <span className="font-medium text-slate-700 dark:text-slate-300">R$ {produto.custoTotal.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-500">Venda:</span>
+                                          <span className="font-bold text-slate-900 dark:text-white">R$ {produto.precoVenda.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-500">Lucro:</span>
+                                          <span className="font-bold text-blue-600 dark:text-blue-400">R$ {lucro.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-500">%:</span>
+                                          <span className={`font-bold ${margem < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{margem}%</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {pratos.filter(p => p.categoriaId === selectedCategoriaId).length === 0 && (
+                                <div className="col-span-full text-center py-12 text-slate-400">
+                                  Nenhum produto nesta categoria.
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center justify-center h-64 text-slate-400">
+                            <div className="text-center">
+                              <p className="text-lg mb-2">👈 Selecione uma categoria</p>
+                              <p className="text-sm">Os produtos serão exibidos aqui</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
