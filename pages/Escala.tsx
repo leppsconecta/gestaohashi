@@ -199,14 +199,7 @@ const EditCopyModalContent: React.FC<{ initialText: string, onCancel: () => void
         Você pode editar o texto acima antes de copiar.
       </p>
 
-      <div className="flex justify-end pt-2">
-        <button
-          onClick={onCancel}
-          className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-slate-300"
-        >
-          Cancelar
-        </button>
-      </div>
+
     </div>
   );
 };
