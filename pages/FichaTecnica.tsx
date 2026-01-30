@@ -695,22 +695,9 @@ const FichaTecnicaPage: React.FC = () => {
             hideFooter={true}
           />
 
-          {/* Header Principal Page */}
-          <div className="flex-none p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Ficha Técnica</h1>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Gestão profissional de custos e engenharia de cardápio.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                  <span>Sync: OK</span>
-                  <button className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"><RotateCcw size={14} className="text-slate-400" /></button>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col h-[calc(100vh-140px)]">
+          {/* Main Content */}
+          <div className="flex-none p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col h-[calc(100vh-80px)]">
               {/* Tabs */}
               <div className="flex-none flex border-b border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
                 {[
@@ -831,9 +818,9 @@ const FichaTecnicaPage: React.FC = () => {
                   )}
 
                   {activeTab === 'categorias' && (
-                    <div className="flex gap-6 p-6">
-                      {/* Sidebar */}
-                      <div className="w-64 flex-shrink-0">
+                    <div className="flex gap-6 p-6 h-[calc(100vh-220px)]">
+                      {/* Sidebar - Sticky */}
+                      <div className="w-64 flex-shrink-0 sticky top-0 self-start max-h-full overflow-y-auto">
                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-slate-900 dark:text-white">Categorias</h3>
@@ -937,58 +924,79 @@ const FichaTecnicaPage: React.FC = () => {
                       </div>
 
                       {/* Product Cards Grid */}
-                      <div className="flex-1">
-                        {selectedCategoriaId ? (
-                          <>
-                            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">
-                              {categorias.find(c => c.id === selectedCategoriaId)?.nome || 'Produtos'}
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                              {pratos.filter(p => p.categoriaId === selectedCategoriaId).map(produto => {
-                                const lucro = produto.precoVenda - produto.custoTotal;
-                                const margem = produto.custoTotal > 0 ? Math.round((lucro / produto.custoTotal) * 100) : 0;
-                                return (
-                                  <div
-                                    key={produto.id}
-                                    className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-                                  >
-                                    {/* Image Placeholder */}
-                                    <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                                      <span className="text-4xl">🍽️</span>
-                                    </div>
-                                    {/* Info */}
-                                    <div className="p-4">
-                                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-3 line-clamp-2">{produto.nome}</h4>
-                                      <div className="space-y-1 text-xs">
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-500">Custo:</span>
-                                          <span className="font-medium text-slate-700 dark:text-slate-300">R$ {produto.custoTotal.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-500">Venda:</span>
-                                          <span className="font-bold text-slate-900 dark:text-white">R$ {produto.precoVenda.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-500">Lucro:</span>
-                                          <span className="font-bold text-blue-600 dark:text-blue-400">R$ {lucro.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-500">%:</span>
-                                          <span className={`font-bold ${margem < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{margem}%</span>
+                      <div className="flex-1 overflow-y-auto">
+                        {selectedCategoriaId ? (() => {
+                          const produtosDaCategoria = pratos.filter(p => p.categoriaId === selectedCategoriaId);
+                          const qtdProdutos = produtosDaCategoria.length;
+                          const mediaMargemPct = qtdProdutos > 0
+                            ? Math.round(produtosDaCategoria.reduce((acc, p) => {
+                              const lucro = p.precoVenda - p.custoTotal;
+                              const margem = p.custoTotal > 0 ? (lucro / p.custoTotal) * 100 : 0;
+                              return acc + margem;
+                            }, 0) / qtdProdutos)
+                            : 0;
+                          return (
+                            <>
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                                  {categorias.find(c => c.id === selectedCategoriaId)?.nome || 'Produtos'}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300">
+                                    <span className="font-bold">{qtdProdutos}</span> produtos
+                                  </span>
+                                  <span className={`px-3 py-1 rounded-lg font-bold ${mediaMargemPct < 100 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
+                                    Média: {mediaMargemPct}%
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {pratos.filter(p => p.categoriaId === selectedCategoriaId).map(produto => {
+                                  const lucro = produto.precoVenda - produto.custoTotal;
+                                  const margem = produto.custoTotal > 0 ? Math.round((lucro / produto.custoTotal) * 100) : 0;
+                                  return (
+                                    <div
+                                      key={produto.id}
+                                      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                                    >
+                                      {/* Image Placeholder */}
+                                      <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                                        <span className="text-4xl">🍽️</span>
+                                      </div>
+                                      {/* Info */}
+                                      <div className="p-4">
+                                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-3 line-clamp-2">{produto.nome}</h4>
+                                        <div className="space-y-1 text-xs">
+                                          <div className="flex justify-between">
+                                            <span className="text-slate-500">Custo:</span>
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">R$ {produto.custoTotal.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-slate-500">Venda:</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">R$ {produto.precoVenda.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-slate-500">Lucro:</span>
+                                            <span className="font-bold text-blue-600 dark:text-blue-400">R$ {lucro.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-slate-500">%:</span>
+                                            <span className={`font-bold ${margem < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{margem}%</span>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
+                                  );
+                                })}
+                                {pratos.filter(p => p.categoriaId === selectedCategoriaId).length === 0 && (
+                                  <div className="col-span-full text-center py-12 text-slate-400">
+                                    Nenhum produto nesta categoria.
                                   </div>
-                                );
-                              })}
-                              {pratos.filter(p => p.categoriaId === selectedCategoriaId).length === 0 && (
-                                <div className="col-span-full text-center py-12 text-slate-400">
-                                  Nenhum produto nesta categoria.
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        ) : (
+                                )}
+                              </div>
+                            </>
+                          );
+                        })() : (
                           <div className="flex items-center justify-center h-64 text-slate-400">
                             <div className="text-center">
                               <p className="text-lg mb-2">👈 Selecione uma categoria</p>
