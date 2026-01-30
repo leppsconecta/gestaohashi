@@ -129,6 +129,7 @@ const FichaTecnicaPage: React.FC = () => {
   };
 
   const handleSavePrato = async (prato: PratoFicha) => {
+    console.log('handleSavePrato called:', { prato, editingPrato });
     try {
       const pratoData = {
         nome: prato.nome,
@@ -140,6 +141,7 @@ const FichaTecnicaPage: React.FC = () => {
         rendimento: prato.rendimento || 1,
         unidade_rendimento: prato.unidadeRendimento || 'un'
       };
+      console.log('pratoData:', pratoData);
 
       const ingredientesData = (prato.ingredientes || []).map(ing => {
         const insumoId = ing.materiaPrimaId;
@@ -151,15 +153,20 @@ const FichaTecnicaPage: React.FC = () => {
           custo_calculado: custoCalculado
         };
       });
+      console.log('ingredientesData:', ingredientesData);
 
       if (editingPrato) {
+        console.log('Updating prato with id:', prato.id);
         await fichaTecnicaService.updatePrato(prato.id, pratoData, ingredientesData);
       } else {
+        console.log('Creating new prato');
         await fichaTecnicaService.createPrato(pratoData, ingredientesData);
       }
+      console.log('Save successful, reloading data...');
       await loadData();
     } catch (err) {
       console.error('Error saving prato:', err);
+      alert('Erro ao salvar produto: ' + (err as Error).message);
     }
     setViewMode('list');
     setEditingPrato(undefined);
