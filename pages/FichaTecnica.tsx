@@ -20,7 +20,8 @@ import {
   Save,
   ArrowLeft,
   TrendingUp,
-  ListOrdered
+  ListOrdered,
+  Printer
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import Table, { Column } from '../components/UI/Table';
@@ -92,6 +93,13 @@ const FichaTecnicaPage: React.FC = () => {
   const [editingCategoria, setEditingCategoria] = useState<CategoriaPrato | null>(null);
   const [newCategoriaName, setNewCategoriaName] = useState('');
   const [showNewCategoriaModal, setShowNewCategoriaModal] = useState(false);
+  const [categoriaProdutoPage, setCategoriaProdutoPage] = useState(1);
+  const [categoriaSortBy, setCategoriaSortBy] = useState<'nome' | 'lucro' | 'margem'>('nome');
+  const PRODUTOS_PER_PAGE = 12;
+
+  // Print states
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printProduct, setPrintProduct] = useState<PratoFicha | null>(null);
 
   // --- Handlers ---
   const handleOpenPrato = (prato?: PratoFicha) => {
@@ -695,320 +703,570 @@ const FichaTecnicaPage: React.FC = () => {
             hideFooter={true}
           />
 
-          {/* Main Content */}
-          <div className="flex-none p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col h-[calc(100vh-80px)]">
-              {/* Tabs */}
-              <div className="flex-none flex border-b border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
-                {[
-                  { id: 'pratos', label: 'Produtos', icon: <Utensils size={18} /> },
-                  { id: 'insumos', label: 'Insumos / Ingredientes', icon: <Package size={18} /> },
-                  { id: 'categorias', label: 'Categorias', icon: <Tags size={18} /> },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === tab.id
-                      ? 'text-red-600 bg-red-50/30 border-red-600 dark:bg-red-900/10'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 border-transparent'
-                      }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+          {/* Print Modal */}
+          {printModalOpen && printProduct && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                  <Printer size={20} className="text-emerald-600" />
+                  Imprimir Ficha Técnica
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                  <span className="font-bold">{printProduct.nome}</span>
+                </p>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/20">
-                {/* Toolbar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-                  <div className="relative w-full sm:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                    <input type="text" className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-4 focus:ring-red-500/10 text-sm font-medium dark:text-white" placeholder={`Buscar em ${activeTab}...`} />
-                  </div>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      const cat = categorias.find(c => c.id === printProduct.categoriaId);
+                      const lucro = printProduct.precoVenda - printProduct.custoTotal;
+                      const margem = printProduct.custoTotal > 0 ? Math.round((lucro / printProduct.custoTotal) * 100) : 0;
+
+                      const printWindow = window.open('', '_blank');
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                          <head>
+                            <title>Ficha Técnica - ${printProduct.nome}</title>
+                            <style>
+                              @page { size: A4; margin: 20mm; }
+                              body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
+                              h1 { font-size: 24px; margin-bottom: 5px; }
+                              h2 { font-size: 16px; margin: 20px 0 10px; border-bottom: 2px solid #333; padding-bottom: 5px; }
+                              .header { border-bottom: 3px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+                              .category { color: #666; font-size: 14px; }
+                              .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+                              .info-box { background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: center; }
+                              .info-label { font-size: 11px; color: #666; text-transform: uppercase; }
+                              .info-value { font-size: 18px; font-weight: bold; margin-top: 5px; }
+                              .lucro { color: #2563eb; }
+                              .margem { color: ${margem < 100 ? '#f59e0b' : '#10b981'}; }
+                              table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                              th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                              th { background: #f5f5f5; font-weight: bold; }
+                              .instructions { background: #fafafa; padding: 20px; border-radius: 8px; white-space: pre-wrap; line-height: 1.6; }
+                              .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #999; text-align: center; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="header">
+                              <h1>${printProduct.nome}</h1>
+                              <p class="category">${cat?.nome || 'Sem categoria'}</p>
+                            </div>
+                            
+                            <div class="info-grid">
+                              <div class="info-box">
+                                <div class="info-label">Rendimento</div>
+                                <div class="info-value">${printProduct.rendimento || 1} ${printProduct.unidadeRendimento || 'un'}</div>
+                              </div>
+                              <div class="info-box">
+                                <div class="info-label">Custo Total</div>
+                                <div class="info-value">R$ ${printProduct.custoTotal.toFixed(2)}</div>
+                              </div>
+                              <div class="info-box">
+                                <div class="info-label">Preço Venda</div>
+                                <div class="info-value">R$ ${printProduct.precoVenda.toFixed(2)}</div>
+                              </div>
+                              <div class="info-box">
+                                <div class="info-label">Lucro</div>
+                                <div class="info-value lucro">R$ ${lucro.toFixed(2)}</div>
+                              </div>
+                            </div>
+                            
+                            <div style="text-align: center; margin: 15px 0;">
+                              <span style="font-size: 14px;">Margem de Lucro: </span>
+                              <span class="margem" style="font-size: 24px; font-weight: bold;">${margem}%</span>
+                            </div>
+                            
+                            <h2>Ingredientes / Insumos</h2>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Ingrediente</th>
+                                  <th style="width: 100px; text-align: center;">Quantidade</th>
+                                  <th style="width: 100px; text-align: right;">Custo</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${(printProduct.ingredientes || []).map(ing => {
+                          const insumo = insumos.find(i => i.id === ing.insumoId);
+                          return `<tr>
+                                    <td>${insumo?.nome || 'Desconhecido'}</td>
+                                    <td style="text-align: center;">${ing.quantidade} ${insumo?.unidade || ''}</td>
+                                    <td style="text-align: right;">R$ ${ing.custoCalculado?.toFixed(2) || '0.00'}</td>
+                                  </tr>`;
+                        }).join('')}
+                              </tbody>
+                            </table>
+                            
+                            ${printProduct.modoPreparo ? `
+                              <h2>Modo de Preparo</h2>
+                              <div class="instructions">${printProduct.modoPreparo}</div>
+                            ` : ''}
+                            
+                            <div class="footer">
+                              Impresso em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                            </div>
+                          </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.print();
+                      }
+                      setPrintModalOpen(false);
+                      setPrintProduct(null);
+                    }}
+                    className="w-full px-4 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                  >
+                    <Printer size={18} />
+                    Imprimir Completo
+                  </button>
 
                   <button
                     onClick={() => {
-                      if (activeTab === 'pratos') handleOpenPrato();
-                      if (activeTab === 'insumos') handleOpenInsumo();
-                      if (activeTab === 'categorias') { setModalType('categoria'); setIsModalOpen(true); }
+                      const printWindow = window.open('', '_blank');
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                          <head>
+                            <title>Ficha Técnica (Resumo) - ${printProduct.nome}</title>
+                            <style>
+                              @page { size: A4; margin: 20mm; }
+                              body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
+                              h1 { font-size: 24px; margin-bottom: 20px; border-bottom: 3px solid #333; padding-bottom: 15px; }
+                              h2 { font-size: 16px; margin: 20px 0 10px; border-bottom: 2px solid #333; padding-bottom: 5px; }
+                              table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                              th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                              th { background: #f5f5f5; font-weight: bold; }
+                              .instructions { background: #fafafa; padding: 20px; border-radius: 8px; white-space: pre-wrap; line-height: 1.6; }
+                              .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #999; text-align: center; }
+                            </style>
+                          </head>
+                          <body>
+                            <h1>${printProduct.nome}</h1>
+                            
+                            <h2>Ingredientes / Insumos</h2>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Ingrediente</th>
+                                  <th style="width: 120px; text-align: center;">Quantidade</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${(printProduct.ingredientes || []).map(ing => {
+                          const insumo = insumos.find(i => i.id === ing.insumoId);
+                          return `<tr>
+                                    <td>${insumo?.nome || 'Desconhecido'}</td>
+                                    <td style="text-align: center;">${ing.quantidade} ${insumo?.unidade || ''}</td>
+                                  </tr>`;
+                        }).join('')}
+                              </tbody>
+                            </table>
+                            
+                            ${printProduct.modoPreparo ? `
+                              <h2>Modo de Preparo</h2>
+                              <div class="instructions">${printProduct.modoPreparo}</div>
+                            ` : ''}
+                            
+                            <div class="footer">
+                              Impresso em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                            </div>
+                          </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.print();
+                      }
+                      setPrintModalOpen(false);
+                      setPrintProduct(null);
                     }}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
+                    className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
                   >
-                    <Plus size={18} strokeWidth={3} />
-                    {activeTab === 'pratos' && 'Novo Produto'}
-                    {activeTab === 'insumos' && 'Novo Insumo'}
-                    {activeTab === 'categorias' && 'Nova Categoria'}
+                    <ListOrdered size={18} />
+                    Imprimir Resumido
                   </button>
                 </div>
 
-                {/* Content */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                  {activeTab === 'pratos' && (
-                    <Table<PratoFicha>
-                      columns={[
-                        { header: 'Nome', accessor: 'nome', className: 'font-bold text-slate-900 dark:text-white text-left pl-4 flex-1 whitespace-nowrap' },
-                        {
-                          header: 'Categoria',
-                          accessor: (p: PratoFicha) => {
-                            const cat = categorias.find(c => c.id === p.categoriaId);
-                            return <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{cat?.nome || '-'}</span>
-                          },
-                          className: 'w-32 text-left whitespace-nowrap'
-                        },
-                        {
-                          header: 'Qtd',
-                          accessor: (p: PratoFicha) => <span className="font-bold text-slate-600 dark:text-slate-300">{p.rendimento || 1} {p.unidadeRendimento || 'un'}</span>,
-                          className: 'text-center w-24 whitespace-nowrap'
-                        },
-                        { header: 'Custo', accessor: (p: PratoFicha) => <span className="font-bold text-slate-500 dark:text-slate-400">R$ {p.custoTotal.toFixed(2)}</span>, className: 'text-right w-28 whitespace-nowrap' },
-                        { header: 'Venda', accessor: (p: PratoFicha) => <span className="font-black text-slate-900 dark:text-white">R$ {p.precoVenda.toFixed(2)}</span>, className: 'text-right w-28 whitespace-nowrap' },
-                        {
-                          header: '%', accessor: (p: PratoFicha) => {
-                            const mg = p.precoVenda > 0 ? Math.round(((p.precoVenda - p.custoTotal) / p.custoTotal) * 100) : 0;
-                            return <span className={`font-black ${mg < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{mg}%</span>
-                          }, className: 'text-right w-20 whitespace-nowrap'
-                        },
-                        {
-                          header: 'Lucro', accessor: (p: PratoFicha) => {
-                            const lucro = p.precoVenda - p.custoTotal;
-                            return <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">R$ {lucro.toFixed(2)}</span>
-                          }, className: 'text-right w-28 whitespace-nowrap'
-                        },
-                        {
-                          header: '', accessor: (p: PratoFicha) => (
-                            <div className="flex justify-end gap-2 pr-2">
-                              <button onClick={() => handleOpenPrato(p)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Edit3 size={18} /></button>
-                              <button onClick={() => setPratos(pratos.filter(x => x.id !== p.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
-                            </div>
-                          ), className: 'w-24 whitespace-nowrap'
-                        }
-                      ]}
-                      data={pratos}
-                    />
-                  )}
+                <button
+                  onClick={() => { setPrintModalOpen(false); setPrintProduct(null); }}
+                  className="w-full mt-4 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
-                  {activeTab === 'insumos' && (
-                    <Table<MateriaPrima>
-                      columns={[
-                        { header: 'Nome', accessor: 'nome', className: 'font-bold text-slate-900 dark:text-white text-left pl-4 w-1/4 whitespace-nowrap' },
-                        {
-                          header: 'Unidade',
-                          accessor: 'unidade',
-                          className: 'text-slate-500 text-center w-1/4 whitespace-nowrap',
-                          headerClassName: '[&>div]:justify-center'
-                        },
-                        {
-                          header: 'Custo / Unid',
-                          accessor: (i: MateriaPrima) => <span className="font-bold text-slate-700 dark:text-slate-300">R$ {i.custoUnitario.toFixed(2)}</span>,
-                          className: 'text-right w-1/4 whitespace-nowrap',
-                          headerClassName: '[&>div]:justify-end'
-                        },
-                        {
-                          header: '', accessor: (i: MateriaPrima) => (
-                            <div className="flex justify-end gap-2 pr-2">
-                              <button onClick={() => handleOpenInsumo(i)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Edit3 size={18} /></button>
-                              <button onClick={() => setInsumos(insumos.filter(x => x.id !== i.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
-                            </div>
-                          ), className: 'w-1/4 whitespace-nowrap'
-                        }
-                      ]}
-                      data={insumos}
-                    />
-                  )}
+          {/* Tabs */}
+          <div className="flex-none flex border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'pratos', label: 'Produtos', icon: <Utensils size={18} /> },
+              { id: 'insumos', label: 'Insumos / Ingredientes', icon: <Package size={18} /> },
+              { id: 'categorias', label: 'Categorias', icon: <Tags size={18} /> },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === tab.id
+                  ? 'text-red-600 bg-red-50/30 border-red-600 dark:bg-red-900/10'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 border-transparent'
+                  }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-                  {activeTab === 'categorias' && (
-                    <div className="flex gap-6 p-6 h-[calc(100vh-220px)]">
-                      {/* Sidebar - Sticky */}
-                      <div className="w-64 flex-shrink-0 sticky top-0 self-start max-h-full overflow-y-auto">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-slate-900 dark:text-white">Categorias</h3>
-                            <button
-                              onClick={() => setShowNewCategoriaModal(true)}
-                              className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/20">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+              <div className="relative w-full sm:w-96">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <input type="text" className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-4 focus:ring-red-500/10 text-sm font-medium dark:text-white" placeholder={`Buscar em ${activeTab}...`} />
+              </div>
 
-                          {/* Mini Modal for New Category */}
-                          {showNewCategoriaModal && (
-                            <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nova Categoria</p>
-                              <input
-                                type="text"
-                                placeholder="Nome da categoria..."
-                                value={newCategoriaName}
-                                onChange={(e) => setNewCategoriaName(e.target.value)}
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 mb-3"
-                                autoFocus
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => {
-                                    setShowNewCategoriaModal(false);
-                                    setNewCategoriaName('');
-                                  }}
-                                  className="flex-1 px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (newCategoriaName.trim()) {
-                                      setCategorias([...categorias, { id: Date.now().toString(), nome: newCategoriaName.trim() }]);
-                                      setNewCategoriaName('');
-                                      setShowNewCategoriaModal(false);
-                                    }
-                                  }}
-                                  className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                                >
-                                  Criar
-                                </button>
-                              </div>
-                            </div>
-                          )}
+              <button
+                onClick={() => {
+                  if (activeTab === 'pratos') handleOpenPrato();
+                  if (activeTab === 'insumos') handleOpenInsumo();
+                  if (activeTab === 'categorias') { setModalType('categoria'); setIsModalOpen(true); }
+                }}
+                className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
+              >
+                <Plus size={18} strokeWidth={3} />
+                {activeTab === 'pratos' && 'Novo Produto'}
+                {activeTab === 'insumos' && 'Novo Insumo'}
+                {activeTab === 'categorias' && 'Nova Categoria'}
+              </button>
+            </div>
 
-                          {/* Category List */}
-                          <div className="space-y-2">
-                            {categorias.map(cat => (
-                              <div
-                                key={cat.id}
-                                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedCategoriaId === cat.id
-                                  ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500'
-                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                  }`}
-                                onClick={() => setSelectedCategoriaId(cat.id)}
-                              >
-                                {editingCategoria?.id === cat.id ? (
-                                  <input
-                                    type="text"
-                                    value={editingCategoria.nome}
-                                    onChange={(e) => setEditingCategoria({ ...editingCategoria, nome: e.target.value })}
-                                    onBlur={() => {
-                                      setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
-                                      setEditingCategoria(null);
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
-                                        setEditingCategoria(null);
-                                      }
-                                    }}
-                                    className="flex-1 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded text-sm"
-                                    autoFocus
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                ) : (
-                                  <span className="font-medium text-slate-700 dark:text-slate-300">{cat.nome}</span>
-                                )}
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setEditingCategoria(cat); }}
-                                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                                  >
-                                    <Edit3 size={14} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setCategorias(categorias.filter(c => c.id !== cat.id)); }}
-                                    className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+            {/* Content */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              {activeTab === 'pratos' && (
+                <Table<PratoFicha>
+                  columns={[
+                    { header: 'Nome', accessor: 'nome', className: 'font-bold text-slate-900 dark:text-white text-left pl-4 flex-1 whitespace-nowrap' },
+                    {
+                      header: 'Categoria',
+                      accessor: (p: PratoFicha) => {
+                        const cat = categorias.find(c => c.id === p.categoriaId);
+                        return <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{cat?.nome || '-'}</span>
+                      },
+                      className: 'w-32 text-left whitespace-nowrap'
+                    },
+                    {
+                      header: 'Qtd',
+                      accessor: (p: PratoFicha) => <span className="font-bold text-slate-600 dark:text-slate-300">{p.rendimento || 1} {p.unidadeRendimento || 'un'}</span>,
+                      className: 'text-center w-24 whitespace-nowrap'
+                    },
+                    { header: 'Custo', accessor: (p: PratoFicha) => <span className="font-bold text-slate-500 dark:text-slate-400">R$ {p.custoTotal.toFixed(2)}</span>, className: 'text-right w-28 whitespace-nowrap' },
+                    { header: 'Venda', accessor: (p: PratoFicha) => <span className="font-black text-slate-900 dark:text-white">R$ {p.precoVenda.toFixed(2)}</span>, className: 'text-right w-28 whitespace-nowrap' },
+                    {
+                      header: '%', accessor: (p: PratoFicha) => {
+                        const mg = p.precoVenda > 0 ? Math.round(((p.precoVenda - p.custoTotal) / p.custoTotal) * 100) : 0;
+                        return <span className={`font-black ${mg < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{mg}%</span>
+                      }, className: 'text-right w-20 whitespace-nowrap'
+                    },
+                    {
+                      header: 'Lucro', accessor: (p: PratoFicha) => {
+                        const lucro = p.precoVenda - p.custoTotal;
+                        return <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">R$ {lucro.toFixed(2)}</span>
+                      }, className: 'text-right w-28 whitespace-nowrap'
+                    },
+                    {
+                      header: '', accessor: (p: PratoFicha) => (
+                        <div className="flex justify-end gap-1 pr-2">
+                          <button onClick={() => { setPrintProduct(p); setPrintModalOpen(true); }} className="p-2 text-slate-300 hover:text-emerald-600 transition-colors" title="Imprimir"><Printer size={18} /></button>
+                          <button onClick={() => handleOpenPrato(p)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors" title="Editar"><Edit3 size={18} /></button>
+                          <button onClick={() => setPratos(pratos.filter(x => x.id !== p.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors" title="Excluir"><Trash2 size={18} /></button>
                         </div>
+                      ), className: 'w-32 whitespace-nowrap'
+                    }
+                  ]}
+                  data={pratos}
+                />
+              )}
+
+              {activeTab === 'insumos' && (
+                <Table<MateriaPrima>
+                  columns={[
+                    { header: 'Nome', accessor: 'nome', className: 'font-bold text-slate-900 dark:text-white text-left pl-4 w-1/4 whitespace-nowrap' },
+                    {
+                      header: 'Unidade',
+                      accessor: 'unidade',
+                      className: 'text-slate-500 text-center w-1/4 whitespace-nowrap',
+                      headerClassName: '[&>div]:justify-center'
+                    },
+                    {
+                      header: 'Custo / Unid',
+                      accessor: (i: MateriaPrima) => <span className="font-bold text-slate-700 dark:text-slate-300">R$ {i.custoUnitario.toFixed(2)}</span>,
+                      className: 'text-right w-1/4 whitespace-nowrap',
+                      headerClassName: '[&>div]:justify-end'
+                    },
+                    {
+                      header: '', accessor: (i: MateriaPrima) => (
+                        <div className="flex justify-end gap-2 pr-2">
+                          <button onClick={() => handleOpenInsumo(i)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Edit3 size={18} /></button>
+                          <button onClick={() => setInsumos(insumos.filter(x => x.id !== i.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                        </div>
+                      ), className: 'w-1/4 whitespace-nowrap'
+                    }
+                  ]}
+                  data={insumos}
+                />
+              )}
+
+              {activeTab === 'categorias' && (
+                <div className="flex gap-6 p-6 h-[calc(100vh-150px)]">
+                  {/* Sidebar - Sticky */}
+                  <div className="w-64 flex-shrink-0 sticky top-0 self-start max-h-full overflow-y-auto">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-slate-900 dark:text-white">Categorias</h3>
+                        <button
+                          onClick={() => setShowNewCategoriaModal(true)}
+                          className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <Plus size={16} />
+                        </button>
                       </div>
 
-                      {/* Product Cards Grid */}
-                      <div className="flex-1 overflow-y-auto">
-                        {selectedCategoriaId ? (() => {
-                          const produtosDaCategoria = pratos.filter(p => p.categoriaId === selectedCategoriaId);
-                          const qtdProdutos = produtosDaCategoria.length;
-                          const mediaMargemPct = qtdProdutos > 0
-                            ? Math.round(produtosDaCategoria.reduce((acc, p) => {
-                              const lucro = p.precoVenda - p.custoTotal;
-                              const margem = p.custoTotal > 0 ? (lucro / p.custoTotal) * 100 : 0;
-                              return acc + margem;
-                            }, 0) / qtdProdutos)
-                            : 0;
-                          return (
-                            <>
-                              <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                                  {categorias.find(c => c.id === selectedCategoriaId)?.nome || 'Produtos'}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300">
-                                    <span className="font-bold">{qtdProdutos}</span> produtos
-                                  </span>
-                                  <span className={`px-3 py-1 rounded-lg font-bold ${mediaMargemPct < 100 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
-                                    Média: {mediaMargemPct}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {pratos.filter(p => p.categoriaId === selectedCategoriaId).map(produto => {
-                                  const lucro = produto.precoVenda - produto.custoTotal;
-                                  const margem = produto.custoTotal > 0 ? Math.round((lucro / produto.custoTotal) * 100) : 0;
-                                  return (
-                                    <div
-                                      key={produto.id}
-                                      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-                                    >
-                                      {/* Image Placeholder */}
-                                      <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                                        <span className="text-4xl">🍽️</span>
-                                      </div>
-                                      {/* Info */}
-                                      <div className="p-4">
-                                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-3 line-clamp-2">{produto.nome}</h4>
-                                        <div className="space-y-1 text-xs">
-                                          <div className="flex justify-between">
-                                            <span className="text-slate-500">Custo:</span>
-                                            <span className="font-medium text-slate-700 dark:text-slate-300">R$ {produto.custoTotal.toFixed(2)}</span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-slate-500">Venda:</span>
-                                            <span className="font-bold text-slate-900 dark:text-white">R$ {produto.precoVenda.toFixed(2)}</span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-slate-500">Lucro:</span>
-                                            <span className="font-bold text-blue-600 dark:text-blue-400">R$ {lucro.toFixed(2)}</span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-slate-500">%:</span>
-                                            <span className={`font-bold ${margem < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{margem}%</span>
+                      {/* Mini Modal for New Category */}
+                      {showNewCategoriaModal && (
+                        <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nova Categoria</p>
+                          <input
+                            type="text"
+                            placeholder="Nome da categoria..."
+                            value={newCategoriaName}
+                            onChange={(e) => setNewCategoriaName(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 mb-3"
+                            autoFocus
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowNewCategoriaModal(false);
+                                setNewCategoriaName('');
+                              }}
+                              className="flex-1 px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (newCategoriaName.trim()) {
+                                  setCategorias([...categorias, { id: Date.now().toString(), nome: newCategoriaName.trim() }]);
+                                  setNewCategoriaName('');
+                                  setShowNewCategoriaModal(false);
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                            >
+                              Criar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Category List */}
+                      <div className="space-y-2">
+                        {categorias.map(cat => (
+                          <div
+                            key={cat.id}
+                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${selectedCategoriaId === cat.id
+                              ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                              }`}
+                            onClick={() => { setSelectedCategoriaId(cat.id); setCategoriaProdutoPage(1); }}
+                          >
+                            {editingCategoria?.id === cat.id ? (
+                              <input
+                                type="text"
+                                value={editingCategoria.nome}
+                                onChange={(e) => setEditingCategoria({ ...editingCategoria, nome: e.target.value })}
+                                onBlur={() => {
+                                  setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                  setEditingCategoria(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    setCategorias(categorias.map(c => c.id === cat.id ? editingCategoria : c));
+                                    setEditingCategoria(null);
+                                  }
+                                }}
+                                className="flex-1 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded text-sm"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span className="font-medium text-slate-700 dark:text-slate-300">{cat.nome}</span>
+                            )}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingCategoria(cat); }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setCategorias(categorias.filter(c => c.id !== cat.id)); }}
+                                className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Product Cards Grid */}
+                  <div className="flex-1 overflow-y-auto">
+                    {selectedCategoriaId ? (() => {
+                      const produtosDaCategoria = pratos.filter(p => p.categoriaId === selectedCategoriaId);
+                      const qtdProdutos = produtosDaCategoria.length;
+                      const mediaMargemPct = qtdProdutos > 0
+                        ? Math.round(produtosDaCategoria.reduce((acc, p) => {
+                          const lucro = p.precoVenda - p.custoTotal;
+                          const margem = p.custoTotal > 0 ? (lucro / p.custoTotal) * 100 : 0;
+                          return acc + margem;
+                        }, 0) / qtdProdutos)
+                        : 0;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                              {categorias.find(c => c.id === selectedCategoriaId)?.nome || 'Produtos'}
+                            </h3>
+                            <div className="flex items-center gap-3 text-sm">
+                              <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300">
+                                <span className="font-bold">{qtdProdutos}</span> produtos
+                              </span>
+                              <span className={`px-3 py-1 rounded-lg font-bold ${mediaMargemPct < 100 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
+                                Média: {mediaMargemPct}%
+                              </span>
+                              <select
+                                value={categoriaSortBy}
+                                onChange={(e) => { setCategoriaSortBy(e.target.value as any); setCategoriaProdutoPage(1); }}
+                                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                              >
+                                <option value="nome">Ordenar: Nome</option>
+                                <option value="lucro">Ordenar: Maior Lucro</option>
+                                <option value="margem">Ordenar: Maior %</option>
+                              </select>
+                            </div>
+                          </div>
+                          {(() => {
+                            // Sort products
+                            const sortedProducts = [...produtosDaCategoria].sort((a, b) => {
+                              if (categoriaSortBy === 'lucro') {
+                                const lucroA = a.precoVenda - a.custoTotal;
+                                const lucroB = b.precoVenda - b.custoTotal;
+                                return lucroB - lucroA; // Descending
+                              }
+                              if (categoriaSortBy === 'margem') {
+                                const margemA = a.custoTotal > 0 ? ((a.precoVenda - a.custoTotal) / a.custoTotal) * 100 : 0;
+                                const margemB = b.custoTotal > 0 ? ((b.precoVenda - b.custoTotal) / b.custoTotal) * 100 : 0;
+                                return margemB - margemA; // Descending
+                              }
+                              return a.nome.localeCompare(b.nome); // Alphabetical
+                            });
+
+                            const totalPages = Math.ceil(qtdProdutos / PRODUTOS_PER_PAGE);
+                            const startIndex = (categoriaProdutoPage - 1) * PRODUTOS_PER_PAGE;
+                            const paginatedProducts = sortedProducts.slice(startIndex, startIndex + PRODUTOS_PER_PAGE);
+
+                            return (
+                              <>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                  {paginatedProducts.map(produto => {
+                                    const lucro = produto.precoVenda - produto.custoTotal;
+                                    const margem = produto.custoTotal > 0 ? Math.round((lucro / produto.custoTotal) * 100) : 0;
+                                    return (
+                                      <div
+                                        key={produto.id}
+                                        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                                      >
+                                        {/* Image Placeholder */}
+                                        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                                          <span className="text-4xl">🍽️</span>
+                                        </div>
+                                        {/* Info */}
+                                        <div className="p-3">
+                                          <h4 className="font-bold text-slate-900 dark:text-white text-xs mb-2 line-clamp-2">{produto.nome}</h4>
+                                          <div className="space-y-0.5 text-[10px]">
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">Custo:</span>
+                                              <span className="font-medium text-slate-700 dark:text-slate-300">R$ {produto.custoTotal.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">Venda:</span>
+                                              <span className="font-bold text-slate-900 dark:text-white">R$ {produto.precoVenda.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">Lucro:</span>
+                                              <span className="font-bold text-blue-600 dark:text-blue-400">R$ {lucro.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-slate-500">%:</span>
+                                              <span className={`font-bold ${margem < 100 ? 'text-amber-500' : 'text-emerald-500'}`}>{margem}%</span>
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
+                                    );
+                                  })}
+                                  {qtdProdutos === 0 && (
+                                    <div className="col-span-full text-center py-12 text-slate-400">
+                                      Nenhum produto nesta categoria.
                                     </div>
-                                  );
-                                })}
-                                {pratos.filter(p => p.categoriaId === selectedCategoriaId).length === 0 && (
-                                  <div className="col-span-full text-center py-12 text-slate-400">
-                                    Nenhum produto nesta categoria.
+                                  )}
+                                </div>
+
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                  <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                    <button
+                                      onClick={() => setCategoriaProdutoPage(p => Math.max(1, p - 1))}
+                                      disabled={categoriaProdutoPage === 1}
+                                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      ← Anterior
+                                    </button>
+                                    <span className="px-4 py-1.5 text-sm font-bold text-slate-700 dark:text-slate-300">
+                                      {categoriaProdutoPage} / {totalPages}
+                                    </span>
+                                    <button
+                                      onClick={() => setCategoriaProdutoPage(p => Math.min(totalPages, p + 1))}
+                                      disabled={categoriaProdutoPage === totalPages}
+                                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      Próximo →
+                                    </button>
                                   </div>
                                 )}
-                              </div>
-                            </>
-                          );
-                        })() : (
-                          <div className="flex items-center justify-center h-64 text-slate-400">
-                            <div className="text-center">
-                              <p className="text-lg mb-2">👈 Selecione uma categoria</p>
-                              <p className="text-sm">Os produtos serão exibidos aqui</p>
-                            </div>
-                          </div>
-                        )}
+                              </>
+                            );
+                          })()}
+                        </>
+                      );
+                    })() : (
+                      <div className="flex items-center justify-center h-64 text-slate-400">
+                        <div className="text-center">
+                          <p className="text-lg mb-2">👈 Selecione uma categoria</p>
+                          <p className="text-sm">Os produtos serão exibidos aqui</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </>
