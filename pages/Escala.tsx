@@ -314,7 +314,9 @@ const EscalaPage: React.FC = () => {
   // --- ACTIONS ---
   const handleDownloadPDF = async () => {
     try {
-      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
+      const isPontual = activeTab === 'pontual';
+      const orientation = isPontual ? 'p' : 'l'; // Portrait for Pontual, Landscape for Semanal
+      const doc = new jsPDF(orientation, 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -326,7 +328,8 @@ const EscalaPage: React.FC = () => {
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(30, 41, 59); // Slate 800
-      doc.text('Escala Semanal', marginX, 22);
+      const title = isPontual ? 'Escala Diária' : 'Escala Semanal';
+      doc.text(title, marginX, 22);
 
       // Date Range & Timestamp
       const rightX = pageWidth - marginX;
@@ -346,89 +349,155 @@ const EscalaPage: React.FC = () => {
       doc.setLineWidth(0.5);
       doc.line(marginX, 26, rightX, 26);
 
-      // --- GRID LAYOUT ---
-      const startY = 32;
-      const gap = 3;
-      // Calculate column width dynamically: (PageWidth - (Margins * 2) - (Gap * 6)) / 7
-      const colWidth = (pageWidth - (marginX * 2) - (gap * 6)) / 7;
-      const gridHeight = pageHeight - startY - 20; // 20mm bottom margin for footer
+      // --- CONTENT ---
+      let startY = 32;
 
-      weekDays.forEach((day, index) => {
-        const x = marginX + (index * (colWidth + gap));
-
-        // 1. Column Header (Dark Box)
-        doc.setFillColor(15, 23, 42); // Slate 900 (Dark)
-        doc.roundedRect(x, startY, colWidth, 14, 2, 2, 'F');
-
-        // Header Text
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(day.label, x + (colWidth / 2), startY + 5, { align: 'center' });
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(148, 163, 184); // Slate 400
-        const dateStr = `${day.dia}/${day.fullDate.getMonth() + 1}`;
-        doc.text(dateStr, x + (colWidth / 2), startY + 10, { align: 'center' });
-
-        // 2. Column Body (Border)
-        doc.setDrawColor(226, 232, 240); // Slate 200
-        doc.setLineWidth(0.3);
-        // Draw rect for body
-        doc.roundedRect(x, startY + 14, colWidth, gridHeight - 14, 2, 2, 'S');
-
-        // 3. Content
-        let currentY = startY + 18;
+      if (isPontual) {
+        // --- PONTUAL (Vertical Layout) ---
+        const dayId = pontualDate.setHours(0, 0, 0, 0);
 
         turnosConfigs.forEach(t => {
-          const key = `${day.id}-${t.id}`;
+          const key = `${dayId}-${t.id}`;
           const assigned = escala[key] || [];
 
+          // Only show turns with employees or show empty text? Let's show all configured turns for clarity, or just active ones.
+          // User said "Ajuste no modo pontual... apenas do dia". 
+          // Similar to screen logic: if (assigned.length === 0) return; ?
+          // On screen it shows empty boxes. In PDF usually we want to see who is working.
+
+          doc.setFillColor(248, 250, 252); // Slate 50 background for header
+          doc.rect(marginX, startY, pageWidth - (marginX * 2), 10, 'F');
+
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(59, 130, 246); // Blue 500
+          doc.text(`${t.label} (${t.inicio} - ${t.fim})`, marginX + 3, startY + 7);
+
+          startY += 15; // Move below header
+
           if (assigned.length > 0) {
-            // Turno Header (e.g. 1º Turno)
-            // Thin separator before if not first
-            if (currentY > startY + 20) {
-              doc.setDrawColor(241, 245, 249); // lighter separator
-              doc.line(x + 2, currentY - 3, x + colWidth - 2, currentY - 3);
-            }
-
-            doc.setFontSize(7);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(59, 130, 246); // Blue 500
-
-            // Custom label logic for turns
-            const tLabel = t.id === 't1' ? '1º Turno' : t.id === 't2' ? '2º Turno' : t.id === 't3' ? '3º Turno' : t.label;
-            doc.text(tLabel, x + 2, currentY);
-            currentY += 4;
-
-            // Employees
             assigned.forEach(uid => {
               const f = funcionarios.find(emp => emp.id === uid);
               if (f) {
-                // Name
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(51, 65, 85); // Slate 700
-                const name = formatNameShort(f.nome);
-                doc.text(name, x + 2, currentY);
+                // Bullet point style
+                doc.setDrawColor(203, 213, 225); // Slate 300
+                doc.setLineWidth(0.2);
 
-                // Role
-                if (f.funcao) {
-                  currentY += 3;
-                  doc.setFontSize(6);
-                  doc.setFont('helvetica', 'normal');
-                  doc.setTextColor(100, 116, 139); // Slate 500
-                  // Truncate role if too long??
-                  doc.text(f.funcao, x + 2, currentY);
-                }
-                currentY += 5; // Space for next person
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(30, 41, 59); // Slate 800
+                const name = f.nome;
+                doc.text(name, marginX + 5, startY);
+
+                // Role aligned to right or next to name?
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100, 116, 139); // Slate 500
+                const role = f.funcao || 'N/A';
+                doc.text(role.toUpperCase(), marginX + 80, startY); // Fixed column for role
+
+                // Bottom separator
+                doc.line(marginX + 2, startY + 2, pageWidth - marginX - 2, startY + 2);
+
+                startY += 8;
               }
             });
-            currentY += 2; // Extra space after group
+            startY += 5; // Extra gap after list
+          } else {
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(148, 163, 184); // Slate 400
+            doc.text("Nenhum funcionário escalado neste turno.", marginX + 5, startY);
+            startY += 10;
           }
+
+          startY += 5; // Gap between turns
         });
-      });
+
+      } else {
+        // --- SEMANAL (Grid Layout) - Keeping original logic ---
+        const gap = 3;
+        // Calculate column width dynamically: (PageWidth - (Margins * 2) - (Gap * 6)) / 7
+        const colWidth = (pageWidth - (marginX * 2) - (gap * 6)) / 7;
+        const gridHeight = pageHeight - startY - 20; // 20mm bottom margin for footer
+
+        weekDays.forEach((day, index) => {
+          const x = marginX + (index * (colWidth + gap));
+
+          // 1. Column Header (Dark Box)
+          doc.setFillColor(15, 23, 42); // Slate 900 (Dark)
+          doc.roundedRect(x, startY, colWidth, 14, 2, 2, 'F');
+
+          // Header Text
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(day.label, x + (colWidth / 2), startY + 5, { align: 'center' });
+
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(148, 163, 184); // Slate 400
+          const dateStr = `${day.dia}/${day.fullDate.getMonth() + 1}`;
+          doc.text(dateStr, x + (colWidth / 2), startY + 10, { align: 'center' });
+
+          // 2. Column Body (Border)
+          doc.setDrawColor(226, 232, 240); // Slate 200
+          doc.setLineWidth(0.3);
+          // Draw rect for body
+          doc.roundedRect(x, startY + 14, colWidth, gridHeight - 14, 2, 2, 'S');
+
+          // 3. Content
+          let currentY = startY + 18;
+
+          turnosConfigs.forEach(t => {
+            const key = `${day.id}-${t.id}`;
+            const assigned = escala[key] || [];
+
+            if (assigned.length > 0) {
+              // Turno Header (e.g. 1º Turno)
+              // Thin separator before if not first
+              if (currentY > startY + 20) {
+                doc.setDrawColor(241, 245, 249); // lighter separator
+                doc.line(x + 2, currentY - 3, x + colWidth - 2, currentY - 3);
+              }
+
+              doc.setFontSize(7);
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(59, 130, 246); // Blue 500
+
+              // Custom label logic for turns
+              const tLabel = t.id === 't1' ? '1º Turno' : t.id === 't2' ? '2º Turno' : t.id === 't3' ? '3º Turno' : t.label;
+              doc.text(tLabel, x + 2, currentY);
+              currentY += 4;
+
+              // Employees
+              assigned.forEach(uid => {
+                const f = funcionarios.find(emp => emp.id === uid);
+                if (f) {
+                  // Name
+                  doc.setFontSize(8);
+                  doc.setFont('helvetica', 'bold');
+                  doc.setTextColor(51, 65, 85); // Slate 700
+                  const name = formatNameShort(f.nome);
+                  doc.text(name, x + 2, currentY);
+
+                  // Role
+                  if (f.funcao) {
+                    currentY += 3;
+                    doc.setFontSize(6);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 116, 139); // Slate 500
+                    // Truncate role if too long??
+                    doc.text(f.funcao, x + 2, currentY);
+                  }
+                  currentY += 5; // Space for next person
+                }
+              });
+              currentY += 2; // Extra space after group
+            }
+          });
+        });
+      }
 
       // --- FOOTER ---
       doc.setFontSize(8);
