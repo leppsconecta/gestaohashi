@@ -10,8 +10,8 @@ const DashboardPage: React.FC = () => {
   const { data: stats, isLoading: loading } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: DBService.getDashboardStats,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    refetchInterval: 1000 * 60 * 2, // 2 minutes
   });
 
   if (loading) {

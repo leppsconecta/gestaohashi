@@ -265,6 +265,9 @@ const CardapioPage: React.FC = () => {
   const [menuOnlineEnabled, setMenuOnlineEnabled] = useState(true);
   const [isUpdatingMenuStatus, setIsUpdatingMenuStatus] = useState(false);
 
+  // Estado para upload de mídia (Categoria Especial)
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
   // Function to focus on one section and collapse others
   const focusSection = (section: 'hero' | 'products' | 'splash', resetCategory = false, shouldScroll = true) => {
     setHeroImagesExpanded(section === 'hero');
@@ -459,6 +462,18 @@ const CardapioPage: React.FC = () => {
   // Fetch data on mount
   const fetchData = async () => {
     setIsLoading(true);
+
+    // Timeout de segurança: se o banco demorar mais de 10s, destrava a tela
+    const safetyTimeout = setTimeout(() => {
+      setIsLoading((loading) => {
+        if (loading) {
+          showToast('Demora na resposta do banco. Exibindo dados locais ou vazios.', 'info');
+          return false;
+        }
+        return loading;
+      });
+    }, 10000);
+
     try {
       // Fetch categories
       const { data: catData, error: catError } = await supabase
@@ -581,7 +596,12 @@ const CardapioPage: React.FC = () => {
       if (error.code !== 'PGRST116' && error.code !== '42P01') {
         showToast('Erro ao carregar dados: ' + error.message, 'error');
       }
+      // Fallback para evitar tela branca eterna em caso de erro grave
+      if (categorias.length === 0) {
+        setCategorias(INITIAL_CATEGORIAS); // Dados de exemplo/fallback
+      }
     } finally {
+      clearTimeout(safetyTimeout);
       setIsLoading(false);
     }
   };
@@ -1507,6 +1527,7 @@ const CardapioPage: React.FC = () => {
     }
 
     if (isVideo) {
+      setIsUploadingMedia(true); // Start loading state
       const video = document.createElement('video');
       video.preload = 'metadata';
 
@@ -1528,10 +1549,14 @@ const CardapioPage: React.FC = () => {
 
       video.src = URL.createObjectURL(file);
       const isValid = await durationCheck;
-      if (!isValid) return;
+      if (!isValid) {
+        setIsUploadingMedia(false);
+        return;
+      }
     }
 
     try {
+      setIsUploadingMedia(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `destaque-${Math.random()}-${Date.now()}.${fileExt}`;
       const filePath = `destaques/${fileName}`;
@@ -1590,6 +1615,8 @@ const CardapioPage: React.FC = () => {
     } catch (error) {
       console.error('Error uploading media:', error);
       showToast('Erro ao fazer upload da mídia.', 'error');
+    } finally {
+      setIsUploadingMedia(false);
     }
   };
 
@@ -1677,12 +1704,7 @@ const CardapioPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 relative min-h-[400px]">
-      {isLoading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center rounded-2xl">
-          <Loader2 size={40} className="text-indigo-600 animate-spin mb-4" />
-          <p className="text-slate-600 dark:text-slate-300 font-medium">Carregando cardápio...</p>
-        </div>
-      )}
+      {/* Header */}
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -2247,6 +2269,12 @@ const CardapioPage: React.FC = () => {
                     <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px] p-2 flex flex-col gap-2">
                       {/* Media List */}
                       <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+                        {isUploadingMedia && (
+                          <div className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center animate-pulse">
+                            <Loader2 size={32} className="text-indigo-500 animate-spin mb-2" />
+                            <span className="text-xs font-bold text-slate-500">Enviando...</span>
+                          </div>
+                        )}
                         {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
                           activeCategory.destaque.midias.map((media, idx) => (
                             <div key={idx} className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 group border border-slate-200 dark:border-slate-700">
