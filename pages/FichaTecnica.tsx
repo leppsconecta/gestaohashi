@@ -984,7 +984,7 @@ const FichaTecnicaPage: React.FC = () => {
                           <button onClick={() => handleOpenPrato(p)} className="p-2 text-slate-300 hover:text-blue-600 transition-colors" title="Editar"><Edit3 size={18} /></button>
                           <button onClick={() => setPratos(pratos.filter(x => x.id !== p.id))} className="p-2 text-slate-300 hover:text-red-600 transition-colors" title="Excluir"><Trash2 size={18} /></button>
                         </div>
-                      ), className: 'w-32 whitespace-nowrap'
+                      ), className: 'w-36 pl-4 whitespace-nowrap'
                     }
                   ]}
                   data={pratos}
