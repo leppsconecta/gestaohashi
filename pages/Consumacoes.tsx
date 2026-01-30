@@ -18,6 +18,24 @@ const formatDateToISO = (dateStr?: string) => {
   return '';
 };
 
+// Helper para exibir data sem conversão de fuso (recebe YYYY-MM-DD do banco)
+const formatDateDisplay = (dateStr?: string) => {
+  if (!dateStr) return '';
+  // Se for Data object (caso o supabase retorne assim, mas geralmente é string)
+  if (typeof dateStr !== 'string') return new Date(dateStr).toLocaleDateString('pt-BR');
+
+  if (dateStr.includes('T')) {
+    return new Date(dateStr).toLocaleDateString('pt-BR'); // Fallback para ISO completo se houver
+  }
+
+  // YYYY-MM-DD
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 const ConsumacaoForm: React.FC<{ data: Partial<Consumacao>; onChange: (data: Partial<Consumacao>) => void }> = ({ data, onChange }) => {
   const handleChange = (field: keyof Consumacao, value: any) => {
     onChange({ ...data, [field]: value });
@@ -140,6 +158,8 @@ const ConsumacaoForm: React.FC<{ data: Partial<Consumacao>; onChange: (data: Par
 
 const ConsumacoesPage: React.FC = () => {
   const queryClient = useQueryClient();
+  // Estado para filtro de status
+  const [statusFilter, setStatusFilter] = useState<ConsumacaoStatus | 'Todos'>('Pendente');
 
   // Refactored state: store only minimal data needed to derive the modal content
   const [modalState, setModalState] = useState<{
@@ -159,7 +179,7 @@ const ConsumacoesPage: React.FC = () => {
   const [formTempData, setFormTempData] = useState<Partial<Consumacao>>({});
 
   const { data = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ['consumacoes'],
+    queryKey: ['consumacoes', statusFilter], // Inclui filtro na key para refetch automático
     queryFn: async () => {
       // Alterado de view_consumacoes_gestao para gestaohashi.consumacoes
       // Como estamos acessando um schema diferente de public, precisamos garantir que o cliente supabase esteja configurado ou usar a notação correta se a lib suportar schema.
@@ -168,11 +188,17 @@ const ConsumacoesPage: React.FC = () => {
       // Mas o supabase-js geralmente infere 'public'. Se não houver setup de schema, o acesso direto a 'gestaohashi.consumacoes' via string de tabela pode falhar se não usarmos .schema().
       // Vamos tentar acessar via schema().
 
-      const { data: result, error } = await supabase
+      let query = supabase
         .schema('gestaohashi')
         .from('consumacoes')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('validade', { ascending: true }); // Ordenação por vencimento (mais próximo primeiro)
+
+      if (statusFilter !== 'Todos') {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data: result, error } = await query;
 
       if (error) {
         console.error('Erro ao buscar consumações:', error);
@@ -187,8 +213,8 @@ const ConsumacoesPage: React.FC = () => {
           // Keeping 'data' property just in case it's used elsewhere, but mapped from 'created_at' if 'data' column doesn't exist (it seemed to exist in previous code).
           // Based on schema analysis: columns are id, created_at, data, nome, codigo, tipo, evento, status, validade, descricao.
           // So 'data' column EXISTS in the table. We will map it for internal use if needed, but not display it.
-          data: new Date(item.data).toLocaleDateString('pt-BR'),
-          validade: item.validade ? new Date(item.validade).toLocaleDateString('pt-BR') : ''
+          data: formatDateDisplay(item.data),
+          validade: formatDateDisplay(item.validade)
         }));
       }
       return [];
@@ -255,26 +281,8 @@ const ConsumacoesPage: React.FC = () => {
 
       const payload = cleanDataForSave(formTempData);
 
-      // Validação de Duplicidade (pelo código)
-      const query = supabase
-        .schema('gestaohashi')
-        .from('consumacoes')
-        .select('id')
-        .eq('codigo', payload.codigo);
-
-      // Se for update, excluímos o próprio ID da busca de duplicidade
-      if (isUpdate && id) {
-        query.neq('id', id);
-      }
-
-      const { data: existing, error: checkError } = await query;
-
-      if (checkError) throw checkError;
-
-      if (existing && existing.length > 0) {
-        alert(`O código "${payload.codigo}" já está em uso por outra consumação.`);
-        return; // Interrompe o salvamento
-      }
+      // Validação de Duplicidade removida conforme solictação
+      // O código agora pode ser repetido.
 
       // Se for insert, precisamos garantir que o campo 'data' (obrigatório) seja preenchido.
       if (!isUpdate && !payload.data) {
@@ -526,6 +534,23 @@ const ConsumacoesPage: React.FC = () => {
           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Gerenciamento de cortesias, sorteios e prêmios do estabelecimento.</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Filtro de Status */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold py-2.5 pl-4 pr-8 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-700"
+            >
+              <option value="Todos">Todos</option>
+              <option value="Pendente">Pendentes</option>
+              <option value="Utilizado">Utilizados</option>
+              <option value="Expirado">Expirados</option>
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            </div>
+          </div>
+
           <button onClick={() => refetch()} disabled={loading} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" title="Atualizar">
             <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
