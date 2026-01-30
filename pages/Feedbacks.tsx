@@ -211,7 +211,7 @@ const FeedbacksPage: React.FC = () => {
     return feedbackData.filter(item => item.tipo === type && getNormalizedStatus(item.status) !== 'Resolvido').length;
   };
 
-  const tabs = ['elogio', 'reclamacao', 'sugestao', 'produtos', 'denuncia'];
+  const tabs = ['elogio', 'reclamacao', 'sugestao', 'denuncia', 'produtos'];
 
   const getTabLabel = (tab: string) => {
     const labels: Record<string, string> = {
