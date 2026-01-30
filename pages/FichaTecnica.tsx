@@ -21,7 +21,8 @@ import {
   ArrowLeft,
   TrendingUp,
   ListOrdered,
-  Printer
+  Printer,
+  Upload
 } from 'lucide-react';
 import Modal from '../components/UI/Modal';
 import Table, { Column } from '../components/UI/Table';
@@ -389,6 +390,19 @@ const FichaTecnicaPage: React.FC = () => {
     };
 
     const handlePreSave = async () => {
+      // Validate required fields
+      const errors: string[] = [];
+      if (!formData.nome.trim()) errors.push('Nome do produto');
+      if (!formData.categoriaId) errors.push('Categoria');
+      if (!formData.rendimento || formData.rendimento <= 0) errors.push('Rendimento');
+      if (!formData.ingredientes.length) errors.push('Ao menos 1 ingrediente na composição');
+      if (!formData.precoVenda || formData.precoVenda <= 0) errors.push('Preço de venda');
+
+      if (errors.length > 0) {
+        alert(`Campos obrigatórios:\n\n• ${errors.join('\n• ')}`);
+        return;
+      }
+
       setIsUploading(true);
       try {
         let fotoUrl = formData.foto;
@@ -555,18 +569,37 @@ const FichaTecnicaPage: React.FC = () => {
               <section className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex-none">
                 <div className="flex gap-4">
                   {/* Photo Upload */}
-                  <label className="w-36 h-36 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-400 cursor-pointer transition-all shrink-0 overflow-hidden relative">
-                    {imagePreview ? (
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon size={32} />
+                  <div className="w-36 h-36 shrink-0 relative">
+                    <label className="w-full h-full bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-400 cursor-pointer transition-all overflow-hidden">
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <>
+                          <Upload size={24} className="mb-1" />
+                          <span className="text-[10px] font-medium">Carregar foto</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(undefined);
+                          setFormData(prev => ({ ...prev, foto: undefined }));
+                        }}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
                     )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                    />
-                  </label>
+                  </div>
 
                   <div className="flex-1 flex flex-col justify-between">
                     <div className="grid grid-cols-4 gap-3">
