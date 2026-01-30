@@ -11,7 +11,6 @@ import {
   CalendarDays,
   Users,
   BookOpen,
-  Key,
   Folder,
   Settings,
   UtensilsCrossed
@@ -53,7 +52,6 @@ export const MENU_GROUPS: MenuGroup[] = [
       { label: 'Funcionários', path: AppRoute.FUNCIONARIOS, icon: <Users size={20} /> },
       { label: 'Ficha Técnica', path: AppRoute.FICHA_TECNICA, icon: <BookOpen size={20} /> },
       { label: 'Arquivos', path: AppRoute.ARQUIVOS, icon: <Folder size={20} /> },
-      { label: 'Logins e Senhas', path: AppRoute.LOGINS_SENHAS, icon: <Key size={20} /> },
     ]
   }
 ];

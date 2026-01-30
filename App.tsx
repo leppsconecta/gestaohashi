@@ -12,7 +12,6 @@ import PromocionalPage from './pages/Promocional';
 import CuponsPage from './pages/Cupons';
 import ConsumacoesPage from './pages/Consumacoes';
 import ReservasPage from './pages/Reservas';
-import LoginsSenhasPage from './pages/LoginsSenhas';
 import ArquivosPage from './pages/Arquivos';
 import FuncionariosPage from './pages/Funcionarios';
 import EscalaPage from './pages/Escala';
@@ -167,7 +166,6 @@ const App: React.FC = () => {
           <Route path={AppRoute.PROMOCIONAL} element={<PromocionalPage />} />
           <Route path={AppRoute.CUPONS} element={<CuponsPage />} />
           <Route path={AppRoute.CONSUMACOES} element={<ConsumacoesPage />} />
-          <Route path={AppRoute.LOGINS_SENHAS} element={<AdminGuard><LoginsSenhasPage /></AdminGuard>} />
           <Route path={AppRoute.ARQUIVOS} element={<AdminGuard><ArquivosPage /></AdminGuard>} />
           <Route path={AppRoute.FUNCIONARIOS} element={<AdminGuard><FuncionariosPage /></AdminGuard>} />
           <Route path={AppRoute.ESCALA} element={<AdminGuard><EscalaPage /></AdminGuard>} />

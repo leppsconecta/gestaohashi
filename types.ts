@@ -16,7 +16,6 @@ export enum AppRoute {
   FUNCIONARIOS = '/funcionarios',
   FICHA_TECNICA = '/ficha-tecnica',
   CARDAPIO = '/cardapio',
-  LOGINS_SENHAS = '/logins-senhas',
   ARQUIVOS = '/arquivos',
   PUBLIC_FORM_FUNCIONARIO = '/cadastroequipe',
   MENU_ONLINE = '/public/menu',
