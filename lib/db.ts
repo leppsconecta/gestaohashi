@@ -291,13 +291,21 @@ export const DBService = {
 
 
   getDashboardStats: async () => {
+    // Helper to format date as YYYY-MM-DD using local time
+    const formatLocalYMD = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const todayObj = new Date();
-    const today = todayObj.toISOString().split('T')[0];
+    const today = formatLocalYMD(todayObj);
 
     // Calculate 7 days ago
     const sevenDaysAgoObj = new Date();
     sevenDaysAgoObj.setDate(todayObj.getDate() - 6);
-    const sevenDaysAgo = sevenDaysAgoObj.toISOString().split('T')[0];
+    const sevenDaysAgo = formatLocalYMD(sevenDaysAgoObj);
 
     try {
       const [
@@ -312,14 +320,14 @@ export const DBService = {
         reservasWeek
       ] = await Promise.all([
         supabase.schema('gestaohashi').from('reservas').select('*', { count: 'exact', head: true }).eq('status', 'Pendente'),
-        supabase.schema('gestaohashi').from('reservas').select('*', { count: 'exact', head: true }).eq('data', today),
+        supabase.schema('gestaohashi').from('reservas').select('*', { count: 'exact', head: true }).eq('date', today),
         supabase.schema('gestaohashi').from('reservas').select('*', { count: 'exact', head: true }),
         supabase.schema('gestaohashi').from('feedbacks').select('*', { count: 'exact', head: true }).eq('status', 'Pendente'),
         supabase.schema('gestaohashi').from('feedbacks').select('tipo'),
         supabase.schema('gestaohashi').from('consumacoes').select('*', { count: 'exact', head: true }).eq('status', 'Pendente'),
         supabase.schema('gestaohashi').from('promocoes').select('*', { count: 'exact', head: true }).eq('ativa', true),
         supabase.schema('gestaohashi').from('cupons').select('*', { count: 'exact', head: true }).eq('ativa', true),
-        supabase.schema('gestaohashi').from('reservas').select('data').gte('data', sevenDaysAgo)
+        supabase.schema('gestaohashi').from('reservas').select('date').gte('date', sevenDaysAgo)
       ]);
 
       const feedbacks = feedbacksAll.data || [];
@@ -350,10 +358,12 @@ export const DBService = {
       for (let i = 0; i < 7; i++) {
         const d = new Date(mondayObj);
         d.setDate(mondayObj.getDate() + i);
-        const yyyymmdd = d.toISOString().split('T')[0];
+        const yyyymmdd = formatLocalYMD(d);
 
         // Count exact matches for this date
-        const count = weekReservations.filter((r: any) => r.data === yyyymmdd).length;
+        // Note: DB column is 'date', type is 'data' in Typescript interface, but raw select returns DB col name usually.
+        // If we selected 'date', likely the object key is 'date'.
+        const count = weekReservations.filter((r: any) => (r.date || r.data) === yyyymmdd).length;
 
         // We know i=0 is Mon, i=1 is Tue, etc.
         weeklyData.push({ day: diasSemana[i], val: count });
