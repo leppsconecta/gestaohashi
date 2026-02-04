@@ -54,6 +54,7 @@ interface CardapioItem {
   preco: string;
   foto?: string;
   ativo: boolean;
+  variacoes?: { nome: string; preco: string }[];
   isCombo?: boolean;
   comboItens?: ComboProduct[];
   showSavings?: boolean; // Show savings info
@@ -168,7 +169,8 @@ const CardapioPage: React.FC = () => {
     preco: '',
     foto: '',
     visivel: true,
-    categoria_id: ''
+    categoria_id: '',
+    variacoes: [] as { nome: string; preco: string }[]
   });
   const [tempId, setTempId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -1233,10 +1235,11 @@ const CardapioPage: React.FC = () => {
     setFormData({
       nome: item?.nome || '',
       descricao: item?.descricao || '',
-      preco: item?.preco || '',
+      preco: item?.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '',
       foto: item?.foto || '',
       visivel: item?.visivel ?? true,
-      categoria_id: item?.categoria_id || activeCatId
+      categoria_id: item?.categoria_id || activeCatId,
+      variacoes: item?.variacoes ? item.variacoes.map(v => ({ ...v, preco: String(v.preco).replace('.', ',') })) : []
     });
     setTempId(null);
     setModalConfig({
@@ -1252,6 +1255,19 @@ const CardapioPage: React.FC = () => {
       return;
     }
 
+    for (const variacao of formData.variacoes) {
+      if (!variacao.nome.trim()) {
+        alert('Informe o nome para todas as variações');
+        return;
+      }
+      const vPrice = parseFloat(variacao.preco.replace(',', '.'));
+      if (isNaN(vPrice) || vPrice <= 0) {
+        alert(`Informe um preço válido para a variação "${variacao.nome}"`);
+        return;
+      }
+    }
+
+
     if (isSaving) return;
     setIsSaving(true);
 
@@ -1265,7 +1281,8 @@ const CardapioPage: React.FC = () => {
         visivel: formData.visivel,
         ativo: true,
         is_combo: false,
-        categoria_id: formData.categoria_id || activeCatId
+        categoria_id: formData.categoria_id || activeCatId,
+        variacoes: formData.variacoes?.map(v => ({ ...v, preco: parseFloat(v.preco.replace(',', '.')) || 0 }))
       };
 
       if (editingItem) {
@@ -2476,7 +2493,7 @@ const CardapioPage: React.FC = () => {
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                              R$ {item.preco || '0,00'}
+                              R$ {item.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '0,00'}
                             </span>
                             {item.isCombo && item.showSavings && item.savingsAmount && (
                               <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
@@ -2694,24 +2711,95 @@ const CardapioPage: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-2">Preço (R$)</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
-                <input
-                  type="text"
-                  value={formData.preco}
-                  onChange={(e) => setFormData({ ...formData, preco: formatPrice(e.target.value) })}
-                  placeholder="10,99"
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-semibold"
-                />
+            {/* Preço - Ocultar se houver variações */}
+            {(!formData.variacoes || formData.variacoes.length === 0) && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-2">Preço (R$)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                  <input
+                    type="text"
+                    value={formData.preco}
+                    onChange={(e) => setFormData({ ...formData, preco: formatPrice(e.target.value) })}
+                    placeholder="10,99"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-semibold"
+                  />
+                </div>
               </div>
+            )}
+
+            {/* Variações de Preço */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 block">Variações de Preço</label>
+                  <p className="text-[10px] text-slate-400">Adicione preços diferentes (ex: P, M, G)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newVariacoes = [...(formData.variacoes || []), { nome: '', preco: '' }];
+                    setFormData({ ...formData, variacoes: newVariacoes });
+                  }}
+                  className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:underline"
+                >
+                  <Plus size={14} />
+                  Adicionar
+                </button>
+              </div>
+
+              {formData.variacoes && formData.variacoes.length > 0 ? (
+                <div className="space-y-2">
+                  {formData.variacoes.map((variacao, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Nome (ex: Pequena)"
+                        value={variacao.nome}
+                        onChange={(e) => {
+                          const newVariacoes = [...formData.variacoes!];
+                          newVariacoes[idx].nome = e.target.value;
+                          setFormData({ ...formData, variacoes: newVariacoes });
+                        }}
+                        className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <div className="relative w-32">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">R$</span>
+                        <input
+                          type="text"
+                          placeholder="0,00"
+                          value={variacao.preco}
+                          onChange={(e) => {
+                            const newVariacoes = [...formData.variacoes!];
+                            newVariacoes[idx].preco = formatPrice(e.target.value);
+                            setFormData({ ...formData, variacoes: newVariacoes });
+                          }}
+                          className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newVariacoes = formData.variacoes!.filter((_, i) => i !== idx);
+                          setFormData({ ...formData, variacoes: newVariacoes });
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic text-center py-2">Nenhuma variação adicionada</p>
+              )}
             </div>
           </div>
         }
         onConfirm={handleSaveItem}
         confirmText={isSaving ? 'Salvando...' : (editingItem ? 'Salvar Alterações' : 'Adicionar Produto')}
         onClose={() => !isSaving && setModalConfig({ isOpen: false })}
+        autoClose={false}
       />
 
       {/* Toast Notification */}
@@ -3063,6 +3151,7 @@ const CardapioPage: React.FC = () => {
                 <button
                   className={`px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                   disabled={isSaving}
+                  onClick={handleSaveCombo}
                 >
                   {isSaving ? 'Salvando...' : (editingCombo ? 'Salvar Alterações' : 'Criar Combo')}
                 </button>

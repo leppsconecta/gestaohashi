@@ -77,6 +77,11 @@ export interface CardapioItem {
   showSavings?: boolean;
   savingsAmount?: string;
   visivel?: boolean;
+  variacoes?: {
+    id: string;
+    nome: string;
+    preco: string;
+  }[];
 }
 
 
