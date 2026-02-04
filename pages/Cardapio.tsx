@@ -261,7 +261,6 @@ const CardapioPage: React.FC = () => {
 
   // Section expanded states
   const [productsExpanded, setProductsExpanded] = useState(true); // Default expanded
-  const [splashExpanded, setSplashExpanded] = useState(false);
 
   // Menu Online state
   const [menuOnlineEnabled, setMenuOnlineEnabled] = useState(true);
@@ -271,10 +270,9 @@ const CardapioPage: React.FC = () => {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   // Function to focus on one section and collapse others
-  const focusSection = (section: 'hero' | 'products' | 'splash', resetCategory = false, shouldScroll = true) => {
+  const focusSection = (section: 'hero' | 'products', resetCategory = false, shouldScroll = true) => {
     setHeroImagesExpanded(section === 'hero');
     setProductsExpanded(section === 'products');
-    setSplashExpanded(section === 'splash');
 
     if (resetCategory && categorias.length > 0) {
       setActiveCatId(categorias[0].id);
@@ -1891,19 +1889,8 @@ const CardapioPage: React.FC = () => {
       )}
 
       {/* Products Section - Collapsible */}
-      {(!heroImagesExpanded && !splashExpanded) && (
+      {(!heroImagesExpanded) && (
         <div id="products-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-visible">
-          {productsExpanded && (
-            <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <button
-                onClick={() => setProductsExpanded(false)}
-                className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-              >
-                <ChevronLeft size={20} />
-                Voltar ao Menu Principal
-              </button>
-            </div>
-          )}
           <button
             onClick={() => productsExpanded ? setProductsExpanded(false) : focusSection('products', true)}
             className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
@@ -2542,61 +2529,7 @@ const CardapioPage: React.FC = () => {
       )}
 
       {/* Splash Section - Collapsible */}
-      {
-        (!heroImagesExpanded && !productsExpanded) && (
-          <div id="splash-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-            {splashExpanded && (
-              <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                <button
-                  onClick={() => setSplashExpanded(false)}
-                  className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                  Voltar ao Menu Principal
-                </button>
-              </div>
-            )}
-            <button
-              onClick={() => splashExpanded ? setSplashExpanded(false) : focusSection('splash')}
-              className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Layers size={18} className="text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Splash</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Configurar tela de abertura do menu</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-full">
-                  Em breve
-                </span>
-                <ChevronRight size={20} className={`text-slate-400 transition-transform ${splashExpanded ? 'rotate-90' : ''}`} />
-              </div>
-            </button>
 
-            {splashExpanded && (
-              <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800">
-                <div className="py-12 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
-                    <Layers size={32} className="text-purple-500" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">Splash Screen</h3>
-                  <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
-                    Configure uma tela de abertura personalizada para o seu menu digital. Esta funcionalidade estará disponível em breve.
-                  </p>
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm font-medium">
-                    <Loader2 size={14} className="animate-spin" />
-                    Em desenvolvimento
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      }
 
       {/* Product Modal */}
       <Modal
