@@ -1891,640 +1891,618 @@ const CardapioPage: React.FC = () => {
       {/* Products Section - Collapsible */}
       {(!heroImagesExpanded) && (
         <div id="products-section" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-visible">
-          <button
-            onClick={() => productsExpanded ? setProductsExpanded(false) : focusSection('products', true)}
-            className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-                <Grid3X3 size={18} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Produtos</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie categorias e itens do cardápio</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                {categorias.reduce((acc, cat) => acc + cat.itens.length, 0)} itens
-              </span>
-              <ChevronRight size={20} className={`text-slate-400 transition-transform ${productsExpanded ? 'rotate-90' : ''}`} />
-            </div>
-          </button>
-
-          {productsExpanded && (
-            <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800 space-y-4 pt-4">
-              {/* Category Tabs - Moved Here */}
-              <div className="relative bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-2 shadow-sm">
-                {canScrollLeft && (
-                  <button
-                    onClick={() => scrollTabs('left')}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-                  >
-                    <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
-                  </button>
-                )}
-
-                <div
-                  ref={tabsContainerRef}
-                  onScroll={checkScroll}
-                  className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          <div className="px-5 py-5 space-y-4">
+            {/* Category Tabs - Moved Here */}
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-2 shadow-sm">
+              {canScrollLeft && (
+                <button
+                  onClick={() => scrollTabs('left')}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
                 >
-                  {categorias.map(cat => (
-                    <div key={cat.id} className="flex-shrink-0">
-                      {editingCategoryId === cat.id ? (
-                        <div className="flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-slate-700 rounded-xl border-2 border-indigo-500">
-                          <input
-                            type="text"
-                            value={editingCategoryName}
-                            onChange={(e) => setEditingCategoryName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleUpdateCategoryName(cat.id);
-                              if (e.key === 'Escape') { setEditingCategoryId(null); setEditingCategoryName(''); }
-                            }}
-                            autoFocus
-                            className="w-24 px-2 py-1 bg-transparent text-sm font-medium outline-none text-slate-900 dark:text-white"
-                          />
-                          <button
-                            onClick={() => handleUpdateCategoryName(cat.id)}
-                            className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button
-                            onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}
-                            className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <button
-                            onClick={() => {
-                              setActiveCatId(cat.id);
-                            }}
-                            id={`cat-btn-${cat.id}`}
-                            draggable
-                            onDragStart={() => handleDragStartCat(cat.id)}
-                            onDragOver={(e) => handleDragOverCat(e, cat.id)}
-                            onDrop={() => handleDropCat(cat.id)}
-                            onDragEnd={handleDragEndCat}
-                            className={`
+                  <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
+                </button>
+              )}
+
+              <div
+                ref={tabsContainerRef}
+                onScroll={checkScroll}
+                className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {categorias.map(cat => (
+                  <div key={cat.id} className="flex-shrink-0">
+                    {editingCategoryId === cat.id ? (
+                      <div className="flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-slate-700 rounded-xl border-2 border-indigo-500">
+                        <input
+                          type="text"
+                          value={editingCategoryName}
+                          onChange={(e) => setEditingCategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleUpdateCategoryName(cat.id);
+                            if (e.key === 'Escape') { setEditingCategoryId(null); setEditingCategoryName(''); }
+                          }}
+                          autoFocus
+                          className="w-24 px-2 py-1 bg-transparent text-sm font-medium outline-none text-slate-900 dark:text-white"
+                        />
+                        <button
+                          onClick={() => handleUpdateCategoryName(cat.id)}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}
+                          className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setActiveCatId(cat.id);
+                          }}
+                          id={`cat-btn-${cat.id}`}
+                          draggable
+                          onDragStart={() => handleDragStartCat(cat.id)}
+                          onDragOver={(e) => handleDragOverCat(e, cat.id)}
+                          onDrop={() => handleDropCat(cat.id)}
+                          onDragEnd={handleDragEndCat}
+                          className={`
                           px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 relative cursor-grab active:cursor-grabbing border
                           ${activeCatId === cat.id
-                                ? cat.tipo === 'especial'
-                                  ? 'bg-purple-600 text-white border-purple-600 shadow-md'
-                                  : 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                              }
+                              ? cat.tipo === 'especial'
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-md'
+                                : 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                            }
                           ${dragOverCatId === cat.id ? 'ring-2 ring-indigo-400 scale-105' : ''}
                           ${draggedCatId === cat.id ? 'opacity-50' : 'opacity-100'}
                         `}
-                          >
-                            <div className="mr-1 opacity-50 cursor-grab">
-                              <GripVertical size={14} />
-                            </div>
-                            {cat.tipo === 'especial' && (
-                              <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
-                            )}
-                            {cat.nome}
-                            {cat.tipo !== 'especial' && (
-                              <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                ({cat.itens.length})
-                              </span>
-                            )}
-                            {cat.tipo === 'especial' && activeCatId === cat.id && (
-                              <Star size={10} className="text-amber-300 fill-amber-300 animate-pulse absolute -top-1 -right-1" />
-                            )}
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setMenuPosition({ top: rect.bottom + 8, left: rect.right - 140 });
-                                setCategoryMenuOpen(categoryMenuOpen === cat.id ? null : cat.id);
-                              }}
-                              className={`ml-1 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer ${activeCatId === cat.id ? 'text-indigo-200 hover:text-white' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                              <MoreVertical size={14} />
-                            </span>
-                          </button>
-
-                          {/* Dropdown Menu */}
-                          {categoryMenuOpen === cat.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-[100]"
-                                onClick={() => setCategoryMenuOpen(null)}
-                              />
-                              <div
-                                className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[140px]"
-                                style={{
-                                  top: menuPosition.top,
-                                  left: menuPosition.left
-                                }}
-                              >
-                                <button
-                                  onClick={() => {
-                                    startEditingCategory(cat);
-                                    setCategoryMenuOpen(null);
-                                  }}
-                                  className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
-                                >
-                                  <Edit3 size={14} className="text-indigo-500" />
-                                  Renomear
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    handleDeleteCategoria(cat.id);
-                                    setCategoryMenuOpen(null);
-                                  }}
-                                  className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
-                                >
-                                  <Trash2 size={14} className="text-red-500" />
-                                  Deletar
-                                </button>
-                              </div>
-                            </>
+                        >
+                          <div className="mr-1 opacity-50 cursor-grab">
+                            <GripVertical size={14} />
+                          </div>
+                          {cat.tipo === 'especial' && (
+                            <Sparkles size={14} className={activeCatId === cat.id ? 'text-purple-200' : 'text-purple-500'} />
                           )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-
-                </div>
-
-                {canScrollRight && (
-                  <button
-                    onClick={() => scrollTabs('right')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-                  >
-                    <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
-                  </button>
-                )}
-              </div>
-              {/* Category Tabs removed from here */}
-
-              {/* Category Header with Actions */}
-              {activeCategory && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {activeCategory.tipo !== 'especial' && (
-                      <>
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
-                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                          {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-
-
-                    {/* Filter */}
-                    <div className="relative flex items-center">
-                      {showFilter ? (
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-                          <input
-                            type="text"
-                            value={filterQuery}
-                            onChange={(e) => setFilterQuery(e.target.value)}
-                            placeholder="Buscar..."
-                            autoFocus
-                            className="px-3 py-2 bg-transparent text-sm w-40 outline-none text-slate-900 dark:text-white"
-                          />
-                          <button
-                            onClick={() => { setShowFilter(false); setFilterQuery(''); }}
-                            className="p-2 text-slate-400 hover:text-slate-600"
+                          {cat.nome}
+                          {cat.tipo !== 'especial' && (
+                            <span className={`text-xs ${activeCatId === cat.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                              ({cat.itens.length})
+                            </span>
+                          )}
+                          {cat.tipo === 'especial' && activeCatId === cat.id && (
+                            <Star size={10} className="text-amber-300 fill-amber-300 animate-pulse absolute -top-1 -right-1" />
+                          )}
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setMenuPosition({ top: rect.bottom + 8, left: rect.right - 140 });
+                              setCategoryMenuOpen(categoryMenuOpen === cat.id ? null : cat.id);
+                            }}
+                            className={`ml-1 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer ${activeCatId === cat.id ? 'text-indigo-200 hover:text-white' : 'text-slate-400 hover:text-slate-600'}`}
                           >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setShowFilter(true)}
-                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-                          title="Filtrar produtos"
-                        >
-                          <Search size={18} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Capa Button */}
-                    <button
-                      onClick={() => focusSection('hero')}
-                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg text-sm transition-all shadow-sm border border-slate-200 dark:border-slate-700"
-                    >
-                      <ImageIcon size={16} />
-                      Capa
-                    </button>
-
-                    {/* Add Dropdown */}
-                    <button
-                      onClick={handleAddCategoria}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-all shadow-sm"
-                    >
-                      <Plus size={16} />
-                      Nova Categoria
-                    </button>
-
-                    {/* Standard Category Controls */}
-                    {activeCategory?.tipo !== 'especial' && (
-                      <div className="relative">
-                        <button
-                          onClick={() => setShowAddDropdown(!showAddDropdown)}
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
-                        >
-                          <Plus size={16} />
-                          Adicionar
+                            <MoreVertical size={14} />
+                          </span>
                         </button>
 
-                        {showAddDropdown && (
+                        {/* Dropdown Menu */}
+                        {categoryMenuOpen === cat.id && (
                           <>
                             <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setShowAddDropdown(false)}
+                              className="fixed inset-0 z-[100]"
+                              onClick={() => setCategoryMenuOpen(null)}
                             />
-                            <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
+                            <div
+                              className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[140px]"
+                              style={{
+                                top: menuPosition.top,
+                                left: menuPosition.left
+                              }}
+                            >
                               <button
                                 onClick={() => {
-                                  openItemModal();
-                                  setShowAddDropdown(false);
+                                  startEditingCategory(cat);
+                                  setCategoryMenuOpen(null);
                                 }}
-                                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all whitespace-nowrap"
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
                               >
-                                <ImageIcon size={18} className="text-emerald-500 flex-shrink-0" />
-                                Adicionar Produto
+                                <Edit3 size={14} className="text-indigo-500" />
+                                Renomear
                               </button>
                               <button
                                 onClick={() => {
-                                  openComboModal();
-                                  setShowAddDropdown(false);
+                                  handleDeleteCategoria(cat.id);
+                                  setCategoryMenuOpen(null);
                                 }}
-                                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all whitespace-nowrap"
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
                               >
-                                <Grid3X3 size={18} className="text-amber-500 flex-shrink-0" />
-                                Adicionar Combo
+                                <Trash2 size={14} className="text-red-500" />
+                                Deletar
                               </button>
                             </div>
                           </>
                         )}
                       </div>
                     )}
-
-
-
-                    {/* View Toggle Removed */}
                   </div>
-                </div>
-              )}
+                ))}
 
-              {!isLoading && categorias.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                  <Layers size={48} className="text-slate-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nenhuma categoria encontrada</h3>
-                  <p className="text-slate-500 mb-6 text-center max-w-xs">Comece criando uma nova categoria para adicionar seus produtos.</p>
+
+              </div>
+
+              {canScrollRight && (
+                <button
+                  onClick={() => scrollTabs('right')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                >
+                  <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
+                </button>
+              )}
+            </div>
+            {/* Category Tabs removed from here */}
+
+            {/* Category Header with Actions */}
+            {activeCategory && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {activeCategory.tipo !== 'especial' && (
+                    <>
+                      <h2 className="text-lg font-bold text-slate-800 dark:text-white">{activeCategory.nome}</h2>
+                      <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                        {activeCategory.itens.length} produto{activeCategory.itens.length !== 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+
+
+                  {/* Filter */}
+                  <div className="relative flex items-center">
+                    {showFilter ? (
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                        <input
+                          type="text"
+                          value={filterQuery}
+                          onChange={(e) => setFilterQuery(e.target.value)}
+                          placeholder="Buscar..."
+                          autoFocus
+                          className="px-3 py-2 bg-transparent text-sm w-40 outline-none text-slate-900 dark:text-white"
+                        />
+                        <button
+                          onClick={() => { setShowFilter(false); setFilterQuery(''); }}
+                          className="p-2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowFilter(true)}
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                        title="Filtrar produtos"
+                      >
+                        <Search size={18} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Capa Button */}
+                  <button
+                    onClick={() => focusSection('hero')}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg text-sm transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+                  >
+                    <ImageIcon size={16} />
+                    Capa
+                  </button>
+
+                  {/* Add Dropdown */}
                   <button
                     onClick={handleAddCategoria}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md"
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-all shadow-sm"
                   >
-                    <Plus size={20} />
-                    Criar minha primeira categoria
+                    <Plus size={16} />
+                    Nova Categoria
                   </button>
-                </div>
-              )}
 
-              {/* SPECIAL CATEGORY VIEW - Compact */}
-              {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
-                  <div className="flex flex-col md:flex-row h-full">
-                    {/* Left Column: Details */}
-                    <div className="p-5 md:w-1/2 flex flex-col justify-between space-y-4 relative">
-                      <div className="space-y-3 h-full flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold tracking-wider uppercase">
-                            Destaque Especial
-                          </span>
+                  {/* Standard Category Controls */}
+                  {activeCategory?.tipo !== 'especial' && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowAddDropdown(!showAddDropdown)}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-all"
+                      >
+                        <Plus size={16} />
+                        Adicionar
+                      </button>
 
-                          <div className="flex items-center gap-2 ml-auto">
-                            <span className={`text-[10px] font-bold uppercase transition-colors ${activeCategory.destaque.ativo ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {activeCategory.destaque.ativo ? 'Visível' : 'Oculto'}
-                            </span>
+                      {showAddDropdown && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowAddDropdown(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50 min-w-[180px]">
                             <button
-                              onClick={() => toggleDestaqueStatus(activeCategory)}
-                              className={`relative w-8 h-4 rounded-full transition-colors ${activeCategory.destaque.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                              onClick={() => {
+                                openItemModal();
+                                setShowAddDropdown(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-all whitespace-nowrap"
                             >
-                              <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${activeCategory.destaque.ativo ? 'translate-x-4' : ''}`} />
+                              <ImageIcon size={18} className="text-emerald-500 flex-shrink-0" />
+                              Adicionar Produto
+                            </button>
+                            <button
+                              onClick={() => {
+                                openComboModal();
+                                setShowAddDropdown(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 border-t border-slate-100 dark:border-slate-700 transition-all whitespace-nowrap"
+                            >
+                              <Grid3X3 size={18} className="text-amber-500 flex-shrink-0" />
+                              Adicionar Combo
                             </button>
                           </div>
-                        </div>
+                        </>
+                      )}
+                    </div>
+                  )}
 
-                        <div className="flex-1 flex flex-col gap-3">
-                          {/* Title Input */}
-                          <input
-                            type="text"
-                            value={activeCategory.destaque.titulo}
-                            onChange={(e) => updateDestaqueField(activeCategory.id, 'titulo', e.target.value)}
-                            placeholder="Título do destaque"
-                            className="text-2xl font-black text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none transition-all w-full placeholder:text-slate-300"
-                          />
 
-                          {/* Description Preview & Edit Trigger */}
-                          <div
-                            onClick={() => openDescModal(activeCategory)}
-                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 cursor-pointer hover:border-indigo-500 hover:shadow-sm transition-all group flex-1"
+
+                  {/* View Toggle Removed */}
+                </div>
+              </div>
+            )}
+
+            {!isLoading && categorias.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <Layers size={48} className="text-slate-300 mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nenhuma categoria encontrada</h3>
+                <p className="text-slate-500 mb-6 text-center max-w-xs">Comece criando uma nova categoria para adicionar seus produtos.</p>
+                <button
+                  onClick={handleAddCategoria}
+                  className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md"
+                >
+                  <Plus size={20} />
+                  Criar minha primeira categoria
+                </button>
+              </div>
+            )}
+
+            {/* SPECIAL CATEGORY VIEW - Compact */}
+            {activeCategory?.tipo === 'especial' && activeCategory.destaque ? (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="flex flex-col md:flex-row h-full">
+                  {/* Left Column: Details */}
+                  <div className="p-5 md:w-1/2 flex flex-col justify-between space-y-4 relative">
+                    <div className="space-y-3 h-full flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                          Destaque Especial
+                        </span>
+
+                        <div className="flex items-center gap-2 ml-auto">
+                          <span className={`text-[10px] font-bold uppercase transition-colors ${activeCategory.destaque.ativo ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {activeCategory.destaque.ativo ? 'Visível' : 'Oculto'}
+                          </span>
+                          <button
+                            onClick={() => toggleDestaqueStatus(activeCategory)}
+                            className={`relative w-8 h-4 rounded-full transition-colors ${activeCategory.destaque.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descrição</span>
-                              <Edit3 size={12} className="text-slate-400 group-hover:text-indigo-500" />
-                            </div>
-                            <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-4">
-                              {activeCategory.destaque.descricao || <span className="text-slate-400 italic">Clique para adicionar uma descrição...</span>}
-                            </p>
-                          </div>
+                            <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${activeCategory.destaque.ativo ? 'translate-x-4' : ''}`} />
+                          </button>
                         </div>
                       </div>
 
-                      <div className="space-y-4 pt-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">A partir de R$</span>
-                          <input
-                            type="text"
-                            value={activeCategory.destaque.preco || ''}
-                            onChange={(e) => updateDestaqueField(activeCategory.id, 'preco', formatPrice(e.target.value))}
-                            placeholder="0,00"
-                            className="text-2xl font-light text-emerald-600 dark:text-emerald-400 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none w-32"
-                          />
-                        </div>
+                      <div className="flex-1 flex flex-col gap-3">
+                        {/* Title Input */}
+                        <input
+                          type="text"
+                          value={activeCategory.destaque.titulo}
+                          onChange={(e) => updateDestaqueField(activeCategory.id, 'titulo', e.target.value)}
+                          placeholder="Título do destaque"
+                          className="text-2xl font-black text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none transition-all w-full placeholder:text-slate-300"
+                        />
 
-                        <button
-                          onClick={() => handleSaveDestaque(activeCategory.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-colors w-fit shadow-md"
+                        {/* Description Preview & Edit Trigger */}
+                        <div
+                          onClick={() => openDescModal(activeCategory)}
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 cursor-pointer hover:border-indigo-500 hover:shadow-sm transition-all group flex-1"
                         >
-                          <Save size={16} />
-                          Salvar Alterações
-                        </button>
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descrição</span>
+                            <Edit3 size={12} className="text-slate-400 group-hover:text-indigo-500" />
+                          </div>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-4">
+                            {activeCategory.destaque.descricao || <span className="text-slate-400 italic">Clique para adicionar uma descrição...</span>}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right Column: Media */}
-                    <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px] p-2 flex flex-col gap-2">
-                      {/* Media List */}
-                      <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
-                        {isUploadingMedia && (
-                          <div className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center animate-pulse">
-                            <Loader2 size={32} className="text-indigo-500 animate-spin mb-2" />
-                            <span className="text-xs font-bold text-slate-500">Enviando...</span>
-                          </div>
-                        )}
-                        {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
-                          activeCategory.destaque.midias.map((media, idx) => (
-                            <div key={idx} className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 group border border-slate-200 dark:border-slate-700">
-                              {media.type === 'video' ? (
-                                <video src={media.url} className="w-full h-full object-contain" />
-                              ) : (
-                                <img src={media.url} alt="" className="w-full h-full object-contain" />
-                              )}
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">A partir de R$</span>
+                        <input
+                          type="text"
+                          value={activeCategory.destaque.preco || ''}
+                          onChange={(e) => updateDestaqueField(activeCategory.id, 'preco', formatPrice(e.target.value))}
+                          placeholder="0,00"
+                          className="text-2xl font-light text-emerald-600 dark:text-emerald-400 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none w-32"
+                        />
+                      </div>
 
-                              <button
-                                onClick={() => handleRemoveDestaqueImage(activeCategory.id, media.url)}
-                                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
-                                title="Remover imagem"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-                            <ImageIcon size={32} className="mb-2 opacity-50" />
-                            <p className="text-xs">Sem mídia</p>
-                          </div>
-                        )}
+                      <button
+                        onClick={() => handleSaveDestaque(activeCategory.id)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-colors w-fit shadow-md"
+                      >
+                        <Save size={16} />
+                        Salvar Alterações
+                      </button>
+                    </div>
+                  </div>
 
-                        {/* Add Media Button (Always visible at the end or if empty?) - Let's put it at the start or a dedicated button? 
+                  {/* Right Column: Media */}
+                  <div className="md:w-1/2 bg-slate-50 dark:bg-slate-800 relative min-h-[280px] p-2 flex flex-col gap-2">
+                    {/* Media List */}
+                    <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+                      {isUploadingMedia && (
+                        <div className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center animate-pulse">
+                          <Loader2 size={32} className="text-indigo-500 animate-spin mb-2" />
+                          <span className="text-xs font-bold text-slate-500">Enviando...</span>
+                        </div>
+                      )}
+                      {activeCategory.destaque.midias && activeCategory.destaque.midias.length > 0 ? (
+                        activeCategory.destaque.midias.map((media, idx) => (
+                          <div key={idx} className="relative w-full max-w-[200px] flex-shrink-0 h-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 group border border-slate-200 dark:border-slate-700">
+                            {media.type === 'video' ? (
+                              <video src={media.url} className="w-full h-full object-contain" />
+                            ) : (
+                              <img src={media.url} alt="" className="w-full h-full object-contain" />
+                            )}
+
+                            <button
+                              onClick={() => handleRemoveDestaqueImage(activeCategory.id, media.url)}
+                              className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                              title="Remover imagem"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                          <ImageIcon size={32} className="mb-2 opacity-50" />
+                          <p className="text-xs">Sem mídia</p>
+                        </div>
+                      )}
+
+                      {/* Add Media Button (Always visible at the end or if empty?) - Let's put it at the start or a dedicated button? 
                             Let's add a "New" card at the end if there are images, or simpler: a dedicated upload area below/above.
                             Actually, the request was "Adicione uma imagem ao lado da outra".
                         */}
-                        <label className="w-24 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-indigo-400 transition-all text-slate-400 hover:text-indigo-500">
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*,video/*"
-                            multiple
-                            onChange={(e) => handleDestaqueImageUpload(e, activeCategory.id)}
-                          />
-                          <Plus size={24} />
-                          <span className="text-[10px] font-bold mt-1">NOVA</span>
-                        </label>
-                      </div>
+                      <label className="w-24 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-indigo-400 transition-all text-slate-400 hover:text-indigo-500">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*,video/*"
+                          multiple
+                          onChange={(e) => handleDestaqueImageUpload(e, activeCategory.id)}
+                        />
+                        <Plus size={24} />
+                        <span className="text-[10px] font-bold mt-1">NOVA</span>
+                      </label>
                     </div>
                   </div>
                 </div>
-              ) : activeCategory?.tipo === 'especial' ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                  <Sparkles size={48} className="text-purple-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white">Conteúdo Especial</h3>
-                  <p className="text-slate-500 mb-6 text-center max-w-xs">Esta categoria ainda não possui conteúdo configurado.</p>
-                  <button
-                    onClick={() => {
-                      // Initialize with default empty values
-                      const newDestaque = { titulo: activeCategory.nome, descricao: '', preco: '', midias: [], ativo: true };
-                      // We can manually trigger an update or use a helper. 
-                      // Since logic is complex, let's just update local state and let user edit, 
-                      // or save immediately? better to just set state so UI switches to editor.
-                      setCategorias(prev => prev.map(c =>
-                        c.id === activeCategory.id ? { ...c, destaque: newDestaque } : c
-                      ));
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-md"
-                  >
-                    <Edit3 size={20} />
-                    Configurar Conteúdo
-                  </button>
-                </div>
-              ) : null}
+              </div>
+            ) : activeCategory?.tipo === 'especial' ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <Sparkles size={48} className="text-purple-300 mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">Conteúdo Especial</h3>
+                <p className="text-slate-500 mb-6 text-center max-w-xs">Esta categoria ainda não possui conteúdo configurado.</p>
+                <button
+                  onClick={() => {
+                    // Initialize with default empty values
+                    const newDestaque = { titulo: activeCategory.nome, descricao: '', preco: '', midias: [], ativo: true };
+                    // We can manually trigger an update or use a helper. 
+                    // Since logic is complex, let's just update local state and let user edit, 
+                    // or save immediately? better to just set state so UI switches to editor.
+                    setCategorias(prev => prev.map(c =>
+                      c.id === activeCategory.id ? { ...c, destaque: newDestaque } : c
+                    ));
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-md"
+                >
+                  <Edit3 size={20} />
+                  Configurar Conteúdo
+                </button>
+              </div>
+            ) : null}
 
-              {/* GRID VIEW - Default */}
-              {activeCategory?.tipo !== 'especial' && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                  {activeCategory?.itens
-                    .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
-                    .map((item, idx) => (
-                      <div
-                        key={item.id}
-                        draggable
-                        onDragStart={() => handleDragStart(item.id)}
-                        onDragOver={(e) => handleDragOver(e, item.id)}
-                        onDrop={() => handleDrop(item.id)}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
-                        className={`
+            {/* GRID VIEW - Default */}
+            {activeCategory?.tipo !== 'especial' && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                {activeCategory?.itens
+                  .filter(item => !filterQuery || item.nome.toLowerCase().includes(filterQuery.toLowerCase()))
+                  .map((item, idx) => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => handleDragStart(item.id)}
+                      onDragOver={(e) => handleDragOver(e, item.id)}
+                      onDrop={() => handleDrop(item.id)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => item.isCombo ? openComboModal(item) : openItemModal(item)}
+                      className={`
                 bg-white dark:bg-slate-900 rounded-xl border overflow-hidden hover:shadow-lg transition-all group cursor-pointer active:cursor-grabbing
                 ${dragOverItemId === item.id ? 'border-indigo-500 border-2 scale-105' : 'border-slate-100 dark:border-slate-800'}
                 ${draggedItemId === item.id ? 'opacity-50' : 'opacity-100'}
               `}
-                      >
-                        {/* Product Image */}
-                        <div className="aspect-square bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
-                          {item.foto ? (
-                            <img src={item.foto} alt={item.nome} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon size={32} className="text-slate-300 dark:text-slate-600" />
-                            </div>
-                          )}
-                          {/* Combo Badge */}
-                          {item.isCombo && (
-                            <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-md flex items-center gap-1">
-                              <Layers size={10} />
-                              COMBO
-                            </div>
-                          )}
-                          {/* Visibility Overlay */}
-                          {!item.visivel && (
-                            <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                              <div className="bg-slate-900/80 text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 shadow-lg">
-                                <EyeOff size={14} />
-                                Produto oculto do MENU
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 3-dots Menu - Replaces Hover Actions */}
-                          <div className="absolute top-2 right-2 z-20">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setItemMenuPosition({ top: rect.bottom + 5, left: rect.left - 100 });
-                                setItemMenuOpen(itemMenuOpen === item.id ? null : item.id);
-                              }}
-                              className="p-1.5 bg-white/90 hover:bg-white text-slate-700 rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
+                    >
+                      {/* Product Image */}
+                      <div className="aspect-square bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+                        {item.foto ? (
+                          <img src={item.foto} alt={item.nome} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ImageIcon size={32} className="text-slate-300 dark:text-slate-600" />
                           </div>
+                        )}
+                        {/* Combo Badge */}
+                        {item.isCombo && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-md flex items-center gap-1">
+                            <Layers size={10} />
+                            COMBO
+                          </div>
+                        )}
+                        {/* Visibility Overlay */}
+                        {!item.visivel && (
+                          <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                            <div className="bg-slate-900/80 text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 shadow-lg">
+                              <EyeOff size={14} />
+                              Produto oculto do MENU
+                            </div>
+                          </div>
+                        )}
 
-                          {/* Item Menu Dropdown */}
-                          {itemMenuOpen === item.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-[100]"
-                                onClick={(e) => { e.stopPropagation(); setItemMenuOpen(null); }}
-                              />
-                              <div
-                                className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[150px]"
-                                style={{
-                                  top: itemMenuPosition.top,
-                                  left: itemMenuPosition.left
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={() => {
-                                    item.isCombo ? openComboModal(item) : openItemModal(item);
-                                    setItemMenuOpen(null);
-                                  }}
-                                  className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
-                                >
-                                  <Edit3 size={14} className="text-indigo-500" />
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    toggleVisibility(item.id);
-                                    setItemMenuOpen(null);
-                                  }}
-                                  className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
-                                >
-                                  {item.visivel ? (
-                                    <>
-                                      <EyeOff size={14} className="text-slate-500" />
-                                      Ocultar do Menu
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Eye size={14} className="text-emerald-500" />
-                                      Exibir no Menu
-                                    </>
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    handleDeleteItem(item.id);
-                                    setItemMenuOpen(null);
-                                  }}
-                                  className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
-                                >
-                                  <Trash2 size={14} className="text-red-500" />
-                                  Deletar
-                                </button>
-                              </div>
-                            </>
-                          )}
+                        {/* 3-dots Menu - Replaces Hover Actions */}
+                        <div className="absolute top-2 right-2 z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setItemMenuPosition({ top: rect.bottom + 5, left: rect.left - 100 });
+                              setItemMenuOpen(itemMenuOpen === item.id ? null : item.id);
+                            }}
+                            className="p-1.5 bg-white/90 hover:bg-white text-slate-700 rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
                         </div>
 
-                        {/* Product Info */}
-                        <div className="p-3">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <h3 className="font-semibold text-slate-900 dark:text-white text-xs truncate flex-1">{item.nome}</h3>
-                            {item.isCombo && (
-                              <span className="text-[9px] text-indigo-500 font-medium">{item.comboItens?.length} itens</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 min-h-[24px]">
-                            {item.descricao || 'Sem descrição'}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                              {item.variacoes && item.variacoes.length > 0 ? (
-                                <span className="flex flex-col">
-                                  <span className="text-[9px] text-slate-400 font-normal uppercase">A partir de</span>
-                                  <span>R$ {item.variacoes.reduce((min, v) => {
-                                    const p = parseFloat(String(v.preco).replace(',', '.'));
-                                    return p < min ? p : min;
-                                  }, 99999).toFixed(2).replace('.', ',')}</span>
-                                </span>
-                              ) : (
-                                `R$ ${item.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '0,00'}`
-                              )}
-                            </span>
-                            {item.isCombo && item.showSavings && item.savingsAmount && (
-                              <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
-                                -R${item.savingsAmount}
+                        {/* Item Menu Dropdown */}
+                        {itemMenuOpen === item.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[100]"
+                              onClick={(e) => { e.stopPropagation(); setItemMenuOpen(null); }}
+                            />
+                            <div
+                              className="fixed bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[101] min-w-[150px]"
+                              style={{
+                                top: itemMenuPosition.top,
+                                left: itemMenuPosition.left
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                onClick={() => {
+                                  item.isCombo ? openComboModal(item) : openItemModal(item);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all"
+                              >
+                                <Edit3 size={14} className="text-indigo-500" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  toggleVisibility(item.id);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
+                              >
+                                {item.visivel ? (
+                                  <>
+                                    <EyeOff size={14} className="text-slate-500" />
+                                    Ocultar do Menu
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye size={14} className="text-emerald-500" />
+                                    Exibir no Menu
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleDeleteItem(item.id);
+                                  setItemMenuOpen(null);
+                                }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 transition-all"
+                              >
+                                <Trash2 size={14} className="text-red-500" />
+                                Deletar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <h3 className="font-semibold text-slate-900 dark:text-white text-xs truncate flex-1">{item.nome}</h3>
+                          {item.isCombo && (
+                            <span className="text-[9px] text-indigo-500 font-medium">{item.comboItens?.length} itens</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 min-h-[24px]">
+                          {item.descricao || 'Sem descrição'}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            {item.variacoes && item.variacoes.length > 0 ? (
+                              <span className="flex flex-col">
+                                <span className="text-[9px] text-slate-400 font-normal uppercase">A partir de</span>
+                                <span>R$ {item.variacoes.reduce((min, v) => {
+                                  const p = parseFloat(String(v.preco).replace(',', '.'));
+                                  return p < min ? p : min;
+                                }, 99999).toFixed(2).replace('.', ',')}</span>
                               </span>
+                            ) : (
+                              `R$ ${item.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '0,00'}`
                             )}
-                          </div>
+                          </span>
+                          {item.isCombo && item.showSavings && item.savingsAmount && (
+                            <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
+                              -R${item.savingsAmount}
+                            </span>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
+              </div>
+            )}
+
+
+
+            {/* Empty State */}
+            {
+              activeCategory?.tipo !== 'especial' && activeCategory?.itens.length === 0 && (
+                <div className="text-center py-12">
+                  <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
+                  <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
+                  <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
+                  <button
+                    onClick={() => openItemModal()}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
+                  >
+                    Adicionar Produto
+                  </button>
                 </div>
-              )}
+              )
+            }
+          </div >
 
-
-
-              {/* Empty State */}
-              {
-                activeCategory?.tipo !== 'especial' && activeCategory?.itens.length === 0 && (
-                  <div className="text-center py-12">
-                    <ImageIcon size={64} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
-                    <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">Nenhum produto cadastrado</h3>
-                    <p className="text-sm text-slate-400 mb-4">Adicione produtos a esta categoria</p>
-                    <button
-                      onClick={() => openItemModal()}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
-                    >
-                      Adicionar Produto
-                    </button>
-                  </div>
-                )
-              }
-            </div >
-          )}
         </div >
       )}
 

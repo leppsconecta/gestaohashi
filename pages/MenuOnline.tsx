@@ -1141,6 +1141,20 @@ const MenuOnline: React.FC = () => {
                       {expandedItem.itemIndex + 1} / {categorias.find(c => c.id === expandedItem.categoryId)?.itens.filter(i => i.visivel !== false).length}
                     </div>
                   </div>
+
+                  {/* Rating Button */}
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductSelectForRating(currentItem);
+                      }}
+                      className="w-full py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-yellow-600 dark:hover:text-yellow-500 font-medium rounded-xl flex items-center justify-center gap-2 transition-all group"
+                    >
+                      <Star size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-yellow-500 transition-colors" />
+                      <span className="text-sm">Avalie este produto</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="max-h-32 overflow-y-auto">
