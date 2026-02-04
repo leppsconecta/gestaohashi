@@ -61,6 +61,7 @@ interface MenuItem {
   showSavings?: boolean;
   savingsAmount?: string;
   visivel?: boolean;
+  variacoes?: { nome: string; preco: string }[];
 }
 
 interface MenuCategory {
@@ -364,7 +365,8 @@ const MenuOnline: React.FC = () => {
                 quantidade: ci.quantidade,
                 unidade: ci.unidade as any,
                 foto: ci.foto_url
-              }))
+              })),
+            variacoes: p.variacoes ? p.variacoes.map((v: any) => ({ ...v, preco: Number(v.preco).toFixed(2).replace('.', ',') })) : []
           }))
       }));
 
@@ -871,7 +873,19 @@ const MenuOnline: React.FC = () => {
                   <h3 className="font-bold text-slate-800 text-sm truncate mb-1">{item.nome}</h3>
                   <p className="text-xs text-slate-500 line-clamp-2 mb-2 min-h-[32px]">{item.descricao}</p>
                   <div className="flex items-center justify-between">
-                    <span className={`text-lg font-black ${item.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {item.preco}</span>
+                    {item.variacoes && item.variacoes.length > 0 ? (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">A partir de</span>
+                        <span className={`text-lg font-black ${item.isCombo ? 'text-purple-600' : 'text-red-600'}`}>
+                          R$ {item.variacoes.reduce((min, v) => {
+                            const p = parseFloat(v.preco.replace(',', '.'));
+                            return p < min ? p : min;
+                          }, 99999).toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className={`text-lg font-black ${item.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {item.preco}</span>
+                    )}
                     {item.isCombo && item.comboItens && (
                       <span className="text-[10px] text-purple-500 bg-purple-100 px-2 py-0.5 rounded-full font-medium">
                         {item.comboItens.length} itens
@@ -1097,19 +1111,32 @@ const MenuOnline: React.FC = () => {
                     </div>
                   )}
 
+
                   <div className="flex items-end justify-between">
-                    <div>
-                      <span className={`text-3xl font-black ${currentItem.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {currentItem.preco}</span>
-                      {/* Savings Badge */}
-                      {currentItem.isCombo && currentItem.showSavings && currentItem.savingsAmount && (
-                        <div className="mt-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white text-xs font-bold rounded-full shadow-md">
-                            <Sparkles size={12} />
-                            Você economiza R$ {currentItem.savingsAmount}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    {currentItem.variacoes && currentItem.variacoes.length > 0 ? (
+                      <div className="space-y-2 mb-4">
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Opções:</p>
+                        {currentItem.variacoes.map((v, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="font-semibold text-slate-700">{v.nome}</span>
+                            <span className="font-black text-red-600 text-lg">R$ {v.preco}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div>
+                        <span className={`text-3xl font-black ${currentItem.isCombo ? 'text-purple-600' : 'text-red-600'}`}>R$ {currentItem.preco}</span>
+                        {/* Savings Badge */}
+                        {currentItem.isCombo && currentItem.showSavings && currentItem.savingsAmount && (
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white text-xs font-bold rounded-full shadow-md">
+                              <Sparkles size={12} />
+                              Você economiza R$ {currentItem.savingsAmount}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="text-xs text-slate-400">
                       {expandedItem.itemIndex + 1} / {categorias.find(c => c.id === expandedItem.categoryId)?.itens.filter(i => i.visivel !== false).length}
                     </div>
@@ -1136,52 +1163,53 @@ const MenuOnline: React.FC = () => {
       )}
 
       {/* Contact Modal */}
-      {/* Contact Modal */}
-      {showContactModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setShowContactModal(false)}
-        >
+      {
+        showContactModal && (
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative"
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setShowContactModal(false)}
           >
-            <button
-              onClick={() => setShowContactModal(false)}
-              className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative"
             >
-              <X size={20} />
-            </button>
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
+              >
+                <X size={20} />
+              </button>
 
-            <div className="pt-8 px-6 text-center">
-              <h2 className="text-xl font-bold text-slate-800">Fale Conosco</h2>
-              <p className="text-sm text-slate-500 mt-1 mb-6">Escolha uma opção</p>
-            </div>
+              <div className="pt-8 px-6 text-center">
+                <h2 className="text-xl font-bold text-slate-800">Fale Conosco</h2>
+                <p className="text-sm text-slate-500 mt-1 mb-6">Escolha uma opção</p>
+              </div>
 
-            <div className="p-6 pt-2 space-y-3">
-              {contactOptions.map((option, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    if (option.action === 'rate') {
-                      setShowContactModal(false);
-                      setShowRatingSearch(true);
-                    } else if (option.url) {
-                      window.open(option.url, '_blank');
-                    }
-                  }}
-                  className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl transition-all group"
-                >
-                  <div className={`w-10 h-10 ${option.color} rounded-xl flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}>
-                    <option.icon size={20} />
-                  </div>
-                  <span className="text-base font-bold text-slate-700">{option.label}</span>
-                </button>
-              ))}
+              <div className="p-6 pt-2 space-y-3">
+                {contactOptions.map((option, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (option.action === 'rate') {
+                        setShowContactModal(false);
+                        setShowRatingSearch(true);
+                      } else if (option.url) {
+                        window.open(option.url, '_blank');
+                      }
+                    }}
+                    className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl transition-all group"
+                  >
+                    <div className={`w-10 h-10 ${option.color} rounded-xl flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}>
+                      <option.icon size={20} />
+                    </div>
+                    <span className="text-base font-bold text-slate-700">{option.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
       <style>{`
@@ -1193,7 +1221,7 @@ const MenuOnline: React.FC = () => {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 
