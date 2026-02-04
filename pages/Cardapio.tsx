@@ -531,6 +531,7 @@ const CardapioPage: React.FC = () => {
             savingsAmount: p.savings_amount?.toString().replace('.', ',') || '',
             visivel: p.visivel ?? true,
             categoria_id: cat.id,
+            variacoes: p.variacoes ? p.variacoes.map((v: any) => ({ ...v, preco: Number(v.preco).toFixed(2).replace('.', ',') })) : [],
             comboItens: comboItemData
               .filter(ci => ci.combo_id === p.id)
               .map(ci => ({
@@ -2493,7 +2494,17 @@ const CardapioPage: React.FC = () => {
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                              R$ {item.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '0,00'}
+                              {item.variacoes && item.variacoes.length > 0 ? (
+                                <span className="flex flex-col">
+                                  <span className="text-[9px] text-slate-400 font-normal uppercase">A partir de</span>
+                                  <span>R$ {item.variacoes.reduce((min, v) => {
+                                    const p = parseFloat(String(v.preco).replace(',', '.'));
+                                    return p < min ? p : min;
+                                  }, 99999).toFixed(2).replace('.', ',')}</span>
+                                </span>
+                              ) : (
+                                `R$ ${item.preco ? parseFloat(String(item.preco).replace(',', '.')).toFixed(2).replace('.', ',') : '0,00'}`
+                              )}
                             </span>
                             {item.isCombo && item.showSavings && item.savingsAmount && (
                               <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">

@@ -1114,12 +1114,12 @@ const MenuOnline: React.FC = () => {
 
                   <div className="flex items-end justify-between">
                     {currentItem.variacoes && currentItem.variacoes.length > 0 ? (
-                      <div className="space-y-2 mb-4">
+                      <div className="space-y-2 mb-4 w-full flex-1">
                         <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Opções:</p>
                         {currentItem.variacoes.map((v, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                          <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 w-full gap-4">
                             <span className="font-semibold text-slate-700">{v.nome}</span>
-                            <span className="font-black text-red-600 text-lg">R$ {v.preco}</span>
+                            <span className="font-black text-red-600 text-lg whitespace-nowrap">R$ {v.preco}</span>
                           </div>
                         ))}
                       </div>
